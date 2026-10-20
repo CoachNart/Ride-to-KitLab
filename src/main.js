@@ -965,17 +965,22 @@ function placeAtPath(i, back) {
 /* ============================================================
    AUDIO
    ============================================================ */
-let AC = null, windGain = null, muted = false;
+let AC = null, windGain = null, sfxBus = null, muted = false;
 function audioInit() {
   try {
     if (!AC || AC.state === 'closed') {
       AC = new (window.AudioContext || window.webkitAudioContext)();
+      // Route effects through a limiter so layered sounds never clip the output.
+      const sfxComp = AC.createDynamicsCompressor();
+      sfxComp.threshold.value = -18; sfxComp.knee.value = 12; sfxComp.ratio.value = 8;
+      sfxComp.attack.value = 0.003; sfxComp.release.value = 0.18;
+      sfxBus = AC.createGain(); sfxBus.gain.value = 0.72; sfxBus.connect(sfxComp); sfxComp.connect(AC.destination);
       const len = AC.sampleRate * 2, buf = AC.createBuffer(1, len, AC.sampleRate), d = buf.getChannelData(0);
       for (let i = 0; i < len; i++) d[i] = Math.random() * 2 - 1;
       const src = AC.createBufferSource(); src.buffer = buf; src.loop = true;
       const f = AC.createBiquadFilter(); f.type = 'bandpass'; f.frequency.value = 600; f.Q.value = 0.6;
       windGain = AC.createGain(); windGain.gain.value = 0;
-      src.connect(f); f.connect(windGain); windGain.connect(AC.destination); src.start();
+      src.connect(f); f.connect(windGain); windGain.connect(sfxBus); src.start();
       Music.playing = false;
     }
     if (AC.state === 'suspended') {
@@ -990,7 +995,7 @@ function tone(freq, t0, dur, vol, type) {
   if (!AC || muted) return;
   const o = AC.createOscillator(), g = AC.createGain(); o.type = type || 'sine'; o.frequency.value = freq;
   const t = AC.currentTime + t0; g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(vol, t + 0.01); g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
-  o.connect(g); g.connect(AC.destination); o.start(t); o.stop(t + dur + 0.05);
+  o.connect(g); g.connect(sfxBus || AC.destination); o.start(t); o.stop(t + dur + 0.05);
 }
 function bellSound() {
   if (!AC || muted) return;
@@ -1000,15 +1005,15 @@ function bellSound() {
     const body = AC.createBiquadFilter(); body.type = 'bandpass'; body.frequency.value = 2850; body.Q.value = 1.8;
     const master = AC.createGain();
     master.gain.setValueAtTime(0.0001, t);
-    master.gain.exponentialRampToValueAtTime(0.24 * strength, t + 0.003);
+    master.gain.exponentialRampToValueAtTime(0.075 * strength, t + 0.004);
     master.gain.exponentialRampToValueAtTime(0.0001, t + 1.05);
-    body.connect(master); master.connect(AC.destination);
+    body.connect(master); master.connect(sfxBus || AC.destination);
     [[2180, 0.55, 0.72], [2760, 1, 1.05], [3470, 0.72, 0.82], [4210, 0.3, 0.58]].forEach(([hz, amp, decay]) => {
       const osc = AC.createOscillator(), gain = AC.createGain();
       osc.type = 'sine'; osc.frequency.setValueAtTime(hz, t);
       osc.frequency.exponentialRampToValueAtTime(hz * 0.996, t + decay);
       gain.gain.setValueAtTime(0.0001, t);
-      gain.gain.exponentialRampToValueAtTime(amp, t + 0.002);
+      gain.gain.exponentialRampToValueAtTime(amp * 0.28, t + 0.004);
       gain.gain.exponentialRampToValueAtTime(0.0001, t + decay);
       osc.connect(gain); gain.connect(body); osc.start(t); osc.stop(t + decay + 0.03);
     });
@@ -1017,8 +1022,8 @@ function bellSound() {
     for (let i = 0; i < clickLen; i++) data[i] = (Math.random() * 2 - 1) * (1 - i / clickLen);
     const click = AC.createBufferSource(), clickFilter = AC.createBiquadFilter(), clickGain = AC.createGain();
     click.buffer = buf; clickFilter.type = 'highpass'; clickFilter.frequency.value = 1800;
-    clickGain.gain.setValueAtTime(0.0001, t); clickGain.gain.exponentialRampToValueAtTime(0.14 * strength, t + 0.001); clickGain.gain.exponentialRampToValueAtTime(0.0001, t + 0.025);
-    click.connect(clickFilter); clickFilter.connect(clickGain); clickGain.connect(AC.destination); click.start(t);
+    clickGain.gain.setValueAtTime(0.0001, t); clickGain.gain.exponentialRampToValueAtTime(0.055 * strength, t + 0.002); clickGain.gain.exponentialRampToValueAtTime(0.0001, t + 0.025);
+    click.connect(clickFilter); clickFilter.connect(clickGain); clickGain.connect(sfxBus || AC.destination); click.start(t);
   };
   strike(0, 1); strike(0.115, 0.48);
 }
@@ -1030,7 +1035,7 @@ function noiseBurst(dur, vol, freq, type) {
   for (let i = 0; i < len; i++) d[i] = (Math.random() * 2 - 1) * (1 - i / len);
   const s = AC.createBufferSource(); s.buffer = b;
   const f = AC.createBiquadFilter(); f.type = type || 'lowpass'; f.frequency.value = freq;
-  const g = AC.createGain(); g.gain.value = vol; s.connect(f); f.connect(g); g.connect(AC.destination); s.start();
+  const g = AC.createGain(); g.gain.value = vol; s.connect(f); f.connect(g); g.connect(sfxBus || AC.destination); s.start();
 }
 function coinSound() { const b = 880 + Math.min(combo, 8) * 40; tone(b, 0, 0.12, 0.08, 'square'); tone(b * 1.5, 0.05, 0.18, 0.07, 'triangle'); }
 function crashSound() { noiseBurst(0.35, 0.5, 500, 'lowpass'); tone(70, 0, 0.3, 0.3, 'sawtooth'); }
