@@ -1416,7 +1416,7 @@ function drawMini() {
   x.clearRect(0, 0, W, Hh);
   if (zone === 0) {
     x.drawImage(miniBase, 0, 0);
-    for (let i = 0; i < 5; i++) { if (collected[i]) continue; const p = mm(shards[i].x, shards[i].z); x.fillStyle = SHARD_COL[i]; x.beginPath(); x.arc(p[0], p[1], 6, 0, 6.283); x.fill(); }
+    
     hazards.forEach(h => { if (h.broken) return; const p = mm(h.x, h.z); x.fillStyle = '#ff5a67'; x.fillRect(p[0] - 2, p[1] - 2, 4, 4); });
     const g = mm(GATE.x, GATE.z); x.strokeStyle = GATE.open ? '#19d3ea' : '#ff5a67'; x.lineWidth = 4; x.beginPath(); x.arc(g[0], g[1], 9, 0, 6.283); x.stroke();
     remotes.forEach(r => { if (!r.live || (r.state.zn | 0) !== 0) return; const p = mm(r.x, r.z); x.fillStyle = r.color; x.beginPath(); x.arc(p[0], p[1], 4.5, 0, 6.283); x.fill(); });
