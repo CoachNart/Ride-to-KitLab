@@ -967,16 +967,24 @@ function placeAtPath(i, back) {
    ============================================================ */
 let AC = null, windGain = null, muted = false;
 function audioInit() {
-  if (AC) return;
   try {
-    AC = new (window.AudioContext || window.webkitAudioContext)();
-    const len = AC.sampleRate * 2, buf = AC.createBuffer(1, len, AC.sampleRate), d = buf.getChannelData(0);
-    for (let i = 0; i < len; i++) d[i] = Math.random() * 2 - 1;
-    const src = AC.createBufferSource(); src.buffer = buf; src.loop = true;
-    const f = AC.createBiquadFilter(); f.type = 'bandpass'; f.frequency.value = 600; f.Q.value = 0.6;
-    windGain = AC.createGain(); windGain.gain.value = 0;
-    src.connect(f); f.connect(windGain); windGain.connect(AC.destination); src.start();
-  if (AC && AC.state === "suspended") AC.resume(); } catch (e) { AC = null; }
+    if (!AC || AC.state === 'closed') {
+      AC = new (window.AudioContext || window.webkitAudioContext)();
+      const len = AC.sampleRate * 2, buf = AC.createBuffer(1, len, AC.sampleRate), d = buf.getChannelData(0);
+      for (let i = 0; i < len; i++) d[i] = Math.random() * 2 - 1;
+      const src = AC.createBufferSource(); src.buffer = buf; src.loop = true;
+      const f = AC.createBiquadFilter(); f.type = 'bandpass'; f.frequency.value = 600; f.Q.value = 0.6;
+      windGain = AC.createGain(); windGain.gain.value = 0;
+      src.connect(f); f.connect(windGain); windGain.connect(AC.destination); src.start();
+      Music.playing = false;
+    }
+    if (AC.state === 'suspended') {
+      AC.resume().then(() => {
+        if (Music.playing) Music.next = AC.currentTime + 0.08;
+      }).catch(() => {});
+    }
+    return AC;
+  } catch (e) { return null; }
 }
 function tone(freq, t0, dur, vol, type) {
   if (!AC || muted) return;
@@ -984,7 +992,36 @@ function tone(freq, t0, dur, vol, type) {
   const t = AC.currentTime + t0; g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(vol, t + 0.01); g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
   o.connect(g); g.connect(AC.destination); o.start(t); o.stop(t + dur + 0.05);
 }
-function bellSound() { tone(1568, 0, 0.7, 0.18); tone(2093, 0, 0.5, 0.1); tone(1568, 0.16, 0.7, 0.16); }
+function bellSound() {
+  if (!AC || muted) return;
+  // Bright, metallic bicycle-bell strike: clustered inharmonic partials with a fast attack and a natural ringing decay.
+  const strike = (offset, strength) => {
+    const t = AC.currentTime + offset;
+    const body = AC.createBiquadFilter(); body.type = 'bandpass'; body.frequency.value = 2850; body.Q.value = 1.8;
+    const master = AC.createGain();
+    master.gain.setValueAtTime(0.0001, t);
+    master.gain.exponentialRampToValueAtTime(0.24 * strength, t + 0.003);
+    master.gain.exponentialRampToValueAtTime(0.0001, t + 1.05);
+    body.connect(master); master.connect(AC.destination);
+    [[2180, 0.55, 0.72], [2760, 1, 1.05], [3470, 0.72, 0.82], [4210, 0.3, 0.58]].forEach(([hz, amp, decay]) => {
+      const osc = AC.createOscillator(), gain = AC.createGain();
+      osc.type = 'sine'; osc.frequency.setValueAtTime(hz, t);
+      osc.frequency.exponentialRampToValueAtTime(hz * 0.996, t + decay);
+      gain.gain.setValueAtTime(0.0001, t);
+      gain.gain.exponentialRampToValueAtTime(amp, t + 0.002);
+      gain.gain.exponentialRampToValueAtTime(0.0001, t + decay);
+      osc.connect(gain); gain.connect(body); osc.start(t); osc.stop(t + decay + 0.03);
+    });
+    const clickLen = Math.max(1, Math.floor(AC.sampleRate * 0.018));
+    const buf = AC.createBuffer(1, clickLen, AC.sampleRate), data = buf.getChannelData(0);
+    for (let i = 0; i < clickLen; i++) data[i] = (Math.random() * 2 - 1) * (1 - i / clickLen);
+    const click = AC.createBufferSource(), clickFilter = AC.createBiquadFilter(), clickGain = AC.createGain();
+    click.buffer = buf; clickFilter.type = 'highpass'; clickFilter.frequency.value = 1800;
+    clickGain.gain.setValueAtTime(0.0001, t); clickGain.gain.exponentialRampToValueAtTime(0.14 * strength, t + 0.001); clickGain.gain.exponentialRampToValueAtTime(0.0001, t + 0.025);
+    click.connect(clickFilter); clickFilter.connect(clickGain); clickGain.connect(AC.destination); click.start(t);
+  };
+  strike(0, 1); strike(0.115, 0.48);
+}
 function chime() { [523, 659, 784, 1047].forEach((f, i) => tone(f, i * 0.09, 0.5, 0.16, 'triangle')); }
 function thump() { tone(90, 0, 0.18, 0.25, 'sine'); }
 function noiseBurst(dur, vol, freq, type) {
@@ -1109,9 +1146,19 @@ Music.tick = function () {
   }
 };
 Music.start = function () {
-  if (!AC || this.playing) return;
+  if (!AC) return;
+  if (this.playing) {
+    if (AC.state === 'suspended') AC.resume().then(() => { this.next = AC.currentTime + 0.08; }).catch(() => {});
+    return;
+  }
   this.init(); this.playing = true; this.next = AC.currentTime + 0.25;
-  this.timer = setInterval(() => this.tick(), 30);
+  if (this.timer) clearInterval(this.timer);
+  this.timer = setInterval(() => {
+    if (!AC || AC.state !== 'running') return;
+    // Recover cleanly after mobile tab suspension instead of trying to schedule notes in the past.
+    if (this.next < AC.currentTime - 0.15) this.next = AC.currentTime + 0.08;
+    this.tick();
+  }, 30);
 };
 Music.setOn = function (on) { this.on = on; if (this.mg && AC) this.mg.gain.setTargetAtTime(on ? 0.55 : 0, AC.currentTime, 0.1); };
 
@@ -1748,7 +1795,16 @@ window.addEventListener('resize', resize); resize();
 /* ============================================================
    UI WIRING
    ============================================================ */
-$('go').addEventListener('click', () => { if (ready) startRide(); });
+$('go').addEventListener('click', () => { audioInit(); if (ready) startRide(); });
+// Mobile browsers can suspend Web Audio when switching apps, locking the screen, or after inactivity.
+document.addEventListener('visibilitychange', () => {
+  if (!document.hidden && AC && AC.state === 'suspended') {
+    AC.resume().then(() => { if (Music.playing) Music.next = AC.currentTime + 0.08; }).catch(() => {});
+  }
+});
+window.addEventListener('pageshow', () => {
+  if (AC && AC.state === 'suspended') AC.resume().then(() => { if (Music.playing) Music.next = AC.currentTime + 0.08; }).catch(() => {});
+});
 $('mLater').addEventListener('click', () => closeModal(false));
 $('mTake').addEventListener('click', () => closeModal(true));
 $('bChat').addEventListener('click', () => $('emotes').classList.toggle('hide'));
