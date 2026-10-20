@@ -23,7 +23,7 @@ if (!window.storage) {
 const KITLAB_URL = '';
 
 const IS_TOUCH = (window.matchMedia && matchMedia('(pointer:coarse)').matches) || ('ontouchstart' in window);
-const SEED = 7731, HALF = 900, N = 320, CELL = (HALF * 2) / N, WATER = -5.5, PS = 760;
+const SEED = 7731, HALF = 1350, N = 320, CELL = (HALF * 2) / N, WATER = -5.5, PS = 1100;
 const SHARD_T = [0.12, 0.29, 0.46, 0.63, 0.80];
 const SHARD_COL = ['#19d3ea', '#ffc14d', '#ff5a67', '#4fdc86', '#8fe9f7'];
 const RIDER_PAL = ['#ff5a67', '#19d3ea', '#ffc14d', '#4fdc86', '#8fe9f7', '#ffd95e', '#ff8a5e', '#9be564'];
@@ -134,7 +134,7 @@ const hubGroup = new THREE.Group(); hubGroup.visible = false; scene.add(hubGroup
 /* ============================================================
    WORLD: path, heightfield, terrain
    ============================================================ */
-const CTRL = [[0, 300], [50, 255], [135, 215], [175, 140], [120, 60], [10, 25], [-110, -10], [-185, -85], [-160, -175], [-70, -225], [40, -250], [120, -295], [200, -335]];
+const CTRL = [[0, 300], [50, 255], [135, 215], [175, 140], [120, 60], [10, 25], [-110, -10], [-185, -85], [-160, -175], [-70, -225], [40, -250], [120, -295], [200, -335], [285, -365], [350, -315], [385, -225], [330, -145], [245, -105], [180, -35]];
 const curve = new THREE.CatmullRomCurve3(CTRL.map(p => new THREE.Vector3(p[0] * 1.7, 0, p[1] * 1.7)), false, 'centripetal');
 const PATH_LEN = curve.getLength();
 const pp = curve.getSpacedPoints(PS);
@@ -633,12 +633,12 @@ function buildQuest() {
     beam.position.y = 35; g.add(beam);
     const pad = new THREE.Mesh(new THREE.CircleGeometry(2.2, 28), new THREE.MeshBasicMaterial({ color: col, transparent: true, opacity: 0.35, blending: THREE.AdditiveBlending, depthWrite: false }));
     pad.rotation.x = -Math.PI / 2; pad.position.y = 0.14; g.add(pad);
-    worldGroup.add(g);
-    shards.push({ g, gem, ring, beam, pad, x, z, armed: true, phase: i * 1.3 });
+    g.visible = false;
+    shards.push({ g, gem, ring, beam, pad, x, z, armed: false, phase: i * 1.3 });
   }
   // gate
   const e = PS, gx = px[e], gz = pz[e], gy = terrainH(gx, gz);
-  GATE.x = gx; GATE.z = gz; GATE.y = gy; GATE.tx = tx[e]; GATE.tz = tz[e];
+  GATE.x = gx; GATE.z = gz; GATE.y = gy; GATE.tx = tx[e]; GATE.tz = tz[e]; GATE.open = true;
   const g = new THREE.Group(); g.position.set(gx, gy, gz); g.rotation.y = Math.atan2(tx[e], tz[e]); worldGroup.add(g); gateGroup = g;
   const stone = new THREE.MeshStandardMaterial({ color: 0x3d3672, roughness: 0.85 });
   const trim = new THREE.MeshBasicMaterial({ color: 0x5ef0d0 });
@@ -1518,7 +1518,7 @@ function enterHub() {
   });
 }
 async function showArrival() {
-  $('aSum').textContent = 'All five shards in ' + fmtTime(finishTime) + ', score ' + Math.floor(score).toLocaleString() + ', ' + coinsGot + ' tokens. Ride around the hub and stop at a pedestal to revisit its lesson.';
+  $('aSum').textContent = 'Ride completed in ' + fmtTime(finishTime) + ', score ' + Math.floor(score).toLocaleString() + ', ' + coinsGot + ' tokens. Ride around the hub and stop at a pedestal to revisit its lesson.';
   $('aOpen').classList.toggle('hide', !KITLAB_URL);
   $('aBoard').innerHTML = ''; $('arrive').classList.remove('hide'); modalOpen = true;
   renderBoard($('aBoard'), await loadBoard());
@@ -1544,7 +1544,7 @@ function startRide() {
   me.setName(myName); scene.add(me.root);
   $('menu').classList.add('hide'); $('hud').classList.remove('hide');
   started = true; placeAtPath(0, 0); buildPips(); updatePips(); buildEmotes(); score = 0; combo = 1; coinsGot = 0; countdown = 3.2;
-  toast('Follow the dirt road. Glowing shards mark each lesson.', 4200);
+  toast('Follow the extended dirt road. Visit the hub pedestals to explore each lesson.', 4200);
   netInit();
 }
 
@@ -1637,15 +1637,8 @@ function stepPlayer(dt) {
   P.lastGy = gy;
   if (P.y < -80 && zone === 0) backToRoad();
 
-  // shards and pedestal recaps
-  if (zone === 0 && !modalOpen) {
-    for (let i = 0; i < 5; i++) {
-      const s = shards[i]; if (collected[i]) continue;
-      const d2 = (P.x - s.x) * (P.x - s.x) + (P.z - s.z) * (P.z - s.z);
-      if (d2 > 144) s.armed = true;
-      if (s.armed && d2 < 36) { P.v *= 0.3; openLesson(i, 'quiz'); break; }
-    }
-  } else if (zone === 1 && !modalOpen) {
+  // Lessons are available at hub pedestals; no shard pickups interrupt the road ride.
+  if (zone === 1 && !modalOpen) {
     for (let i = 0; i < pedestals.length; i++) {
       const pd = pedestals[i]; if (pd.cool > 0) { pd.cool -= dt; continue; }
       const d2 = (P.x - pd.x) * (P.x - pd.x) + (P.z - pd.z) * (P.z - pd.z);
