@@ -608,8 +608,8 @@ function makeBike(frameHex, jerseyHex, helmetHex) {
   obj.setName = function (name) { if (obj.tag) root.remove(obj.tag); const t = makeLabel(name); t.position.y = 2.35; root.add(t); obj.tag = t; };
   obj.say = function (text) {
     if (obj.bubble) root.remove(obj.bubble);
-    const b = makeLabel(text, { w: 384, h: 72, px: 30, bg: 'rgba(241,251,253,0.96)', fg: '#041f29' });
-    b.scale.set(3.4, 0.64, 1); b.position.y = 2.95; root.add(b); obj.bubble = b; obj.bubbleT = 4;
+    const b = makeLabel(text, { w: 320, h: 64, px: 24, bg: 'rgba(5,25,34,0.94)', fg: '#e9fbff' });
+    b.scale.set(2.05, 0.42, 1); b.position.y = 2.82; root.add(b); obj.bubble = b; obj.bubbleT = 3.2;
   };
   return obj;
 }
@@ -1026,9 +1026,10 @@ const Music = { on: true, playing: false, mg: null, lp: null, bpm: 72, next: 0, 
 const LOFI_CHORDS = [[48,55,60,64,67],[45,52,57,60,64],[41,48,53,57,60],[43,50,55,59,62]];
 const midiHz = n => 440 * Math.pow(2, (n - 69) / 12);
 Music.init = function () {
-  if (!AC || this.mg) return;
-  this.lp = AC.createBiquadFilter(); this.lp.type = 'lowpass'; this.lp.frequency.value = 1850; this.lp.Q.value = 0.45;
-  this.mg = AC.createGain(); this.mg.gain.value = this.on ? 0.23 : 0;
+  if (!AC) return;
+  if (this.mg) { this.mg.gain.setTargetAtTime(this.on ? 0.72 : 0, AC.currentTime, 0.08); return; }
+  this.lp = AC.createBiquadFilter(); this.lp.type = 'lowpass'; this.lp.frequency.value = 2400; this.lp.Q.value = 0.55;
+  this.mg = AC.createGain(); this.mg.gain.value = this.on ? 0.72 : 0;
   this.lp.connect(this.mg); this.mg.connect(masterBus || AC.destination);
 };
 Music.note = function (midi, t, dur, level, kind) {
@@ -1043,7 +1044,7 @@ Music.note = function (midi, t, dur, level, kind) {
 Music.kick = function (t) {
   const o = AC.createOscillator(), g = AC.createGain(); o.type = 'sine';
   o.frequency.setValueAtTime(105, t); o.frequency.exponentialRampToValueAtTime(48, t + 0.12);
-  g.gain.setValueAtTime(0.0001, t); g.gain.linearRampToValueAtTime(0.055, t + 0.006); g.gain.exponentialRampToValueAtTime(0.0001, t + 0.18);
+  g.gain.setValueAtTime(0.0001, t); g.gain.linearRampToValueAtTime(0.085, t + 0.006); g.gain.exponentialRampToValueAtTime(0.0001, t + 0.18);
   o.connect(g); g.connect(this.lp); o.start(t); o.stop(t + 0.2);
 };
 Music.tick = function () {
@@ -1051,11 +1052,12 @@ Music.tick = function () {
   const beat = 60 / this.bpm;
   while (this.next < AC.currentTime + 0.12) {
     const t = this.next, step = this.step, chord = LOFI_CHORDS[this.bar % LOFI_CHORDS.length];
-    if (step === 0) chord.forEach((n, i) => this.note(n, t + i * 0.012, beat * 3.7, i === 0 ? 0.018 : 0.012, 'sine'));
-    if (step === 0 || step === 8) this.note(chord[0] - 12, t, beat * 1.2, 0.038, 'sine');
+    if (step === 0) chord.forEach((n, i) => this.note(n, t + i * 0.012, beat * 3.7, i === 0 ? 0.038 : 0.027, 'sine'));
+    if (step === 0 || step === 8) this.note(chord[0] - 12, t, beat * 1.2, 0.075, 'sine');
+    if (step === 2 || step === 10) this.note(chord[(this.bar + step / 8) % 3 + 1] + 12, t, beat * 0.6, 0.032, 'triangle');
     if (step === 4 || step === 12) this.kick(t);
-    if (step === 12) this.note(chord[2] + 12, t, beat * 0.7, 0.012, 'triangle');
-    if (step === 6 || step === 14) this.note(chord[step === 6 ? 2 : 3] + 12, t, beat * 0.45, 0.012, 'sine');
+    if (step === 12) this.note(chord[2] + 12, t, beat * 0.7, 0.028, 'triangle');
+    if (step === 6 || step === 14) this.note(chord[step === 6 ? 2 : 3] + 12, t, beat * 0.45, 0.024, 'sine');
     this.step++; this.next += beat / 4;
     if (this.step >= 16) { this.step = 0; this.bar++; }
   }
@@ -1063,20 +1065,27 @@ Music.tick = function () {
 Music.start = function () {
   if (!audioInit()) return;
   this.init();
-  if (AC.state === 'suspended') AC.resume().catch(() => {});
-  if (this.playing) { this.next = AC.currentTime + 0.08; return; }
-  this.playing = true; this.next = AC.currentTime + 0.12;
-  if (this.timer) clearInterval(this.timer);
-  this.timer = setInterval(() => {
+  const begin = () => {
     if (!AC || AC.state !== 'running') return;
-    if (this.next < AC.currentTime - 0.12) this.next = AC.currentTime + 0.04;
+    this.next = AC.currentTime + 0.06;
+    if (!this.playing) {
+      this.playing = true;
+      if (this.timer) clearInterval(this.timer);
+      this.timer = setInterval(() => {
+        if (!AC || AC.state !== 'running') return;
+        if (this.next < AC.currentTime - 0.12) this.next = AC.currentTime + 0.04;
+        this.tick();
+      }, 35);
+    }
     this.tick();
-  }, 40);
+  };
+  if (AC.state === 'suspended') AC.resume().then(begin).catch(() => {});
+  else begin();
 };
 Music.setOn = function (on) {
   this.on = !!on;
   if (AC) this.next = AC.currentTime + 0.08;
-  if (this.mg && AC) this.mg.gain.setTargetAtTime(this.on ? 0.23 : 0, AC.currentTime, 0.08);
+  if (this.mg && AC) this.mg.gain.setTargetAtTime(this.on ? 0.72 : 0, AC.currentTime, 0.08);
 };
 
 /* ============================================================
