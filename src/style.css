@@ -101,3 +101,13 @@ input[type=text]{width:100%;padding:11px 12px;border-radius:12px;border:1px soli
 #aBtns{display:flex;gap:8px;flex-wrap:wrap;margin-top:14px}
 @media (min-width:700px){#menu{align-items:center;padding-left:6vw}#modal{align-items:center}}
 @media (prefers-reduced-motion:reduce){#qarrow,#toast,#flash{transition:none}}
+
+/* Compact control dock: keep the rider's speech bubble and central play area clear. */
+#btnrow{width:auto;max-width:150px;gap:6px}
+#btnrow .sbtn{white-space:nowrap}
+@media(max-width:699px){
+  #tr{right:max(8px,env(safe-area-inset-right));top:max(8px,env(safe-area-inset-top));gap:5px}
+  #mini{width:68px;height:96px}
+  #btnrow{width:124px;display:flex;flex-direction:column;align-items:flex-end;gap:5px}
+  #btnrow .sbtn{padding:6px 9px;font-size:11px;line-height:1.1;background:rgba(4,31,41,.62)}
+}
