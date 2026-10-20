@@ -1,0 +1,89 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="theme-color" content="#041f29" />
+  <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover" />
+  <meta name="description" content="Ride through a 3D Web3 learning world. Collect knowledge shards, dodge obstacles, and reach KitLab." />
+  <title>Ride to KitLab</title>
+</head>
+<body>
+<canvas id="gl"></canvas>
+<div id="vig"></div>
+<div id="hit"></div>
+
+<div id="hud" class="hide">
+  <div id="quest" class="panel">
+    <div id="qrow"><span id="pips" style="display:flex;gap:6px"></span><span id="qtime">0:00</span></div>
+    <div id="qobj">
+      <svg id="qarrow" viewBox="0 0 24 24"><path d="M12 2 L20 20 L12 15 L4 20 Z" fill="#19d3ea"/></svg>
+      <span id="qtxt">Follow the road</span>
+    </div>
+    <div id="qscore"><b id="qsc">0</b><span id="qcombo"></span><span id="qcoin"></span></div>
+  </div>
+  <div id="tr">
+    <button id="status" class="panel" aria-label="Show riders"><i class="dot" id="sdot"></i><span id="sTxt">Connecting</span></button>
+    <canvas id="mini" width="168" height="236"></canvas>
+    <div id="btnrow">
+      <button class="sbtn" id="bChat">Chat</button>
+      <button class="sbtn" id="bCam">View</button>
+      <button class="sbtn" id="bBoard">Board</button>
+      <button class="sbtn" id="bMus">Music on</button>
+      <button class="sbtn" id="bSnd">Sound on</button>
+      <button class="sbtn" id="bBack">Back to road</button>
+    </div>
+  </div>
+  <div id="roster" class="panel hide"></div>
+  <div id="emotes" class="hide"></div>
+  <div id="speedo"><div id="spdTxt">0 km/h</div><div id="stam"><i id="stamI"></i></div></div>
+  <div id="toast" class="panel"></div>
+  <div id="pop"></div>
+  <div id="count" class="hide"></div>
+  <div id="touch">
+    <div id="padZone"></div>
+    <div id="pad" class="panel"><i id="knob"></i></div>
+    <button class="tb" id="tBrake">Brake</button>
+    <button class="tb" id="tBoost">Boost</button>
+    <button class="tb" id="tBell">Bell</button>
+    <button class="tb" id="tJump">Jump</button>
+  </div>
+</div>
+
+<div id="menu" class="ov">
+  <div id="menuCard" class="panel">
+    <h1>Ride to <span style="color:var(--portal)">Kitlab</span></h1>
+    <p>Five knowledge shards stand between you and Kitlab, a web3 learning world built by T3kit. Ride fast, dodge what is on the road, grab boost pads and tokens, answer each question, then ride through the gate.</p>
+    <label class="fld"><span>Rider name</span><input id="inName" type="text" maxlength="14" autocomplete="off"></label>
+    <label class="fld"><span>Room <small>Riders in the same room share the road.</small></span><input id="inRoom" type="text" maxlength="16" value="kitlab" autocomplete="off"></label>
+    <button id="go" class="btn primary" style="width:100%;padding:13px" disabled>Building the world...</button>
+    <div id="help"></div>
+  </div>
+</div>
+
+<div id="modal" class="ov hide">
+  <div id="mCard" class="panel">
+    <div id="mHead"><i id="mGem"></i><div><div id="mTitle"></div><div id="mStep"></div></div></div>
+    <p id="mBody"></p>
+    <div id="mQ"></div>
+    <div id="mOpts"></div>
+    <div id="mFb"></div>
+    <div id="mBtns"><button class="btn" id="mLater">Not now</button><button class="btn primary hide" id="mTake">Collect shard</button></div>
+  </div>
+</div>
+
+<div id="arrive" class="ov hide">
+  <div id="aCard" class="panel">
+    <h2>You're in Kitlab</h2>
+    <p id="aSum"></p>
+    <div id="aBoard"></div>
+    <div id="aBtns">
+      <button class="btn primary" id="aExplore">Explore the hub</button>
+      <button class="btn hide" id="aOpen">Open Kitlab</button>
+      <button class="btn" id="aAgain">Ride again</button>
+    </div>
+  </div>
+</div>
+<div id="flash"></div>
+  <script type="module" src="/src/main.js"></script>
+</body>
+</html>
