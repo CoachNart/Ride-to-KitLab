@@ -816,21 +816,30 @@ function updateDust(dt) {
   }
 }
 
+function wipeout(reason) {
+  if (wipeoutPending || !started) return;
+  wipeoutPending = true; combo = 1; shake = 0.85; hitFlash();
+  const lines = ['Oof! Back to the start 😵', 'The road won that round 😂', 'That was a committed tumble.', 'Resetting. We go again!'];
+  autoBubble(lines[Math.floor(Math.random() * lines.length)]);
+  crashSound(); toast((reason || 'Wipeout') + ' — starting over!', 1800);
+  flash(() => {});
+  setTimeout(() => {
+    if (!started) { wipeoutPending = false; return; }
+    $('modal').classList.add('hide'); $('arrive').classList.add('hide'); modalOpen = false;
+    resetRun(); P.stamina = 1; P.stuck = 0; wipeoutPending = false;
+    toast('Back at the start. One more try!', 2200);
+  }, 750);
+}
 function crash(h, dx, dz) {
-  P.inv = 1.0; P.stun = h.type === 'roller' ? 0.75 : 0.55; shake = 0.65; combo = 1; h.crashed = true;
-  hitFlash(); crashSound(); pop(CRASH_MSG[Math.floor(Math.random() * CRASH_MSG.length)], '#ff6b78');
+  if (wipeoutPending) return;
+  h.crashed = true; hitFlash(); pop(CRASH_MSG[Math.floor(Math.random() * CRASH_MSG.length)], '#ff6b78');
   if (h.breakable) {
-    P.v *= 0.5; h.broken = true; h.mesh.visible = false;
+    h.broken = true; h.mesh.visible = false;
     for (let i = 0; i < 8; i++) puff(h.x, P.y + 0.6, h.z, (Math.random() - 0.5) * 7, 2 + Math.random() * 3, (Math.random() - 0.5) * 7, 0.9, 0.9, h.type === 'crate' ? 0xb07a3e : 0xc4552d);
-  } else {
-    P.v *= 0.2;
-    if (h.type === 'log') { const s = (h._q || 1) >= 0 ? 1 : -1; P.x += h._qx * s * 0.9; P.z += h._qz * s * 0.9; }
-    else { const d = Math.hypot(dx, dz) || 1, push = h.r + 0.6 - d; P.x += dx / d * push; P.z += dz / d * push; }
   }
+  wipeout('Obstacle collision');
 }
-function treeCrash() {
-  P.inv = 0.8; P.stun = 0.5; P.v *= 0.25; shake = 0.6; combo = 1; hitFlash(); crashSound(); pop('Tree!', '#ff6b78');
-}
+function treeCrash() { if (wipeoutPending) return; hitFlash(); pop('Tree!', '#ff6b78'); wipeout('Tree collision'); }
 function closeCall() { combo = Math.min(8, combo + 1); const pts = 20 * combo; score += pts; pop('Close call +' + pts, '#ffc14d'); whoosh(); }
 function cleanJump() { combo = Math.min(8, combo + 1); const pts = 30 * combo; score += pts; pop('Clean jump +' + pts, '#6be59a'); chime(); }
 
@@ -951,9 +960,8 @@ let ready = false, started = false, modalOpen = false, modalIdx = -1, modalMode 
 let zone = 0, finished = false, finishTime = 0, runTime = 0;
 const collected = [false, false, false, false, false]; let collectedCount = 0;
 const P = { x: 0, z: 0, y: 0, yaw: 0, v: 0, steerAng: 0, lean: 0, vy: 0, grounded: true, pitch: 0, stamina: 1, pathIdx: 0, lastGy: 0, stun: 0, inv: 0, padT: 0, mud: 0, jumpCd: 0, stuck: 0 };
-let camYaw = 0, camMode = 0, shake = 0, menuAng = 0, myName = 'Rider', myColor = 0, myId = '', myRoom = 'kitlab', usedKeyboard = false, lastGateMsg = 0;
+let camYaw = 0, camMode = 0, shake = 0, menuAng = 0, myName = 'Rider', myColor = 0, myId = '', myRoom = 'kitlab', usedKeyboard = false, lastGateMsg = 0, wipeoutPending = false, lastSocialAt = 0;
 let me = null;
-const emote = { text: '', t: 0 };
 const keys = {}, touch = { steer: 0, brake: false, boost: false, jump: false };
 
 function placeAtPath(i, back) {
@@ -965,210 +973,110 @@ function placeAtPath(i, back) {
 /* ============================================================
    AUDIO
    ============================================================ */
-let AC = null, windGain = null, sfxBus = null, masterBus = null, muted = false;
+let AC = null, masterBus = null, sfxBus = null, muted = false;
 function audioInit() {
   try {
     if (!AC || AC.state === 'closed') {
       AC = new (window.AudioContext || window.webkitAudioContext)();
-      // Route effects through a limiter so layered sounds never clip the output.
-      masterBus = AC.createGain(); masterBus.gain.value = 0.82;
-      const masterComp = AC.createDynamicsCompressor(); masterComp.threshold.value = -16; masterComp.knee.value = 10; masterComp.ratio.value = 10; masterComp.attack.value = 0.003; masterComp.release.value = 0.25;
-      masterBus.connect(masterComp); masterComp.connect(AC.destination);
-      const sfxComp = AC.createDynamicsCompressor(); sfxComp.threshold.value = -20; sfxComp.knee.value = 12; sfxComp.ratio.value = 8;
-      sfxComp.attack.value = 0.004; sfxComp.release.value = 0.2;
-      sfxBus = AC.createGain(); sfxBus.gain.value = 0.55; sfxBus.connect(sfxComp); sfxComp.connect(masterBus);
-      const len = AC.sampleRate * 2, buf = AC.createBuffer(1, len, AC.sampleRate), d = buf.getChannelData(0);
-      for (let i = 0; i < len; i++) d[i] = Math.random() * 2 - 1;
-      const src = AC.createBufferSource(); src.buffer = buf; src.loop = true;
-      const f = AC.createBiquadFilter(); f.type = 'bandpass'; f.frequency.value = 600; f.Q.value = 0.6;
-      windGain = AC.createGain(); windGain.gain.value = 0;
-      src.connect(f); f.connect(windGain); windGain.connect(sfxBus); src.start();
+      masterBus = AC.createGain(); masterBus.gain.value = 0.58; masterBus.connect(AC.destination);
+      sfxBus = AC.createGain(); sfxBus.gain.value = 0.62; sfxBus.connect(masterBus);
       Music.playing = false;
     }
-    if (AC.state === 'suspended') {
-      AC.resume().then(() => {
-        if (Music.playing) Music.next = AC.currentTime + 0.08;
-      }).catch(() => {});
-    }
+    if (AC.state === 'suspended') AC.resume().catch(() => {});
     return AC;
   } catch (e) { return null; }
 }
 function tone(freq, t0, dur, vol, type) {
   if (!AC || muted) return;
-  const o = AC.createOscillator(), g = AC.createGain(); o.type = type || 'sine'; o.frequency.value = freq;
-  const t = AC.currentTime + t0; g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(vol, t + 0.01); g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
-  o.connect(g); g.connect(sfxBus || AC.destination); o.start(t); o.stop(t + dur + 0.05);
+  const t = AC.currentTime + t0, osc = AC.createOscillator(), gain = AC.createGain();
+  osc.type = type || 'sine'; osc.frequency.setValueAtTime(freq, t);
+  gain.gain.setValueAtTime(0.0001, t); gain.gain.linearRampToValueAtTime(Math.max(0.0002, vol), t + 0.012);
+  gain.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+  osc.connect(gain); gain.connect(sfxBus || masterBus); osc.start(t); osc.stop(t + dur + 0.025);
 }
 function bellSound() {
   if (!AC || muted) return;
-  // Bright, metallic bicycle-bell strike: clustered inharmonic partials with a fast attack and a natural ringing decay.
-  const strike = (offset, strength) => {
-    const t = AC.currentTime + offset;
-    const body = AC.createBiquadFilter(); body.type = 'bandpass'; body.frequency.value = 2850; body.Q.value = 1.8;
-    const master = AC.createGain();
-    master.gain.setValueAtTime(0.0001, t);
-    master.gain.exponentialRampToValueAtTime(0.075 * strength, t + 0.004);
-    master.gain.exponentialRampToValueAtTime(0.0001, t + 1.05);
-    body.connect(master); master.connect(sfxBus || AC.destination);
-    [[2180, 0.55, 0.72], [2760, 1, 1.05], [3470, 0.72, 0.82], [4210, 0.3, 0.58]].forEach(([hz, amp, decay]) => {
-      const osc = AC.createOscillator(), gain = AC.createGain();
-      osc.type = 'sine'; osc.frequency.setValueAtTime(hz, t);
-      osc.frequency.exponentialRampToValueAtTime(hz * 0.996, t + decay);
-      gain.gain.setValueAtTime(0.0001, t);
-      gain.gain.exponentialRampToValueAtTime(amp * 0.28, t + 0.004);
-      gain.gain.exponentialRampToValueAtTime(0.0001, t + decay);
-      osc.connect(gain); gain.connect(body); osc.start(t); osc.stop(t + decay + 0.03);
-    });
-    const clickLen = Math.max(1, Math.floor(AC.sampleRate * 0.018));
-    const buf = AC.createBuffer(1, clickLen, AC.sampleRate), data = buf.getChannelData(0);
-    for (let i = 0; i < clickLen; i++) data[i] = (Math.random() * 2 - 1) * (1 - i / clickLen);
-    const click = AC.createBufferSource(), clickFilter = AC.createBiquadFilter(), clickGain = AC.createGain();
-    click.buffer = buf; clickFilter.type = 'highpass'; clickFilter.frequency.value = 1800;
-    clickGain.gain.setValueAtTime(0.0001, t); clickGain.gain.exponentialRampToValueAtTime(0.055 * strength, t + 0.002); clickGain.gain.exponentialRampToValueAtTime(0.0001, t + 0.025);
-    click.connect(clickFilter); clickFilter.connect(clickGain); clickGain.connect(sfxBus || AC.destination); click.start(t);
-  };
-  strike(0, 1); strike(0.115, 0.48);
+  const t = AC.currentTime + 0.005;
+  // A tiny mechanical strike plus inharmonic metal resonances for a bicycle bell.
+  const clickLen = Math.max(1, Math.floor(AC.sampleRate * 0.012));
+  const clickBuffer = AC.createBuffer(1, clickLen, AC.sampleRate), data = clickBuffer.getChannelData(0);
+  for (let i = 0; i < clickLen; i++) data[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / clickLen, 2);
+  const click = AC.createBufferSource(), clickFilter = AC.createBiquadFilter(), clickGain = AC.createGain();
+  click.buffer = clickBuffer; clickFilter.type = 'highpass'; clickFilter.frequency.value = 2100;
+  clickGain.gain.setValueAtTime(0.0001, t); clickGain.gain.linearRampToValueAtTime(0.055, t + 0.0015);
+  clickGain.gain.exponentialRampToValueAtTime(0.0001, t + 0.018);
+  click.connect(clickFilter); clickFilter.connect(clickGain); clickGain.connect(sfxBus || masterBus); click.start(t);
+  [[2210, 0.11, 1.15], [2785, 0.16, 1.45], [3510, 0.075, 1.0], [4270, 0.035, 0.72]].forEach(([hz, level, decay]) => {
+    const osc = AC.createOscillator(), gain = AC.createGain(), filter = AC.createBiquadFilter();
+    osc.type = 'sine'; osc.frequency.setValueAtTime(hz, t); osc.frequency.exponentialRampToValueAtTime(hz * 0.998, t + decay);
+    filter.type = 'lowpass'; filter.frequency.value = 5200;
+    gain.gain.setValueAtTime(0.0001, t); gain.gain.linearRampToValueAtTime(level, t + 0.003);
+    gain.gain.exponentialRampToValueAtTime(0.0001, t + decay);
+    osc.connect(filter); filter.connect(gain); gain.connect(sfxBus || masterBus); osc.start(t); osc.stop(t + decay + 0.035);
+  });
 }
-function chime() { [523, 659, 784, 1047].forEach((f, i) => tone(f, i * 0.09, 0.5, 0.16, 'triangle')); }
-function thump() { tone(90, 0, 0.18, 0.25, 'sine'); }
-function noiseBurst(dur, vol, freq, type) {
-  if (!AC || muted) return;
-  const len = Math.floor(AC.sampleRate * dur), b = AC.createBuffer(1, len, AC.sampleRate), d = b.getChannelData(0);
-  for (let i = 0; i < len; i++) d[i] = (Math.random() * 2 - 1) * (1 - i / len);
-  const s = AC.createBufferSource(); s.buffer = b;
-  const f = AC.createBiquadFilter(); f.type = type || 'lowpass'; f.frequency.value = freq;
-  const g = AC.createGain(); g.gain.value = vol; s.connect(f); f.connect(g); g.connect(sfxBus || AC.destination); s.start();
-}
-function coinSound() { const b = 880 + Math.min(combo, 8) * 40; tone(b, 0, 0.12, 0.08, 'square'); tone(b * 1.5, 0.05, 0.18, 0.07, 'triangle'); }
-function crashSound() { noiseBurst(0.35, 0.5, 500, 'lowpass'); tone(70, 0, 0.3, 0.3, 'sawtooth'); }
-function whoosh() { noiseBurst(0.6, 0.18, 1800, 'bandpass'); }
+function chime() { if (!AC || muted) return; [523.25, 659.25, 783.99].forEach((f, i) => tone(f, i * 0.075, 0.28, 0.045, 'sine')); }
+function thump() { if (!AC || muted) return; tone(78, 0, 0.11, 0.065, 'sine'); }
+function coinSound() { if (!AC || muted) return; tone(1046, 0, 0.09, 0.035, 'sine'); tone(1568, 0.045, 0.14, 0.025, 'sine'); }
+function crashSound() { if (!AC || muted) return; tone(92, 0, 0.16, 0.08, 'triangle'); tone(58, 0.025, 0.22, 0.055, 'sine'); }
+function whoosh() { if (!AC || muted) return; tone(330, 0, 0.12, 0.018, 'triangle'); }
 
-/* ---------- generative lofi soundtrack ---------- */
-const Music = { on: true, playing: false, mg: null, lp: null, inBus: null, send: null, nb: null, bpm: 78, next: 0, step: 0, bar: 0, timer: null, mood: 0, mi: 4 };
-const MPROG = [
-  { b: 38, c: [53, 57, 60, 64] }, { b: 43, c: [53, 59, 62, 64] }, { b: 48, c: [52, 55, 59, 62] }, { b: 45, c: [55, 59, 60, 64] },
-  { b: 41, c: [55, 57, 60, 64] }, { b: 40, c: [55, 59, 62, 66] }, { b: 38, c: [53, 57, 60, 64] }, { b: 43, c: [53, 59, 62, 64] }
-];
-const MSCALE = [62, 65, 67, 69, 72, 74, 77, 79, 81, 84];
-const mtof = m => 440 * Math.pow(2, (m - 69) / 12);
-
+/* ---------- fresh, gentle generative lofi ---------- */
+const Music = { on: true, playing: false, mg: null, lp: null, bpm: 72, next: 0, step: 0, bar: 0, timer: null, mood: 0 };
+const LOFI_CHORDS = [[48,55,60,64,67],[45,52,57,60,64],[41,48,53,57,60],[43,50,55,59,62]];
+const midiHz = n => 440 * Math.pow(2, (n - 69) / 12);
 Music.init = function () {
-  const ctx = AC;
-  const comp = ctx.createDynamicsCompressor(); comp.threshold.value = -18; comp.knee.value = 12; comp.ratio.value = 8; comp.attack.value = 0.004; comp.release.value = 0.22; comp.connect(masterBus || ctx.destination);
-  this.mg = ctx.createGain(); this.mg.gain.value = this.on ? 0.55 : 0; this.mg.connect(comp);
-  this.lp = ctx.createBiquadFilter(); this.lp.type = 'lowpass'; this.lp.frequency.value = 2600; this.lp.Q.value = 0.5; this.lp.connect(this.mg);
-  this.inBus = ctx.createGain(); this.inBus.connect(this.lp);
-  const len = Math.floor(ctx.sampleRate * 2.6), imp = ctx.createBuffer(2, len, ctx.sampleRate);
-  for (let ch = 0; ch < 2; ch++) { const d = imp.getChannelData(ch); for (let i = 0; i < len; i++) d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / len, 2.6); }
-  const conv = ctx.createConvolver(); conv.buffer = imp;
-  const rg = ctx.createGain(); rg.gain.value = 0.42; conv.connect(rg); rg.connect(this.lp);
-  this.send = ctx.createGain(); this.send.connect(conv);
-  const dl = ctx.createDelay(1.0); dl.delayTime.value = 60 / this.bpm * 0.75;
-  const fb = ctx.createGain(); fb.gain.value = 0.38;
-  const dlp = ctx.createBiquadFilter();
-  dlp.type = 'lowpass'; dlp.frequency.value = 1700;
-  const dg = ctx.createGain(); dg.gain.value = 0.5;
-  this.send.connect(dl); dl.connect(dlp); dlp.connect(fb); fb.connect(dl); dlp.connect(dg); dg.connect(this.lp);
-  const nl = ctx.sampleRate, nbuf = ctx.createBuffer(1, nl, ctx.sampleRate), nd = nbuf.getChannelData(0);
-  for (let i = 0; i < nl; i++) nd[i] = Math.random() * 2 - 1;
-  this.nb = nbuf;
-  // vinyl hiss bed
-  const hs = ctx.createBufferSource(); hs.buffer = nbuf; hs.loop = true;
-  const hf = ctx.createBiquadFilter(); hf.type = 'highpass'; hf.frequency.value = 1500;
-  const hg = ctx.createGain(); hg.gain.value = 0.012; hs.connect(hf); hf.connect(hg); hg.connect(this.mg); hs.start();
+  if (!AC || this.mg) return;
+  this.lp = AC.createBiquadFilter(); this.lp.type = 'lowpass'; this.lp.frequency.value = 1850; this.lp.Q.value = 0.45;
+  this.mg = AC.createGain(); this.mg.gain.value = this.on ? 0.23 : 0;
+  this.lp.connect(this.mg); this.mg.connect(masterBus || AC.destination);
 };
-Music.note = function (m, t, dur, vel, opt) {
-  const ctx = AC, f = mtof(m) * Math.pow(2, (Math.random() - 0.5) * 8 / 1200);
-  const g = ctx.createGain(), o1 = ctx.createOscillator(), o2 = ctx.createOscillator(), o3 = ctx.createOscillator();
-  o1.type = 'sine'; o1.frequency.value = f; o2.type = 'sine'; o2.frequency.value = f * 2; o3.type = 'triangle'; o3.frequency.value = f * 1.004;
-  const g2 = ctx.createGain(); g2.gain.value = 0.22; const g3 = ctx.createGain(); g3.gain.value = 0.35;
-  o1.connect(g); o2.connect(g2); g2.connect(g); o3.connect(g3); g3.connect(g);
-  g.gain.setValueAtTime(0.0001, t); g.gain.linearRampToValueAtTime(vel, t + 0.012);
-  g.gain.exponentialRampToValueAtTime(Math.max(vel * 0.3, 0.0002), t + 0.4); g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
-  g.connect(this.inBus); const s = ctx.createGain(); s.gain.value = (opt && opt.send) || 0.35; g.connect(s); s.connect(this.send);
-  const e = t + dur + 0.1; o1.start(t); o2.start(t); o3.start(t); o1.stop(e); o2.stop(e); o3.stop(e);
+Music.note = function (midi, t, dur, level, kind) {
+  if (!AC || !this.lp) return;
+  const osc = AC.createOscillator(), gain = AC.createGain();
+  osc.type = kind || 'triangle'; osc.frequency.value = midiHz(midi) * (1 + (Math.random() - 0.5) * 0.0015);
+  gain.gain.setValueAtTime(0.0001, t); gain.gain.linearRampToValueAtTime(level, t + 0.025);
+  gain.gain.setTargetAtTime(level * 0.45, t + 0.03, 0.22);
+  gain.gain.setTargetAtTime(0.0001, t + Math.max(0.08, dur - 0.18), 0.12);
+  osc.connect(gain); gain.connect(this.lp); osc.start(t); osc.stop(t + dur + 0.12);
 };
-Music.pad = function (m, t, dur, vel) {
-  const ctx = AC, f = mtof(m), g = ctx.createGain(), lp = ctx.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 650;
-  const o1 = ctx.createOscillator(), o2 = ctx.createOscillator(); o1.type = o2.type = 'sawtooth'; o1.frequency.value = f; o2.frequency.value = f * 1.0045;
-  o1.connect(lp); o2.connect(lp); lp.connect(g);
-  g.gain.setValueAtTime(0.0001, t); g.gain.linearRampToValueAtTime(vel, t + 0.7); g.gain.linearRampToValueAtTime(vel * 0.7, t + dur - 0.8); g.gain.linearRampToValueAtTime(0.0001, t + dur);
-  g.connect(this.inBus); const s = ctx.createGain(); s.gain.value = 0.5; g.connect(s); s.connect(this.send);
-  o1.start(t); o2.start(t); o1.stop(t + dur + 0.1); o2.stop(t + dur + 0.1);
-};
-Music.bass = function (m, t, dur, vel) {
-  const ctx = AC, f = mtof(m), g = ctx.createGain(), lp = ctx.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 420;
-  const o = ctx.createOscillator(), o2 = ctx.createOscillator(); o.type = 'sine'; o.frequency.value = f; o2.type = 'triangle'; o2.frequency.value = f * 2;
-  const g2 = ctx.createGain(); g2.gain.value = 0.25; o.connect(lp); o2.connect(g2); g2.connect(lp); lp.connect(g);
-  g.gain.setValueAtTime(0.0001, t); g.gain.linearRampToValueAtTime(vel, t + 0.015); g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
-  g.connect(this.inBus); o.start(t); o2.start(t); o.stop(t + dur + 0.05); o2.stop(t + dur + 0.05);
-};
-Music.kick = function (t, v) {
+Music.kick = function (t) {
   const o = AC.createOscillator(), g = AC.createGain(); o.type = 'sine';
-  o.frequency.setValueAtTime(125, t); o.frequency.exponentialRampToValueAtTime(42, t + 0.13);
-  g.gain.setValueAtTime(0.0001, t); g.gain.linearRampToValueAtTime(0.5 * v, t + 0.005); g.gain.exponentialRampToValueAtTime(0.0001, t + 0.32);
-  o.connect(g); g.connect(this.inBus); o.start(t); o.stop(t + 0.35);
-};
-Music.noiseHit = function (t, dur, freq, type, vol, send) {
-  const s = AC.createBufferSource(); s.buffer = this.nb; const f = AC.createBiquadFilter(); f.type = type; f.frequency.value = freq; f.Q.value = 0.7;
-  const g = AC.createGain(); g.gain.setValueAtTime(0.0001, t); g.gain.linearRampToValueAtTime(vol, t + 0.003); g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
-  s.connect(f); f.connect(g); g.connect(this.inBus);
-  if (send) { const sg = AC.createGain(); sg.gain.value = send; g.connect(sg); sg.connect(this.send); }
-  s.start(t, Math.random() * 0.5); s.stop(t + dur + 0.05);
-};
-Music.snare = function (t, v) { this.noiseHit(t, 0.2, 1700, 'bandpass', 0.26 * v, 0.2); const o = AC.createOscillator(), g = AC.createGain(); o.type = 'sine'; o.frequency.value = 185; g.gain.setValueAtTime(0.12 * v, t); g.gain.exponentialRampToValueAtTime(0.0001, t + 0.1); o.connect(g); g.connect(this.inBus); o.start(t); o.stop(t + 0.12); };
-Music.hat = function (t, v, open) { this.noiseHit(t, open ? 0.16 : 0.04, 7500, 'highpass', v * 0.5, 0); };
-Music.pop = function (t) { this.noiseHit(t, 0.006, 1500, 'highpass', 0.08, 0); };
-
-Music.sched = function (step, t, bar) {
-  const ch = MPROG[bar % 8], r = Math.random;
-  if (step === 0) {
-    ch.c.forEach((m, i) => this.note(m, t + i * 0.012, 2.8, 0.05));
-    this.pad(ch.c[0] - 12, t, 3.4, 0.03); this.pad(ch.c[2] - 12, t, 3.4, 0.025);
-    this.bass(ch.b, t, 1.2, 0.28);
-  }
-  if ((step === 6 || step === 10) && r() < 0.55) ch.c.slice(1).forEach((m, i) => this.note(m, t + i * 0.01, 0.55, 0.03));
-  if (step === 7 && r() < 0.6) this.bass(ch.b + 7, t, 0.5, 0.2);
-  if (step === 10 && r() < 0.5) this.bass(ch.b + 12, t, 0.4, 0.15);
-  if (step === 14 && r() < 0.35) this.bass(ch.b + 5, t, 0.3, 0.13);
-  if (step === 0 || (step === 7 && r() < 0.5) || (step === 10 && r() < 0.6)) this.kick(t, step === 0 ? 0.9 : 0.6);
-  if (step === 4 || step === 12) this.snare(t, 0.5);
-  if (step % 2 === 0) this.hat(t, 0.1 + r() * 0.08, false); else if (r() < 0.3) this.hat(t, 0.06, false);
-  if (step === 14 && r() < 0.3) this.hat(t, 0.12, true);
-  const mp = this.mood ? 0.3 : 0.17;
-  if (step % 2 === 0 && bar % 4 !== 0 && r() < mp) {
-    const d = [-2, -1, 0, 1, 2][Math.floor(r() * 5)]; this.mi = clamp(this.mi + d, 0, MSCALE.length - 1);
-    this.note(MSCALE[this.mi], t, 1.1, 0.045, { send: 0.7 });
-  }
-  if (this.mood && (step === 3 || step === 11) && r() < 0.5) this.note(MSCALE[Math.floor(r() * 5)] + 12, t, 0.9, 0.025, { send: 0.8 });
-  if (r() < 0.1) this.pop(t + r() * 0.15);
+  o.frequency.setValueAtTime(105, t); o.frequency.exponentialRampToValueAtTime(48, t + 0.12);
+  g.gain.setValueAtTime(0.0001, t); g.gain.linearRampToValueAtTime(0.055, t + 0.006); g.gain.exponentialRampToValueAtTime(0.0001, t + 0.18);
+  o.connect(g); g.connect(this.lp); o.start(t); o.stop(t + 0.2);
 };
 Music.tick = function () {
-  if (!AC) return;
-  const s16 = 60 / this.bpm / 4;
-  while (this.next < AC.currentTime + 0.2) {
-    this.sched(this.step, this.next, this.bar);
-    this.next += s16 * (this.step % 2 === 0 ? 1.18 : 0.82);
-    this.step++; if (this.step >= 16) { this.step = 0; this.bar++; }
+  if (!AC || !this.lp || !this.on) return;
+  const beat = 60 / this.bpm;
+  while (this.next < AC.currentTime + 0.12) {
+    const t = this.next, step = this.step, chord = LOFI_CHORDS[this.bar % LOFI_CHORDS.length];
+    if (step === 0) chord.forEach((n, i) => this.note(n, t + i * 0.012, beat * 3.7, i === 0 ? 0.018 : 0.012, 'sine'));
+    if (step === 0 || step === 8) this.note(chord[0] - 12, t, beat * 1.2, 0.038, 'sine');
+    if (step === 4 || step === 12) this.kick(t);
+    if (step === 12) this.note(chord[2] + 12, t, beat * 0.7, 0.012, 'triangle');
+    if (step === 6 || step === 14) this.note(chord[step === 6 ? 2 : 3] + 12, t, beat * 0.45, 0.012, 'sine');
+    this.step++; this.next += beat / 4;
+    if (this.step >= 16) { this.step = 0; this.bar++; }
   }
 };
 Music.start = function () {
-  if (!AC) return;
-  if (this.playing) {
-    if (AC.state === 'suspended') AC.resume().then(() => { this.next = AC.currentTime + 0.08; }).catch(() => {});
-    return;
-  }
-  this.init(); this.playing = true; this.next = AC.currentTime + 0.25;
+  if (!audioInit()) return;
+  this.init();
+  if (AC.state === 'suspended') AC.resume().catch(() => {});
+  if (this.playing) { this.next = AC.currentTime + 0.08; return; }
+  this.playing = true; this.next = AC.currentTime + 0.12;
   if (this.timer) clearInterval(this.timer);
   this.timer = setInterval(() => {
     if (!AC || AC.state !== 'running') return;
-    // Recover cleanly after mobile tab suspension instead of trying to schedule notes in the past.
-    if (this.next < AC.currentTime - 0.15) this.next = AC.currentTime + 0.08;
+    if (this.next < AC.currentTime - 0.12) this.next = AC.currentTime + 0.04;
     this.tick();
-  }, 30);
+  }, 40);
 };
-Music.setOn = function (on) { this.on = on; if (this.mg && AC) this.mg.gain.setTargetAtTime(on ? 0.55 : 0, AC.currentTime, 0.1); };
-
+Music.setOn = function (on) {
+  this.on = !!on;
+  if (this.mg && AC) this.mg.gain.setTargetAtTime(this.on ? 0.23 : 0, AC.currentTime, 0.08);
+};
 
 /* ============================================================
    UI HELPERS
@@ -1235,14 +1143,14 @@ function collectShard(i) {
   if (collectedCount === 5) setGateOpen(true);
 }
 
-/* ---- emotes ---- */
-const EMOTES = ['Hi!', 'Race you!', 'Nice ride', 'Wait up', 'On my way'];
-function buildEmotes() {
-  const e = $('emotes'); e.innerHTML = '';
-  EMOTES.forEach(t => { const b = document.createElement('button'); b.className = 'sbtn'; b.textContent = t; b.addEventListener('click', () => sendEmote(t)); e.appendChild(b); });
+/* ---- automatic rider chatter ---- */
+const emote = { text: '', t: 0 };
+const socialSeen = new Map();
+function autoBubble(text) {
+  if (!started || !me) return;
+  emote.text = text; emote.t = Date.now(); me.say(text); netSendNow();
 }
-function sendEmote(t) { emote.text = t; emote.t = Date.now(); me.say(t); $('emotes').classList.add('hide'); netSendNow(); }
-function ringBell() { bellSound(); if (started) { emote.text = 'Ring ring!'; emote.t = Date.now(); me.say('Ring ring!'); netSendNow(); } }
+function ringBell() { bellSound(); }
 
 /* ============================================================
    MULTIPLAYER (shared artifact storage, polled)
@@ -1351,6 +1259,14 @@ function updateRemotes(dt) {
     root.rotation.y = r.yaw; root.rotation.x = -Math.atan2(gF - gR, 1.1); root.rotation.z = -(s.l || 0);
     r.bike.pose(dt, s.v, s.s || 0, s.v > 0.3 ? s.v * 1.32 : 0);
     if (r.bike.bubbleT > 0) { r.bike.bubbleT -= dt; if (r.bike.bubbleT <= 0 && r.bike.bubble) { root.remove(r.bike.bubble); r.bike.bubble = null; } }
+    if (vis) {
+      const near = Math.hypot(P.x - r.x, P.z - r.z), last = socialSeen.get(r.id) || 0;
+      if (near < 7.5 && now - last > 12000 && now - lastSocialAt > 5000) {
+        socialSeen.set(r.id, now); lastSocialAt = now;
+        const greetings = ['Yo, nice wheels! 👋', 'On your left! 😎', 'Clean ride!', 'Race you to KitLab 😂', 'Hey rider! Keep rolling ✨', 'Bro, save some road for us 😂'];
+        autoBubble(greetings[Math.floor(Math.random() * greetings.length)]);
+      }
+    }
   });
 }
 
@@ -1516,6 +1432,7 @@ async function showArrival() {
   renderBoard($('aBoard'), await loadBoard());
 }
 function resetRun() {
+  wipeoutPending = false; $('modal').classList.add('hide'); $('arrive').classList.add('hide'); modalOpen = false;
   for (let i = 0; i < 5; i++) {
     collected[i] = false; const s = shards[i]; s.armed = true; s.gem.scale.setScalar(1); s.gem.material.color.set(SHARD_COL[i]); s.gem.material.emissive.set(SHARD_COL[i]); s.gem.material.emissiveIntensity = 0.85;
     s.beam.visible = true; s.pad.visible = true; s.ring.visible = true;
@@ -1535,7 +1452,7 @@ function startRide() {
   me = makeBike(RIDER_PAL[myColor], JERSEY_PAL[(myColor + 3) % JERSEY_PAL.length], RIDER_PAL[(myColor + 4) % RIDER_PAL.length]);
   me.setName(myName); scene.add(me.root);
   $('menu').classList.add('hide'); $('hud').classList.remove('hide');
-  started = true; placeAtPath(0, 0); buildPips(); updatePips(); buildEmotes(); score = 0; combo = 1; coinsGot = 0; countdown = 3.2;
+  started = true; placeAtPath(0, 0); buildPips(); updatePips(); score = 0; combo = 1; coinsGot = 0; countdown = 3.2;
   toast('Follow the extended dirt road to Kitlab. Stop at a hub pedestal to revisit a lesson.', 4200);
   netInit();
 }
@@ -1609,7 +1526,7 @@ function stepPlayer(dt) {
         const now = performance.now(); if (now - lastGateMsg > 3500) { lastGateMsg = now; toast('The gate is sealed. ' + (5 - collectedCount) + ' shard' + (5 - collectedCount === 1 ? '' : 's') + ' to find.'); }
       }
     } else if (du > -0.3 && du < 3 && lat < 4.8 && P.y < GATE.y + 12) enterHub();
-    updateHazards(dt); updatePickups(dt);
+    updateHazards(dt); if (wipeoutPending) return; updatePickups(dt);
   } else {
     const dx = P.x - HUB.x, dz = P.z - HUB.z, d = Math.hypot(dx, dz), lim = HUB.R - 2;
     if (d > lim) { P.x = HUB.x + dx / d * lim; P.z = HUB.z + dz / d * lim; P.v *= 0.6; }
@@ -1627,7 +1544,7 @@ function stepPlayer(dt) {
     P.vy = clamp((gy - P.lastGy) / Math.max(dt, 0.001), -12, 9); P.y = gy; P.grounded = true;
   } else P.grounded = false;
   P.lastGy = gy;
-  if (P.y < -80 && zone === 0) backToRoad();
+  if (P.y < -80 && zone === 0) { wipeout('Fell off the road'); return; }
 
   // Lessons are available at hub pedestals; no shard pickups interrupt the road ride.
   if (zone === 1 && !modalOpen) {
@@ -1651,7 +1568,6 @@ function stepPlayer(dt) {
   const thrNow = c.thr && canDrive;
   me.pose(dt, P.v, P.steerAng, thrNow ? Math.max(P.v * 1.32, 2.5) : 0);
   $('vig').style.opacity = (boosting || padOn) ? 1 : clamp((P.v - 20) / 40, 0, 0.5);
-  if (windGain && AC) windGain.gain.value = muted ? 0 : clamp(P.v / 30, 0, 1) * 0.14;
 }
 
 /* ============================================================
@@ -1718,7 +1634,7 @@ function updateHud() {
   $('qcombo').textContent = combo > 1 ? '\u00d7' + combo : '';
   $('qcoin').textContent = coinsGot + ' tokens';
   Music.mood = zone;
-  if (Music.lp && AC) Music.lp.frequency.setTargetAtTime(modalOpen ? 900 : 1500 + clamp(P.v, 0, 40) * 55, AC.currentTime, 0.4);
+  if (Music.lp && AC) Music.lp.frequency.setTargetAtTime(modalOpen ? 1050 : 1850 + clamp(P.v, 0, 40) * 8, AC.currentTime, 0.25);
   drawMini();
 }
 
@@ -1797,10 +1713,9 @@ window.addEventListener('pageshow', () => {
 });
 $('mLater').addEventListener('click', () => closeModal(false));
 $('mTake').addEventListener('click', () => closeModal(true));
-$('bChat').addEventListener('click', () => $('emotes').classList.toggle('hide'));
 $('bCam').addEventListener('click', toggleCam);
 $('bBack').addEventListener('click', backToRoad);
-$('bSnd').addEventListener('click', () => { muted = !muted; $('bSnd').textContent = muted ? 'Sound off' : 'Sound on'; if (windGain) windGain.gain.value = 0; });
+$('bSnd').addEventListener('click', () => { muted = !muted; $('bSnd').textContent = muted ? 'Sound off' : 'Sound on'; if (sfxBus && AC) sfxBus.gain.setTargetAtTime(muted ? 0 : 0.62, AC.currentTime, 0.04); });
 $('bMus').addEventListener('click', () => { Music.setOn(!Music.on); $('bMus').textContent = Music.on ? 'Music on' : 'Music off'; });
 $('status').addEventListener('click', () => { const r = $('roster'); r.classList.toggle('hide'); if (!r.classList.contains('hide')) updateRoster(); });
 $('bBoard').addEventListener('click', async () => {
