@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="theme-color" content="#041f29" />
   <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover" />
-  <meta name="description" content="Ride through a 3D Web3 learning world. Collect knowledge shards, dodge obstacles, and reach KitLab." />
+  <meta name="description" content="Ride through a 3D Web3 learning world, dodge obstacles, grab boosts and tokens, and reach KitLab." />
   <title>Ride to KitLab</title>
 </head>
 <body>
@@ -14,7 +14,7 @@
 
 <div id="hud" class="hide">
   <div id="quest" class="panel">
-    <div id="qrow"><span id="pips" style="display:flex;gap:6px"></span><span id="qtime">0:00</span></div>
+    <div id="qrow"><span id="qtime">0:00</span></div>
     <div id="qobj">
       <svg id="qarrow" viewBox="0 0 24 24"><path d="M12 2 L20 20 L12 15 L4 20 Z" fill="#19d3ea"/></svg>
       <span id="qtxt">Follow the road</span>
@@ -62,12 +62,12 @@
 
 <div id="modal" class="ov hide">
   <div id="mCard" class="panel">
-    <div id="mHead"><i id="mGem"></i><div><div id="mTitle"></div><div id="mStep"></div></div></div>
+    <div id="mHead"><i id="mGem" style="display:none"></i><div><div id="mTitle"></div><div id="mStep"></div></div></div>
     <p id="mBody"></p>
     <div id="mQ"></div>
     <div id="mOpts"></div>
     <div id="mFb"></div>
-    <div id="mBtns"><button class="btn" id="mLater">Not now</button><button class="btn primary hide" id="mTake">Collect shard</button></div>
+    <div id="mBtns"><button class="btn" id="mLater">Not now</button><button class="btn primary hide" id="mTake">Continue</button></div>
   </div>
 </div>
 
