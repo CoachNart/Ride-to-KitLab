@@ -978,7 +978,7 @@ function audioInit() {
   try {
     if (!AC || AC.state === 'closed') {
       AC = new (window.AudioContext || window.webkitAudioContext)();
-      masterBus = AC.createGain(); masterBus.gain.value = 0.58; masterBus.connect(AC.destination);
+      masterBus = AC.createGain(); masterBus.gain.value = 0.9; masterBus.connect(AC.destination);
       sfxBus = AC.createGain(); sfxBus.gain.value = 0.62; sfxBus.connect(masterBus);
       Music.playing = false;
     }
@@ -1027,9 +1027,9 @@ const LOFI_CHORDS = [[48,55,60,64,67],[45,52,57,60,64],[41,48,53,57,60],[43,50,5
 const midiHz = n => 440 * Math.pow(2, (n - 69) / 12);
 Music.init = function () {
   if (!AC) return;
-  if (this.mg) { this.mg.gain.setTargetAtTime(this.on ? 0.72 : 0, AC.currentTime, 0.08); return; }
-  this.lp = AC.createBiquadFilter(); this.lp.type = 'lowpass'; this.lp.frequency.value = 2400; this.lp.Q.value = 0.55;
-  this.mg = AC.createGain(); this.mg.gain.value = this.on ? 0.72 : 0;
+  if (this.mg) { this.mg.gain.setTargetAtTime(this.on ? 0.95 : 0, AC.currentTime, 0.08); return; }
+  this.lp = AC.createBiquadFilter(); this.lp.type = 'lowpass'; this.lp.frequency.value = 3200; this.lp.Q.value = 0.55;
+  this.mg = AC.createGain(); this.mg.gain.value = this.on ? 0.95 : 0;
   this.lp.connect(this.mg); this.mg.connect(masterBus || AC.destination);
 };
 Music.note = function (midi, t, dur, level, kind) {
@@ -1044,7 +1044,7 @@ Music.note = function (midi, t, dur, level, kind) {
 Music.kick = function (t) {
   const o = AC.createOscillator(), g = AC.createGain(); o.type = 'sine';
   o.frequency.setValueAtTime(105, t); o.frequency.exponentialRampToValueAtTime(48, t + 0.12);
-  g.gain.setValueAtTime(0.0001, t); g.gain.linearRampToValueAtTime(0.085, t + 0.006); g.gain.exponentialRampToValueAtTime(0.0001, t + 0.18);
+  g.gain.setValueAtTime(0.0001, t); g.gain.linearRampToValueAtTime(0.14, t + 0.006); g.gain.exponentialRampToValueAtTime(0.0001, t + 0.18);
   o.connect(g); g.connect(this.lp); o.start(t); o.stop(t + 0.2);
 };
 Music.tick = function () {
@@ -1052,12 +1052,12 @@ Music.tick = function () {
   const beat = 60 / this.bpm;
   while (this.next < AC.currentTime + 0.12) {
     const t = this.next, step = this.step, chord = LOFI_CHORDS[this.bar % LOFI_CHORDS.length];
-    if (step === 0) chord.forEach((n, i) => this.note(n, t + i * 0.012, beat * 3.7, i === 0 ? 0.038 : 0.027, 'sine'));
-    if (step === 0 || step === 8) this.note(chord[0] - 12, t, beat * 1.2, 0.075, 'sine');
-    if (step === 2 || step === 10) this.note(chord[(this.bar + step / 8) % 3 + 1] + 12, t, beat * 0.6, 0.032, 'triangle');
+    if (step === 0) chord.forEach((n, i) => this.note(n, t + i * 0.012, beat * 3.7, i === 0 ? 0.075 : 0.052, 'sine'));
+    if (step === 0 || step === 8) this.note(chord[0] - 12, t, beat * 1.2, 0.14, 'sine');
+    if (step === 2 || step === 10) this.note(chord[(this.bar + step / 8) % 3 + 1] + 12, t, beat * 0.6, 0.065, 'triangle');
     if (step === 4 || step === 12) this.kick(t);
-    if (step === 12) this.note(chord[2] + 12, t, beat * 0.7, 0.028, 'triangle');
-    if (step === 6 || step === 14) this.note(chord[step === 6 ? 2 : 3] + 12, t, beat * 0.45, 0.024, 'sine');
+    if (step === 12) this.note(chord[2] + 12, t, beat * 0.7, 0.055, 'triangle');
+    if (step === 6 || step === 14) this.note(chord[step === 6 ? 2 : 3] + 12, t, beat * 0.45, 0.05, 'sine');
     this.step++; this.next += beat / 4;
     if (this.step >= 16) { this.step = 0; this.bar++; }
   }
@@ -1085,7 +1085,7 @@ Music.start = function () {
 Music.setOn = function (on) {
   this.on = !!on;
   if (AC) this.next = AC.currentTime + 0.08;
-  if (this.mg && AC) this.mg.gain.setTargetAtTime(this.on ? 0.72 : 0, AC.currentTime, 0.08);
+  if (this.mg && AC) this.mg.gain.setTargetAtTime(this.on ? 0.95 : 0, AC.currentTime, 0.08);
 };
 
 /* ============================================================
@@ -1726,14 +1726,7 @@ $('mTake').addEventListener('click', () => closeModal(true));
 $('bCam').addEventListener('click', toggleCam);
 $('bBack').addEventListener('click', backToRoad);
 $('bSnd').addEventListener('click', () => { muted = !muted; $('bSnd').textContent = muted ? 'Sound off' : 'Sound on'; if (sfxBus && AC) sfxBus.gain.setTargetAtTime(muted ? 0 : 0.62, AC.currentTime, 0.04); });
-$('bMus').addEventListener('click', () => { Music.setOn(!Music.on); $('bMus').textContent = Music.on ? 'Music on' : 'Music off'; });
 $('status').addEventListener('click', () => { const r = $('roster'); r.classList.toggle('hide'); if (!r.classList.contains('hide')) updateRoster(); });
-$('bBoard').addEventListener('click', async () => {
-  $('aSum').textContent = finished ? 'Your time: ' + fmtTime(finishTime) + '.' : 'Finish the quest to post a time. Fastest riders in room "' + myRoom + '":';
-  $('aBoard').innerHTML = ''; $('aOpen').classList.toggle('hide', !KITLAB_URL);
-  $('aExplore').textContent = 'Close'; $('arrive').classList.remove('hide'); modalOpen = true;
-  renderBoard($('aBoard'), await loadBoard());
-});
 $('aExplore').addEventListener('click', () => { $('arrive').classList.add('hide'); modalOpen = false; $('aExplore').textContent = 'Explore the hub'; });
 $('aOpen').addEventListener('click', () => { if (KITLAB_URL) window.open(KITLAB_URL, '_blank', 'noopener'); });
 $('aAgain').addEventListener('click', () => { $('arrive').classList.add('hide'); modalOpen = false; $('aExplore').textContent = 'Explore the hub'; resetRun(); });
