@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import './style.css';
 
 (function(){
 'use strict';
@@ -1339,6 +1340,7 @@ function updateStatus() {
     let n = 1; remotes.forEach(r => { if (!r.ghost && r.live) n++; });
     dot.className = 'dot live'; txt.textContent = n > 1 ? 'Live: ' + n + ' riders' : 'Live: just you';
   } else if (Net.mode === 'solo') { dot.className = 'dot solo'; txt.textContent = 'Offline: ghost riders'; }
+  else if (window.storage && window.storage.__rideKitlabLocal) { dot.className = 'dot solo'; txt.textContent = 'Solo mode'; }
   else { dot.className = 'dot'; txt.textContent = 'Connecting'; }
 }
 function updateRoster() {
