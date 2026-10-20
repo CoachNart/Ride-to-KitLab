@@ -1075,6 +1075,7 @@ Music.start = function () {
 };
 Music.setOn = function (on) {
   this.on = !!on;
+  if (AC) this.next = AC.currentTime + 0.08;
   if (this.mg && AC) this.mg.gain.setTargetAtTime(this.on ? 0.23 : 0, AC.currentTime, 0.08);
 };
 
