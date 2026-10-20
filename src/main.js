@@ -1519,7 +1519,7 @@ function stepPlayer(dt) {
         P.x += GATE.tx * (-0.8 - du); P.z += GATE.tz * (-0.8 - du); P.v *= 0.3;
         const now = performance.now(); if (now - lastGateMsg > 3500) { lastGateMsg = now; toast('The gate is sealed. ' + (5 - collectedCount) + ' shard' + (5 - collectedCount === 1 ? '' : 's') + ' to find.'); }
       }
-    } else if (du > -0.3 && du < 3 && lat < 4.8 && P.y < GATE.y + 12) enterHub();
+    } else if (du > -0.3 && du < 3 && lat < 4.8 && P.y < GATE.y + 12 && P.pathIdx >= PS - 8 && nearestPath(P.x, P.z, P.pathIdx).d < 5.5) enterHub();
     updateHazards(dt); if (wipeoutPending) return; updatePickups(dt);
   } else {
     const dx = P.x - HUB.x, dz = P.z - HUB.z, d = Math.hypot(dx, dz), lim = HUB.R - 2;
