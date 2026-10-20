@@ -1036,7 +1036,6 @@ const Music = {
     audio.preload = 'auto';
     audio.loop = true;
     audio.volume = 0.92;
-    audio.crossOrigin = 'anonymous';
     audio.addEventListener('playing', () => { this.playing = true; });
     audio.addEventListener('pause', () => { this.playing = false; });
     audio.addEventListener('ended', () => { if (this.on) { audio.currentTime = 0; audio.play().catch(() => {}); } });
