@@ -971,10 +971,12 @@ function audioInit() {
     if (!AC || AC.state === 'closed') {
       AC = new (window.AudioContext || window.webkitAudioContext)();
       // Route effects through a limiter so layered sounds never clip the output.
-      const sfxComp = AC.createDynamicsCompressor();
-      sfxComp.threshold.value = -18; sfxComp.knee.value = 12; sfxComp.ratio.value = 8;
-      sfxComp.attack.value = 0.003; sfxComp.release.value = 0.18;
-      sfxBus = AC.createGain(); sfxBus.gain.value = 0.72; sfxBus.connect(sfxComp); sfxComp.connect(AC.destination);
+      masterBus = AC.createGain(); masterBus.gain.value = 0.82;
+      const masterComp = AC.createDynamicsCompressor(); masterComp.threshold.value = -16; masterComp.knee.value = 10; masterComp.ratio.value = 10; masterComp.attack.value = 0.003; masterComp.release.value = 0.25;
+      masterBus.connect(masterComp); masterComp.connect(AC.destination);
+      const sfxComp = AC.createDynamicsCompressor(); sfxComp.threshold.value = -20; sfxComp.knee.value = 12; sfxComp.ratio.value = 8;
+      sfxComp.attack.value = 0.004; sfxComp.release.value = 0.2;
+      sfxBus = AC.createGain(); sfxBus.gain.value = 0.55; sfxBus.connect(sfxComp); sfxComp.connect(masterBus);
       const len = AC.sampleRate * 2, buf = AC.createBuffer(1, len, AC.sampleRate), d = buf.getChannelData(0);
       for (let i = 0; i < len; i++) d[i] = Math.random() * 2 - 1;
       const src = AC.createBufferSource(); src.buffer = buf; src.loop = true;
@@ -1052,7 +1054,7 @@ const mtof = m => 440 * Math.pow(2, (m - 69) / 12);
 
 Music.init = function () {
   const ctx = AC;
-  const comp = ctx.createDynamicsCompressor(); comp.threshold.value = -20; comp.ratio.value = 4; comp.connect(ctx.destination);
+  const comp = ctx.createDynamicsCompressor(); comp.threshold.value = -18; comp.knee.value = 12; comp.ratio.value = 8; comp.attack.value = 0.004; comp.release.value = 0.22; comp.connect(masterBus || ctx.destination);
   this.mg = ctx.createGain(); this.mg.gain.value = this.on ? 0.55 : 0; this.mg.connect(comp);
   this.lp = ctx.createBiquadFilter(); this.lp.type = 'lowpass'; this.lp.frequency.value = 2600; this.lp.Q.value = 0.5; this.lp.connect(this.mg);
   this.inBus = ctx.createGain(); this.inBus.connect(this.lp);
@@ -1195,7 +1197,7 @@ function openLesson(i, mode) {
   const L = LESSONS[i];
   $('mGem').style.background = SHARD_COL[i];
   $('mTitle').textContent = L.title;
-  $('mStep').textContent = mode === 'quiz' ? 'Shard ' + (i + 1) + ' of 5' : 'Recap from your ride';
+  $('mStep').textContent = 'Lesson recap';
   $('mBody').textContent = L.body;
   $('mFb').textContent = ''; $('mFb').style.color = '';
   const opts = $('mOpts'); opts.innerHTML = '';
@@ -1208,7 +1210,7 @@ function openLesson(i, mode) {
     });
     $('mTake').classList.add('hide'); $('mLater').textContent = 'Not now';
   } else {
-    $('mQ').classList.add('hide'); $('mTake').classList.add('hide'); $('mLater').textContent = 'Keep riding';
+    $('mQ').classList.add('hide'); $('mTake').classList.add('hide'); $('mLater').textContent = 'Close lesson';
     $('mFb').textContent = L.why;
   }
   $('modal').classList.remove('hide');
@@ -1239,8 +1241,7 @@ function collectShard(i) {
   const s = shards[i]; s.gem.scale.setScalar(0.45); s.gem.material.emissiveIntensity = 0.15; s.gem.material.color.setHex(0x777788); s.gem.material.emissive.setHex(0x222233);
   s.beam.visible = false; s.pad.visible = false; s.ring.visible = false;
   updatePips(); chime();
-  if (collectedCount === 5) { setGateOpen(true); toast('All five shards found. The Kitlab gate is open.', 4200); }
-  else toast(LESSONS[i].title + ' shard collected. ' + (5 - collectedCount) + ' to go.');
+  if (collectedCount === 5) setGateOpen(true);
 }
 
 /* ---- emotes ---- */
@@ -1528,7 +1529,7 @@ function resetRun() {
     collected[i] = false; const s = shards[i]; s.armed = true; s.gem.scale.setScalar(1); s.gem.material.color.set(SHARD_COL[i]); s.gem.material.emissive.set(SHARD_COL[i]); s.gem.material.emissiveIntensity = 0.85;
     s.beam.visible = true; s.pad.visible = true; s.ring.visible = true;
   }
-  collectedCount = 0; finished = false; finishTime = 0; runTime = 0; setGateOpen(false); updatePips();
+  collectedCount = 0; finished = false; finishTime = 0; runTime = 0; setGateOpen(true); updatePips();
   resetTrack(); score = 0; combo = 1; coinsGot = 0; countdown = 3.2;
   setZone(0); placeAtPath(0, 0); netSendNow();
 }
@@ -1544,7 +1545,7 @@ function startRide() {
   me.setName(myName); scene.add(me.root);
   $('menu').classList.add('hide'); $('hud').classList.remove('hide');
   started = true; placeAtPath(0, 0); buildPips(); updatePips(); buildEmotes(); score = 0; combo = 1; coinsGot = 0; countdown = 3.2;
-  toast('Follow the extended dirt road. Visit the hub pedestals to explore each lesson.', 4200);
+  toast('Follow the extended dirt road to Kitlab. Stop at a hub pedestal to revisit a lesson.', 4200);
   netInit();
 }
 
@@ -1836,7 +1837,7 @@ $('help').textContent = IS_TOUCH
   $('inName').value = (prof && prof.name) || ('Rider' + (100 + Math.floor(Math.random() * 900)));
   setTimeout(function () {
     buildTerrain(); buildScenery(); buildQuest(); buildTrack(); buildDust(); buildHub(); buildMini();
-    setGateOpen(false);
+    setGateOpen(true);
     myColor = hashStr(myId) % RIDER_PAL.length;
     me = makeBike(RIDER_PAL[myColor], JERSEY_PAL[(myColor + 3) % JERSEY_PAL.length], RIDER_PAL[(myColor + 4) % RIDER_PAL.length]);
     scene.add(me.root);
