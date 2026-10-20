@@ -965,7 +965,7 @@ function placeAtPath(i, back) {
 /* ============================================================
    AUDIO
    ============================================================ */
-let AC = null, windGain = null, sfxBus = null, muted = false;
+let AC = null, windGain = null, sfxBus = null, masterBus = null, muted = false;
 function audioInit() {
   try {
     if (!AC || AC.state === 'closed') {
@@ -1178,18 +1178,9 @@ function toast(msg, ms) {
   const t = $('toast'); t.textContent = msg; t.classList.add('on'); clearTimeout(toastTimer);
   toastTimer = setTimeout(() => t.classList.remove('on'), ms || 2600);
 }
-function buildPips() {
-  const p = $('pips'); p.innerHTML = '';
-  for (let i = 0; i < 5; i++) { const s = document.createElement('i'); s.className = 'pip'; s.id = 'pip' + i; p.appendChild(s); }
-}
-function updatePips() {
-  for (let i = 0; i < 5; i++) { const s = $('pip' + i); if (!s) continue; s.classList.toggle('on', collected[i]); s.style.background = collected[i] ? SHARD_COL[i] : 'transparent'; }
-}
-function objective() {
-  if (zone === 1) return { txt: 'Explore the hub', x: HUB.x, z: HUB.z };
-  for (let i = 0; i < 5; i++) if (!collected[i]) return { txt: LESSONS[i].title + ' shard', x: shards[i].x, z: shards[i].z };
-  return { txt: 'Ride through the Kitlab gate', x: GATE.x, z: GATE.z };
-}
+function buildPips() { const p = $('pips'); if (p) p.innerHTML = ''; }
+function updatePips() {}
+function objective() { if (zone === 1) return { txt: 'Explore the hub', x: HUB.x, z: HUB.z }; return { txt: 'Ride to the Kitlab gate', x: GATE.x, z: GATE.z }; }
 
 /* ---- lesson modal ---- */
 function openLesson(i, mode) {
