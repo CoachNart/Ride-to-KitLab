@@ -111,3 +111,34 @@ input[type=text]{width:100%;padding:11px 12px;border-radius:12px;border:1px soli
   #btnrow{width:124px;display:flex;flex-direction:column;align-items:flex-end;gap:5px}
   #btnrow .sbtn{padding:6px 9px;font-size:11px;line-height:1.1;background:rgba(4,31,41,.62)}
 }
+
+/* Landscape gameplay layout: keep the map and utility buttons in a compact top-right dock. */
+@media (orientation:landscape) and (max-height:600px){
+  #quest{left:max(8px,env(safe-area-inset-left));top:max(8px,env(safe-area-inset-top));padding:6px 9px;min-width:140px;max-width:34vw}
+  #qobj{margin-top:4px;font-size:11px}
+  #qscore{margin-top:3px;gap:6px}
+  #tr{right:max(8px,env(safe-area-inset-right));top:max(8px,env(safe-area-inset-top));flex-direction:row;align-items:flex-start;gap:6px;max-width:58vw}
+  #mini{width:92px;height:74px;flex:none}
+  #status{padding:5px 8px;font-size:11px;white-space:nowrap}
+  #btnrow{width:auto;max-width:220px;flex-direction:row;flex-wrap:wrap;justify-content:flex-end;align-items:flex-start;gap:4px}
+  #btnrow .sbtn{padding:5px 7px;font-size:10px;line-height:1.05}
+  #roster{right:max(8px,env(safe-area-inset-right));top:calc(max(8px,env(safe-area-inset-top)) + 40px);max-height:42vh}
+  #toast{top:calc(max(8px,env(safe-area-inset-top)) + 54px);max-width:58vw;font-size:12px}
+  #count{top:24%;font-size:64px}
+  #speedo{bottom:max(5px,env(safe-area-inset-bottom));font-size:12px}
+  #stam{width:70px;height:4px;margin-top:3px}
+  #pad{left:max(10px,env(safe-area-inset-left));bottom:calc(max(8px,env(safe-area-inset-bottom)) + 2px);width:126px;height:54px}
+  #knob{width:42px;height:42px}
+  #tBoost{width:64px;height:64px;right:max(10px,env(safe-area-inset-right));bottom:calc(max(8px,env(safe-area-inset-bottom)) + 8px)}
+  #tBrake{width:54px;height:54px;right:calc(max(10px,env(safe-area-inset-right)) + 72px);bottom:calc(max(8px,env(safe-area-inset-bottom)) + 8px)}
+  #tBell{width:42px;height:42px;right:calc(max(10px,env(safe-area-inset-right)) + 16px);bottom:calc(max(8px,env(safe-area-inset-bottom)) + 80px);font-size:10px}
+  #tJump{width:48px;height:48px;right:calc(max(10px,env(safe-area-inset-right)) + 72px);bottom:calc(max(8px,env(safe-area-inset-bottom)) + 68px);font-size:10px}
+}
+@media (orientation:landscape) and (max-height:420px){
+  #mini{width:76px;height:58px}
+  #tr{max-width:62vw;gap:4px}
+  #btnrow{max-width:190px}
+  #quest{max-width:30vw}
+  #qtime{font-size:11px}
+  #qobj{font-size:10px}
+}
