@@ -1021,25 +1021,36 @@ function coinSound() { if (!AC || muted) return; tone(1046, 0, 0.09, 0.035, 'sin
 function crashSound() { if (!AC || muted) return; tone(92, 0, 0.16, 0.08, 'triangle'); tone(58, 0.025, 0.22, 0.055, 'sine'); }
 function whoosh() { if (!AC || muted) return; tone(330, 0, 0.12, 0.018, 'triangle'); }
 
-/* ---------- CC0 lo-fi soundtrack: recorded music file, no browser-generated instruments ---------- */
-/* Track: "duru-roomscene-lofi" from DURU CC0 BGM. License: CC0 1.0 Universal.
-   Source: https://github.com/uncle-sheepsky/duru-ai-cc0-bgm
-   Use a native audio element instead of scheduling hundreds of WebAudio voices;
-   this avoids the crackling caused by the procedural synth and keeps SFX separate. */
+/* ---------- KitLab soundtrack ---------- */
+/* The uploaded MP3 is served from public/audio once added to the repo.
+   Keep the existing track as a fallback so the game never goes silent
+   if the asset has not been uploaded yet or a request fails. */
+const KITLAB_MUSIC_SRC = '/audio/prettyjohn1-lofi-lofi-music-587176.mp3';
+const PREVIOUS_MUSIC_SRC = 'https://raw.githubusercontent.com/uncle-sheepsky/duru-ai-cc0-bgm/main/mp3/duru-roomscene-lofi.mp3';
 const Music = {
   audio: null,
   playing: false,
   on: true,
+  usingFallback: false,
   init() {
     if (this.audio) return this.audio;
-    const audio = new Audio('https://raw.githubusercontent.com/uncle-sheepsky/duru-ai-cc0-bgm/main/mp3/duru-roomscene-lofi.mp3');
+    const audio = new Audio(KITLAB_MUSIC_SRC);
     audio.preload = 'auto';
     audio.loop = true;
     audio.volume = 0.92;
     audio.addEventListener('playing', () => { this.playing = true; });
     audio.addEventListener('pause', () => { this.playing = false; });
-    audio.addEventListener('ended', () => { if (this.on) { audio.currentTime = 0; audio.play().catch(() => {}); } });
-    audio.addEventListener('error', () => { this.playing = false; console.warn('Lo-fi soundtrack could not load; check the audio source/network.'); });
+    audio.addEventListener('error', () => {
+      this.playing = false;
+      if (!this.usingFallback && this.on) {
+        this.usingFallback = true;
+        audio.src = PREVIOUS_MUSIC_SRC;
+        audio.load();
+        audio.play().catch(() => {});
+      } else {
+        console.warn('Music could not load; check the audio source/network.');
+      }
+    });
     this.audio = audio;
     return audio;
   },
@@ -1051,7 +1062,7 @@ const Music = {
     if (attempt && typeof attempt.catch === 'function') {
       attempt.then(() => { this.playing = true; }).catch(err => {
         this.playing = false;
-        console.warn('Lo-fi playback was blocked until the next user interaction.', err);
+        console.warn('Music playback was blocked until the next user interaction.', err);
       });
     }
   },
