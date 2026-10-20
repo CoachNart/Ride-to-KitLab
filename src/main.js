@@ -1021,73 +1021,83 @@ function coinSound() { if (!AC || muted) return; tone(1046, 0, 0.09, 0.035, 'sin
 function crashSound() { if (!AC || muted) return; tone(92, 0, 0.16, 0.08, 'triangle'); tone(58, 0.025, 0.22, 0.055, 'sine'); }
 function whoosh() { if (!AC || muted) return; tone(330, 0, 0.12, 0.018, 'triangle'); }
 
-/* ---------- fresh, gentle generative lofi ---------- */
-const Music = { on: true, playing: false, mg: null, lp: null, bpm: 72, next: 0, step: 0, bar: 0, timer: null, mood: 0 };
-const LOFI_CHORDS = [[48,55,60,64,67],[45,52,57,60,64],[41,48,53,57,60],[43,50,55,59,62]];
-const midiHz = n => 440 * Math.pow(2, (n - 69) / 12);
-Music.init = function () {
-  if (!AC) return;
-  if (this.mg) { this.mg.gain.setTargetAtTime(this.on ? 0.95 : 0, AC.currentTime, 0.08); return; }
-  this.lp = AC.createBiquadFilter(); this.lp.type = 'lowpass'; this.lp.frequency.value = 3200; this.lp.Q.value = 0.55;
-  this.mg = AC.createGain(); this.mg.gain.value = this.on ? 0.95 : 0;
-  this.lp.connect(this.mg); this.mg.connect(masterBus || AC.destination);
+/* ---------- original soulful lo-fi soundtrack: locally synthesized, no copyrighted samples ---------- */
+const Music = {on:true,playing:false,mg:null,lp:null,bpm:76,next:0,step:0,bar:0,timer:null,delay:null,wet:null,
+ chords:[[48,52,55,59,62,67],[45,48,52,55,59,64],[41,45,48,52,55,60],[43,47,50,53,57,62]]};
+const midiHz=n=>440*Math.pow(2,(n-69)/12);
+Music.init=function(){
+ if(!AC||this.mg)return;
+ // Independent music output: no SFX mute/volume path and no master limiter.
+ this.lp=AC.createBiquadFilter();this.lp.type='lowpass';this.lp.frequency.value=7600;this.lp.Q.value=.32;
+ this.mg=AC.createGain();this.mg.gain.value=.88;this.lp.connect(this.mg);this.mg.connect(AC.destination);
+ this.delay=AC.createDelay(.8);this.delay.delayTime.value=.285;
+ const fb=AC.createGain();fb.gain.value=.16;this.wet=AC.createGain();this.wet.gain.value=.17;
+ this.mg.connect(this.delay);this.delay.connect(fb);fb.connect(this.delay);this.delay.connect(this.wet);this.wet.connect(AC.destination);
+ // Original low-level tape texture generated in-browser, not a sampled track.
+ const len=Math.floor(AC.sampleRate*2),buf=AC.createBuffer(1,len,AC.sampleRate),d=buf.getChannelData(0);let smooth=0;
+ for(let i=0;i<len;i++){smooth=smooth*.97+(Math.random()*2-1)*.03;d[i]=smooth*.42+(Math.random()*2-1)*.06;}
+ const src=AC.createBufferSource(),filter=AC.createBiquadFilter(),g=AC.createGain();
+ src.buffer=buf;src.loop=true;filter.type='lowpass';filter.frequency.value=4200;g.gain.value=.018;
+ src.connect(filter);filter.connect(g);g.connect(this.mg);src.start();
 };
-Music.note = function (midi, t, dur, level, kind) {
-  if (!AC || !this.lp) return;
-  const osc = AC.createOscillator(), gain = AC.createGain();
-  osc.type = kind || 'triangle'; osc.frequency.value = midiHz(midi) * (1 + (Math.random() - 0.5) * 0.0015);
-  gain.gain.setValueAtTime(0.0001, t); gain.gain.linearRampToValueAtTime(level, t + 0.025);
-  gain.gain.setTargetAtTime(level * 0.45, t + 0.03, 0.22);
-  gain.gain.setTargetAtTime(0.0001, t + Math.max(0.08, dur - 0.18), 0.12);
-  osc.connect(gain); gain.connect(this.lp); osc.start(t); osc.stop(t + dur + 0.12);
+Music.key=function(n,t,dur,level,pan=0){
+ if(!AC||!this.lp)return;
+ const p=AC.createStereoPanner?AC.createStereoPanner():null,voice=AC.createGain();
+ if(p){p.pan.setValueAtTime(pan,t);p.connect(voice);}
+ voice.gain.setValueAtTime(.0001,t);voice.gain.linearRampToValueAtTime(level,t+.018);
+ voice.gain.setTargetAtTime(level*.62,t+.02,.22);voice.gain.setTargetAtTime(.0001,t+Math.max(.12,dur-.08),.26);voice.connect(this.lp);
+ const a=AC.createOscillator(),b=AC.createOscillator(),partial=AC.createGain();
+ a.type='sine';a.frequency.setValueAtTime(midiHz(n),t);
+ b.type='triangle';b.frequency.setValueAtTime(midiHz(n)*2.003,t);partial.gain.value=.11;
+ if(p){a.connect(p);b.connect(partial);partial.connect(p);}else{a.connect(voice);b.connect(partial);partial.connect(voice);}
+ a.start(t);b.start(t);a.stop(t+dur+.35);b.stop(t+dur+.3);
 };
-Music.kick = function (t) {
-  const o = AC.createOscillator(), g = AC.createGain(); o.type = 'sine';
-  o.frequency.setValueAtTime(105, t); o.frequency.exponentialRampToValueAtTime(48, t + 0.12);
-  g.gain.setValueAtTime(0.0001, t); g.gain.linearRampToValueAtTime(0.14, t + 0.006); g.gain.exponentialRampToValueAtTime(0.0001, t + 0.18);
-  o.connect(g); g.connect(this.lp); o.start(t); o.stop(t + 0.2);
+Music.bass=function(n,t,dur){
+ const o=AC.createOscillator(),g=AC.createGain();o.type='triangle';o.frequency.setValueAtTime(midiHz(n),t);
+ g.gain.setValueAtTime(.0001,t);g.gain.linearRampToValueAtTime(.19,t+.025);g.gain.setTargetAtTime(.0001,t+dur*.58,.12);
+ o.connect(g);g.connect(this.lp);o.start(t);o.stop(t+dur);
 };
-Music.tick = function () {
-  if (!AC || !this.lp || !this.on) return;
-  const beat = 60 / this.bpm;
-  while (this.next < AC.currentTime + 0.12) {
-    const t = this.next, step = this.step, chord = LOFI_CHORDS[this.bar % LOFI_CHORDS.length];
-    if (step === 0) chord.forEach((n, i) => this.note(n, t + i * 0.012, beat * 3.7, i === 0 ? 0.075 : 0.052, 'sine'));
-    if (step === 0 || step === 8) this.note(chord[0] - 12, t, beat * 1.2, 0.14, 'sine');
-    if (step === 2 || step === 10) this.note(chord[(this.bar + step / 8) % 3 + 1] + 12, t, beat * 0.6, 0.065, 'triangle');
-    if (step === 4 || step === 12) this.kick(t);
-    if (step === 12) this.note(chord[2] + 12, t, beat * 0.7, 0.055, 'triangle');
-    if (step === 6 || step === 14) this.note(chord[step === 6 ? 2 : 3] + 12, t, beat * 0.45, 0.05, 'sine');
-    this.step++; this.next += beat / 4;
-    if (this.step >= 16) { this.step = 0; this.bar++; }
+Music.kick=function(t){
+ const o=AC.createOscillator(),g=AC.createGain();o.type='sine';o.frequency.setValueAtTime(100,t);o.frequency.exponentialRampToValueAtTime(47,t+.14);
+ g.gain.setValueAtTime(.0001,t);g.gain.linearRampToValueAtTime(.23,t+.008);g.gain.exponentialRampToValueAtTime(.0001,t+.24);
+ o.connect(g);g.connect(this.lp);o.start(t);o.stop(t+.25);
+};
+Music.noiseHit=function(t,level,seconds,frequency){
+ const len=Math.max(1,Math.floor(AC.sampleRate*seconds)),buf=AC.createBuffer(1,len,AC.sampleRate),d=buf.getChannelData(0);
+ for(let i=0;i<len;i++)d[i]=(Math.random()*2-1)*(1-i/len);
+ const src=AC.createBufferSource(),f=AC.createBiquadFilter(),g=AC.createGain();
+ src.buffer=buf;f.type='highpass';f.frequency.value=frequency;g.gain.setValueAtTime(level,t);g.gain.exponentialRampToValueAtTime(.0001,t+seconds);
+ src.connect(f);f.connect(g);g.connect(this.lp);src.start(t);
+};
+Music.tick=function(){
+ if(!AC||!this.lp||!this.on)return;
+ const beat=60/this.bpm,unit=beat/4;
+ while(this.next<AC.currentTime+.14){
+  const t=this.next,step=this.step,ch=this.chords[this.bar%this.chords.length];
+  if(step===0){ch.forEach((n,i)=>this.key(n,t+i*.008,beat*3.65,i===0?.085:.055,(i-2.5)*.12));this.bass(ch[0]-12,t,beat*1.65);this.kick(t);}
+  if(step===8){this.bass(ch[0]-12,t,beat*1.3);this.kick(t);}
+  if(step===4||step===12){this.noiseHit(t+beat*.018,.075,.15,1800);this.noiseHit(t,.022,.032,6500);}
+  if(step===6||step===14)this.noiseHit(t,.012,.032,6500);
+  // Sparse, warm melodic phrases over jazzy major-9/minor-9 harmony.
+  if(step===2||step===7||step===10||step===15){
+   const notes=[ch[4]+12,ch[3]+12,ch[2]+12,ch[1]+12],pick=(this.bar+Math.floor(step/5))%notes.length;
+   this.key(notes[pick],t+(step%2?beat*.035:0),beat*(step===15?.32:.62),.052,step%2?.24:-.18);
   }
+  if(step===11&&this.bar%2===1)this.key(ch[5]+12,t,beat*.8,.027,.32);
+  this.step++;this.next+=unit;if(this.step>=16){this.step=0;this.bar++;}
+ }
 };
-Music.start = function () {
-  if (!audioInit()) return;
-  this.init();
-  const begin = () => {
-    if (!AC || AC.state !== 'running') return;
-    this.next = AC.currentTime + 0.06;
-    if (!this.playing) {
-      this.playing = true;
-      if (this.timer) clearInterval(this.timer);
-      this.timer = setInterval(() => {
-        if (!AC || AC.state !== 'running') return;
-        if (this.next < AC.currentTime - 0.12) this.next = AC.currentTime + 0.04;
-        this.tick();
-      }, 35);
-    }
-    this.tick();
-  };
-  if (AC.state === 'suspended') AC.resume().then(begin).catch(() => {});
-  else begin();
+Music.start=function(){
+ if(!audioInit())return;this.init();
+ const begin=()=>{
+  if(!AC||AC.state!=='running')return;
+  this.next=AC.currentTime+.04;
+  if(!this.playing){this.playing=true;if(this.timer)clearInterval(this.timer);
+   this.timer=setInterval(()=>{if(!AC||AC.state!=='running')return;if(this.next<AC.currentTime-.18)this.next=AC.currentTime+.04;this.tick();},25);}
+  this.tick();
+ };
+ if(AC.state==='suspended')AC.resume().then(begin).catch(()=>{});else begin();
 };
-Music.setOn = function (on) {
-  this.on = !!on;
-  if (AC) this.next = AC.currentTime + 0.08;
-  if (this.mg && AC) this.mg.gain.setTargetAtTime(this.on ? 0.95 : 0, AC.currentTime, 0.08);
-};
-
 /* ============================================================
    UI HELPERS
    ============================================================ */
@@ -1453,7 +1463,7 @@ function resetRun() {
 }
 
 function startRide() {
-  try { audioInit(); Music.start(); } catch (e) { }
+  try { const ctx = audioInit(); if (ctx) { const resume = ctx.resume(); Music.start(); if (resume && resume.then) resume.then(() => Music.start()).catch(() => {}); } } catch (e) { }
   myName = ($('inName').value || 'Rider').replace(/[^\w \-.]/g, '').trim().slice(0, 14) || 'Rider';
   myRoom = ($('inRoom').value || 'kitlab').toLowerCase().replace(/[^a-z0-9_-]/g, '').slice(0, 16) || 'kitlab';
   try { window.storage.set('profile', JSON.stringify({ id: myId, name: myName }), false).catch(() => { }); } catch (e) { }
