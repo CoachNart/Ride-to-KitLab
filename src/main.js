@@ -739,7 +739,7 @@ function makeBike(frameHex, jerseyHex, helmetHex, riderGender = 'male', backpack
     rider.position.set(0, trick === 'bunnyhop' ? wave * 0.08 : 0, trick === 'superman' ? 0.32 : 0);
     rider.rotation.set(
       trick === 'superman' ? -0.62 : trick === 'backflip' ? -Math.sin(spin) * 0.2 : 0,
-      trick === 'nohander' ? Math.sin(Math.PI * phase) * 0.08 : 0,
+      trick === 'tailwhip' ? -body.rotation.y : trick === 'nohander' ? Math.sin(Math.PI * phase) * 0.08 : 0,
       trick === 'tabletop' ? -wave * 0.35 : 0
     );
     const w = v / WR * dt; rw.rotation.x += w; fw.rotation.x += w;
