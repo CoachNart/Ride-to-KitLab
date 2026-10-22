@@ -637,7 +637,6 @@ function makeBike(frameHex, jerseyHex, helmetHex, riderGender = 'male') {
    ============================================================ */
 const shards = [];
 const GATE = { x: 0, z: 0, y: 0, tx: 0, tz: 1, open: false };
-let portalMat, gateGroup, gateRing, gateBeam;
 
 function buildQuest() {
   // Five race checkpoints replace the old floating-shard scavenger mission.
@@ -1720,7 +1719,6 @@ function updateHud() {
 
 function tick(dt, tms) {
   const t = tms / 1000;
-  if (portalMat) portalMat.uniforms.time.value = t;
   if (padMat) padMat.opacity = 0.7 + Math.sin(t * 6) * 0.3;
   if (started) {
     if (!paused) {
