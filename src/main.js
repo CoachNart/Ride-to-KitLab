@@ -42,10 +42,17 @@ const AI_LOOKS = [
   { frame:'#00bbf9', jersey:'#092e3d', helmet:'#f1faee', pack:'#00f5d4' }
 ];
 const TRICKS = [
-  { id:'stand', label:'Stand Up', key:'1' },
-  { id:'wheelie', label:'Wheelie', key:'2' },
-  { id:'nohands', label:'No Hands', key:'3' },
-  { id:'superman', label:'Superman', key:'4' }
+  { id:'wheelie', label:'Wheelie', key:'1', kind:'ground' },
+  { id:'manual', label:'Manual', key:'2', kind:'ground' },
+  { id:'endo', label:'Endo / Stoppie', key:'3', kind:'ground' },
+  { id:'bunnyhop', label:'Bunny Hop', key:'4', kind:'air' },
+  { id:'barspin', label:'Barspin', key:'5', kind:'air' },
+  { id:'tailwhip', label:'Tailwhip', key:'6', kind:'air' },
+  { id:'tabletop', label:'Tabletop', key:'7', kind:'air' },
+  { id:'superman', label:'Superman', key:'8', kind:'air' },
+  { id:'nohander', label:'No-Hander', key:'9', kind:'air' },
+  { id:'backflip', label:'Backflip', key:'0', kind:'air' },
+  { id:'360', label:'360 Spin', key:'Q', kind:'air' }
 ];
 let activeTrick = 'ride', trickTimer = 0, nextTrickIndex = 0, aiRaceStarted = false;
 
@@ -710,16 +717,35 @@ function makeBike(frameHex, jerseyHex, helmetHex, riderGender = 'male', backpack
       elbow: ball(V3(0, 0, 0), 0.04, mSkin, rider, 1, 1, 1, false), hand: ball(V3(0, 0, 0), 0.048, S.rubber, rider, 1, 0.85, 1.15, false)
     });
   }
-  const obj = { root, body, rider, crank: 0, steerG, fw, rw, bubble: null, bubbleT: 0, tag: null, stuntMode:'ride' };
+  const obj = { root, body, rider, crank: 0, steerG, fw, rw, bubble: null, bubbleT: 0, tag: null, stuntMode:'ride', stuntClock:0, lastStuntMode:'ride' };
   obj.pose = function (dt, v, steer, crankRate) {
     obj.crank += crankRate * dt;
-    // Readable rider tricks; all modes settle back into the normal riding pose.
     const trick = obj.stuntMode || 'ride';
-    body.rotation.x = trick === 'wheelie' ? -0.34 : 0;
-    rider.position.set(0, trick === 'stand' ? 0.18 : 0, trick === 'superman' ? 0.18 : 0);
-    rider.rotation.set(0, 0, trick === 'superman' ? -0.18 : 0);
+    if (trick !== obj.lastStuntMode) { obj.lastStuntMode = trick; obj.stuntClock = 0; }
+    else if (trick !== 'ride') obj.stuntClock += dt;
+    const phase = clamp(obj.stuntClock / 2.4, 0, 1);
+    const wave = Math.sin(Math.PI * phase);
+    const spin = Math.PI * 2 * phase;
+    // Recognisable stunt-specific movement; poses settle back to neutral after the trick.
+    body.position.y = trick === 'bunnyhop' ? wave * 0.72 : 0;
+    body.rotation.set(0, 0, 0);
+    if (trick === 'wheelie') body.rotation.x = -0.48;
+    if (trick === 'manual') body.rotation.x = -0.24;
+    if (trick === 'endo') body.rotation.x = 0.38;
+    if (trick === 'tailwhip') body.rotation.y = Math.sin(Math.PI * phase) * Math.PI * 2;
+    if (trick === 'tabletop') { body.rotation.z = wave * 0.92; body.rotation.x = -wave * 0.12; }
+    if (trick === 'backflip') body.rotation.x = spin;
+    if (trick === '360') body.rotation.y = spin;
+    rider.position.set(0, trick === 'bunnyhop' ? wave * 0.08 : 0, trick === 'superman' ? 0.32 : 0);
+    rider.rotation.set(
+      trick === 'superman' ? -0.62 : trick === 'backflip' ? -Math.sin(spin) * 0.2 : 0,
+      trick === 'nohander' ? Math.sin(Math.PI * phase) * 0.08 : 0,
+      trick === 'tabletop' ? -wave * 0.35 : 0
+    );
     const w = v / WR * dt; rw.rotation.x += w; fw.rotation.x += w;
-    steerG.quaternion.setFromAxisAngle(AXIS, steer); steerG.updateMatrix();
+    steerG.quaternion.setFromAxisAngle(AXIS, steer);
+    if (trick === 'barspin') steerG.rotateOnAxis(AXIS, spin);
+    steerG.updateMatrix();
     chainring.rotation.x = obj.crank;
     pivot.rotation.z = Math.sin(obj.crank) * 0.03 * clamp(v / 6, 0, 1);
     headG.rotation.y = clamp(steer * 1.6, -0.5, 0.5);
@@ -735,8 +761,9 @@ function makeBike(frameHex, jerseyHex, helmetHex, riderGender = 'male', backpack
       _h.copy(_c).lerp(_b, 0.28); limb(L.sock, _h, _c);
       const A = arms[k];
       _g.set(s * GRIP.x, GRIP.y, GRIP.z).applyMatrix4(steerG.matrix);
-      if (trick === 'nohands') _g.set(s * 0.30, by + 0.48, bz + 0.13);
+      if (trick === 'nohander') _g.set(s * 0.30, by + 0.48, bz + 0.13);
       if (trick === 'superman') _g.set(s * 0.31, by + 0.12, bz + 0.28);
+      if (trick === 'tabletop') _g.set(s * 0.30, by + 0.18, bz + 0.18);
       const r2 = ik2(s * 0.2, 1.38, 0.04, _g.x, _g.y, _g.z, 0.29, 0.31, s * 1, -0.6, -0.25);
       _a.set(s * 0.2, 1.38, 0.04); _b.set(r2.kx, r2.ky, r2.kz); _c.set(r2.ex, r2.ey, r2.ez);
       limb(A.up, _a, _b); limb(A.lo, _b, _c); A.elbow.position.copy(_b); A.hand.position.copy(_c);
@@ -1109,7 +1136,8 @@ function activateTrick(mode) {
   trickTimer = 2.4;
   if (me) me.stuntMode = activeTrick;
   const item = TRICKS.find(t => t.id === activeTrick);
-  toast((item ? item.label : 'Trick') + '!', 900);
+  if ($('tTrick')) $('tTrick').textContent = item ? item.label : 'Stunt';
+  toast((item ? item.label : 'Stunt') + '!', 1100);
   netSendNow();
 }
 function cycleTrick() { activateTrick(TRICKS[nextTrickIndex % TRICKS.length].id); }
@@ -1650,10 +1678,8 @@ window.addEventListener('keydown', e => {
   if (e.code === 'KeyB') ringBell();
   if (e.code === 'KeyC') toggleCam();
   if (e.code === 'KeyQ') cycleTrick();
-  if (e.code === 'Digit1' || e.code === 'Numpad1') activateTrick('stand');
-  if (e.code === 'Digit2' || e.code === 'Numpad2') activateTrick('wheelie');
-  if (e.code === 'Digit3' || e.code === 'Numpad3') activateTrick('nohands');
-  if (e.code === 'Digit4' || e.code === 'Numpad4') activateTrick('superman');
+  const stuntKeys = { Digit1:'wheelie', Numpad1:'wheelie', Digit2:'manual', Numpad2:'manual', Digit3:'endo', Numpad3:'endo', Digit4:'bunnyhop', Numpad4:'bunnyhop', Digit5:'barspin', Numpad5:'barspin', Digit6:'tailwhip', Numpad6:'tailwhip', Digit7:'tabletop', Numpad7:'tabletop', Digit8:'superman', Numpad8:'superman', Digit9:'nohander', Numpad9:'nohander', Digit0:'backflip', Numpad0:'backflip' };
+  if (stuntKeys[e.code]) activateTrick(stuntKeys[e.code]);
   if (e.code === 'KeyR') backToRoad();
 });
 window.addEventListener('keyup', e => { keys[e.code] = false; });
@@ -2080,8 +2106,8 @@ $('aAgain').addEventListener('click', () => { $('arrive').classList.add('hide');
 window.addEventListener('pagehide', () => { try { if (Net.mode === 'live') window.storage.delete(Net.myKey, true); } catch (e) { } });
 
 $('help').textContent = IS_TOUCH
-  ? 'Slide your left thumb to steer. Jump over logs, dodge the rest, hold Boost to sprint. Your rider pedals on their own.'
-  : 'Your rider pedals automatically. A/D steers, Space jumps, S brakes (hold it to reverse), Shift boosts. B rings the bell, C changes view, R returns you to the road.';
+  ? 'Steer with your left thumb. Jump, boost, and tap Trick to cycle real bike stunts: wheelies, manuals, endos, bunny hops, barspins, tailwhips, tabletops, Superman, no-handers, backflips and 360s.'
+  : 'A/D steers, Space jumps, S brakes, Shift boosts. Press 1–9 and 0 for stunts; Q cycles through all 11. Build speed and jump for aerial tricks. B rings the bell, C changes view, R returns to the road.';
 
 /* ============================================================
    BOOT
