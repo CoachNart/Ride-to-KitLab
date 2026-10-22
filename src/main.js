@@ -726,8 +726,8 @@ function makeBike(frameHex, jerseyHex, helmetHex, riderGender = 'male', backpack
     const phase = clamp(obj.stuntClock / 2.4, 0, 1);
     const wave = Math.sin(Math.PI * phase);
     const spin = Math.PI * 2 * phase;
-    // Recognisable stunt-specific movement; poses settle back to neutral after the trick.
-    body.position.y = trick === 'bunnyhop' ? wave * 0.72 : 0;
+    // Rotate aerial tricks around the bicycle's centre of mass, not the ground-level model origin.
+    // Without this compensation, backflips/tabletops swing the wheels below the terrain.
     body.rotation.set(0, 0, 0);
     if (trick === 'wheelie') body.rotation.x = -0.48;
     if (trick === 'manual') body.rotation.x = -0.24;
@@ -736,6 +736,8 @@ function makeBike(frameHex, jerseyHex, helmetHex, riderGender = 'male', backpack
     if (trick === 'tabletop') { body.rotation.z = wave * 0.92; body.rotation.x = -wave * 0.12; }
     if (trick === 'backflip') body.rotation.x = spin;
     if (trick === '360') body.rotation.y = spin;
+    const pivotLift = WR * (1 - Math.cos(body.rotation.x) * Math.cos(body.rotation.z));
+    body.position.y = pivotLift + (trick === 'bunnyhop' ? wave * 0.72 : 0);
     rider.position.set(0, trick === 'bunnyhop' ? wave * 0.08 : 0, trick === 'superman' ? 0.32 : 0);
     rider.rotation.set(
       trick === 'superman' ? -0.62 : trick === 'backflip' ? -Math.sin(spin) * 0.2 : 0,
