@@ -1764,7 +1764,7 @@ function controls() {
 }
 (function bindTouch() {
   const zonePad = $('padZone'), knob = $('knob');
-  const heldPointers = new Map();
+  const activeTouches = new Map();
   let steerId = null, steerStartX = 0;
 
   const resetSteer = () => {
@@ -1772,68 +1772,76 @@ function controls() {
     touch.steer = 0;
     knob.style.transform = '';
   };
+  const syncHeldButtons = () => {
+    for (const key of ['brake', 'boost', 'jump']) {
+      const held = Array.from(activeTouches.values()).some(v => v.key === key);
+      touch[key] = held;
+      const button = key === 'brake' ? $('tBrake') : key === 'boost' ? $('tBoost') : $('tJump');
+      button.classList.toggle('down', held);
+    }
+  };
   const clearInputs = () => {
     resetSteer();
-    heldPointers.clear();
-    ['brake', 'boost', 'jump'].forEach(key => { touch[key] = false; });
+    activeTouches.clear();
+    syncHeldButtons();
     document.querySelectorAll('.tb.down').forEach(el => el.classList.remove('down'));
   };
 
-  // Mobile browsers handle simultaneous fingers most reliably through native
-  // Touch Events. Pointer Events can be cancelled when another finger lands.
+  // One capture-phase touch router owns every finger. Do not split touch
+  // tracking across individual buttons: Android WebViews can retarget/cancel
+  // per-element handlers when a second finger lands.
   if (IS_TOUCH) {
-    zonePad.addEventListener('touchstart', e => {
+    document.addEventListener('touchstart', e => {
+      for (const t of e.changedTouches) {
+        const target = t.target instanceof Element ? t.target : null;
+        const button = target && target.closest('.tb');
+        if (button) {
+          const id = button.id;
+          if (id === 'tBoost' || id === 'tBrake' || id === 'tJump') {
+            const key = id === 'tBoost' ? 'boost' : id === 'tBrake' ? 'brake' : 'jump';
+            activeTouches.set(t.identifier, { key, el: button });
+          } else if (id === 'tBell') {
+            ringBell();
+          } else if (id === 'tTrick') {
+            cycleTrick();
+          }
+          continue;
+        }
+        if (target && (target === zonePad || target.closest('#pad'))) {
+          if (steerId === null) {
+            steerId = t.identifier;
+            steerStartX = t.clientX;
+          }
+        }
+      }
+      // Prevent browser gestures from cancelling gameplay touches. All input
+      // state is derived from identifiers, never from a single global boolean.
       e.preventDefault();
-      if (steerId !== null || !e.changedTouches.length) return;
-      const t = e.changedTouches[0];
-      steerId = t.identifier;
-      steerStartX = t.clientX;
-    }, { passive: false });
+      syncHeldButtons();
+    }, { capture: true, passive: false });
 
-    zonePad.addEventListener('touchmove', e => {
+    document.addEventListener('touchmove', e => {
       if (steerId === null) return;
-      const t = Array.from(e.changedTouches).find(x => x.identifier === steerId);
+      const t = Array.from(e.touches).find(x => x.identifier === steerId);
       if (!t) return;
-      e.preventDefault();
       const dx = t.clientX - steerStartX;
       touch.steer = clamp(-dx / 55, -1, 1);
       knob.style.transform = 'translateX(' + clamp(dx, -52, 52) + 'px)';
-    }, { passive: false });
+      e.preventDefault();
+    }, { capture: true, passive: false });
 
-    const endTouchSteer = e => {
-      if (steerId === null) return;
-      if (Array.from(e.changedTouches).some(t => t.identifier === steerId)) resetSteer();
+    const endTouches = e => {
+      for (const t of e.changedTouches) {
+        activeTouches.delete(t.identifier);
+        if (t.identifier === steerId) resetSteer();
+      }
+      syncHeldButtons();
+      if (e.cancelable) e.preventDefault();
     };
-    window.addEventListener('touchend', endTouchSteer, { passive: false });
-    window.addEventListener('touchcancel', endTouchSteer, { passive: false });
-
-    function holdTouch(el, key) {
-      el.addEventListener('touchstart', e => {
-        e.preventDefault();
-        for (const t of e.changedTouches) heldPointers.set(t.identifier, { el, key });
-        touch[key] = true;
-        el.classList.add('down');
-      }, { passive: false });
-
-      const release = e => {
-        for (const t of e.changedTouches) {
-          const held = heldPointers.get(t.identifier);
-          if (held && held.el === el) heldPointers.delete(t.identifier);
-        }
-        const stillHeld = Array.from(heldPointers.values()).some(v => v.key === key);
-        touch[key] = stillHeld;
-        if (!stillHeld) el.classList.remove('down');
-      };
-      window.addEventListener('touchend', release, { passive: false });
-      window.addEventListener('touchcancel', release, { passive: false });
-    }
-
-    holdTouch($('tBrake'), 'brake');
-    holdTouch($('tBoost'), 'boost');
-    holdTouch($('tJump'), 'jump');
-    $('tBell').addEventListener('touchstart', e => { e.preventDefault(); ringBell(); }, { passive: false });
-    $('tTrick').addEventListener('touchstart', e => { e.preventDefault(); cycleTrick(); }, { passive: false });
+    document.addEventListener('touchend', endTouches, { capture: true, passive: false });
+    document.addEventListener('touchcancel', endTouches, { capture: true, passive: false });
   } else {
+    const heldPointers = new Map();
     zonePad.addEventListener('pointerdown', e => {
       if (steerId !== null) return;
       e.preventDefault();
@@ -1878,13 +1886,14 @@ function controls() {
     holdPointer($('tJump'), 'jump');
     $('tBell').addEventListener('pointerdown', e => { e.preventDefault(); ringBell(); });
     $('tTrick').addEventListener('pointerdown', e => { e.preventDefault(); cycleTrick(); });
+    window.addEventListener('blur', clearInputs);
   }
 
   window.addEventListener('blur', clearInputs);
   document.addEventListener('visibilitychange', () => {
     if (document.hidden) clearInputs();
   });
-})();
+})();;
 if (IS_TOUCH) document.body.classList.add('touch');
 
 function toggleCam() { camMode ^= 1; me.rider.visible = camMode === 0; }
