@@ -45,7 +45,7 @@ const TRICKS = [
   { id:'wheelie', label:'Wheelie', key:'1', kind:'ground' },
   { id:'manual', label:'Manual', key:'2', kind:'ground' },
   { id:'endo', label:'Endo / Stoppie', key:'3', kind:'ground' },
-  { id:'bunnyhop', label:'Bunny Hop', key:'4', kind:'air' },
+  { id:'bunnyhop', label:'Bunny Hop', key:'4', kind:'ground' },
   { id:'barspin', label:'Barspin', key:'5', kind:'air' },
   { id:'tailwhip', label:'Tailwhip', key:'6', kind:'air' },
   { id:'tabletop', label:'Tabletop', key:'7', kind:'air' },
@@ -1131,6 +1131,11 @@ let me = null;
 const keys = {}, touch = { steer: 0, brake: false, boost: false, jump: false };
 function activateTrick(mode) {
   if (!started || paused || countdown > 0 || finished || modalOpen) return;
+  const requested = TRICKS.find(t => t.id === mode);
+  if (requested && requested.kind === 'air' && P.grounded) {
+    toast('Jump first to perform ' + requested.label + '.', 1300);
+    return;
+  }
   activeTrick = mode || TRICKS[nextTrickIndex % TRICKS.length].id;
   nextTrickIndex = (TRICKS.findIndex(t => t.id === activeTrick) + 1 + TRICKS.length) % TRICKS.length;
   trickTimer = 2.4;
