@@ -678,7 +678,7 @@ function buildQuest() {
   bannerCtx.fillStyle = '#071b22'; bannerCtx.fillRect(0, 0, 1024, 220);
   const tile = 44;
   for (let x = 0; x < 1024; x += tile) for (let y = 0; y < 44; y += 22) {
-    if (((x / tile) | 0) + ((y / 22) | 0) % 2 === 0) {
+    if ((((x / tile) | 0) + ((y / 22) | 0)) % 2 === 0) {
       bannerCtx.fillStyle = '#f1fbfd'; bannerCtx.fillRect(x, y, tile, 22);
     } else {
       bannerCtx.fillStyle = '#19d3ea'; bannerCtx.fillRect(x, y, tile, 22);
