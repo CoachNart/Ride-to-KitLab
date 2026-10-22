@@ -957,7 +957,7 @@ function buildHub() {
 /* ============================================================
    STATE
    ============================================================ */
-let ready = false, started = false, modalOpen = false, modalIdx = -1, modalMode = 'quiz';
+let ready = false, started = false, paused = false, modalOpen = false, modalIdx = -1, modalMode = 'quiz';
 let zone = 0, finished = false, finishTime = 0, runTime = 0;
 const collected = [false, false, false, false, false]; let collectedCount = 0;
 const P = { x: 0, z: 0, y: 0, yaw: 0, v: 0, steerAng: 0, lean: 0, vy: 0, grounded: true, pitch: 0, stamina: 1, pathIdx: 0, lastGy: 0, stun: 0, inv: 0, padT: 0, mud: 0, jumpCd: 0, stuck: 0 };
@@ -1073,6 +1073,39 @@ const Music = {
     this.playing = false;
   }
 };
+function syncSoundButton() {
+  const label = muted ? 'Sound off' : 'Sound on';
+  if ($('bSnd')) $('bSnd').textContent = label;
+  if ($('pauseSound')) $('pauseSound').textContent = label;
+}
+function setMuted(value) {
+  muted = !!value;
+  if (sfxBus && AC) sfxBus.gain.setTargetAtTime(muted ? 0 : 0.62, AC.currentTime, 0.04);
+  Music.on = !muted;
+  if (muted) Music.stop();
+  else if (started && !paused) Music.start();
+  syncSoundButton();
+}
+function pauseRide() {
+  if (!started || paused || modalOpen || $('arrive').classList.contains('hide') === false) return;
+  paused = true;
+  Object.keys(keys).forEach(k => { keys[k] = false; });
+  touch.steer = 0; touch.brake = false; touch.boost = false; touch.jump = false;
+  $('pad').style.transform = ''; $('knob').style.transform = '';
+  $('pause').classList.remove('hide');
+  $('count').classList.add('hide');
+  Music.stop();
+  $('bPause').textContent = 'Resume';
+}
+function resumeRide() {
+  if (!paused) return;
+  paused = false;
+  $('pause').classList.add('hide');
+  $('bPause').textContent = 'Pause';
+  if (!muted) {
+    try { const ctx = audioInit(); if (ctx && ctx.state === 'suspended') ctx.resume().catch(() => {}); Music.start(); } catch (e) { }
+  }
+}
 /* ============================================================
    UI HELPERS
    ============================================================ */
@@ -1350,7 +1383,10 @@ function drawMini() {
 window.addEventListener('keydown', e => {
   keys[e.code] = true; usedKeyboard = true;
   if (['Space', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].indexOf(e.code) >= 0 && started) e.preventDefault();
+  if (e.code === 'Escape' && paused) { resumeRide(); return; }
   if (!started || e.repeat) return;
+  if (e.code === 'KeyP' || e.code === 'Escape') { if (paused) resumeRide(); else pauseRide(); return; }
+  if (paused) return;
   if (e.code === 'KeyB') ringBell();
   if (e.code === 'KeyC') toggleCam();
   if (e.code === 'KeyR') backToRoad();
@@ -1427,7 +1463,7 @@ async function showArrival() {
   renderBoard($('aBoard'), await loadBoard());
 }
 function resetRun() {
-  wipeoutPending = false; $('modal').classList.add('hide'); $('arrive').classList.add('hide'); modalOpen = false;
+  wipeoutPending = false; paused = false; $('pause').classList.add('hide'); $('bPause').textContent = 'Pause'; $('modal').classList.add('hide'); $('arrive').classList.add('hide'); modalOpen = false;
   for (let i = 0; i < 5; i++) {
     collected[i] = false; const s = shards[i]; s.armed = true; s.gem.scale.setScalar(1); s.gem.material.color.set(SHARD_COL[i]); s.gem.material.emissive.set(SHARD_COL[i]); s.gem.material.emissiveIntensity = 0.85;
     s.beam.visible = true; s.pad.visible = true; s.ring.visible = true;
@@ -1447,7 +1483,7 @@ function startRide() {
   me = makeBike(RIDER_PAL[myColor], JERSEY_PAL[(myColor + 3) % JERSEY_PAL.length], RIDER_PAL[(myColor + 4) % RIDER_PAL.length]);
   me.setName(myName); scene.add(me.root);
   $('menu').classList.add('hide'); $('hud').classList.remove('hide');
-  started = true; placeAtPath(0, 0); buildPips(); updatePips(); score = 0; combo = 1; coinsGot = 0; countdown = 3.2;
+  started = true; paused = false; $('pause').classList.add('hide'); $('bPause').textContent = 'Pause'; placeAtPath(0, 0); buildPips(); updatePips(); score = 0; combo = 1; coinsGot = 0; countdown = 3.2;
   toast('Follow the extended dirt road to Kitlab. Stop at a hub pedestal to revisit a lesson.', 4200);
   netInit();
 }
@@ -1638,6 +1674,7 @@ function tick(dt, tms) {
   if (portalMat) portalMat.uniforms.time.value = t;
   if (padMat) padMat.opacity = 0.7 + Math.sin(t * 6) * 0.3;
   if (started) {
+    if (!paused) {
     if (countdown > 0) {
       countdown -= dt;
       const cn = $('count'); cn.classList.remove('hide'); cn.textContent = countdown > 0.25 ? String(Math.ceil(countdown - 0.25)) : 'GO!';
@@ -1645,6 +1682,7 @@ function tick(dt, tms) {
     }
     if (!modalOpen && countdown <= 0 && !finished) runTime += dt;
     stepPlayer(dt);
+    }
   } else if (me) {
     me.root.position.set(P.x, P.y, P.z); me.root.rotation.set(0, P.yaw, 0); me.pose(dt, 0, 0, 0);
   }
@@ -1710,7 +1748,10 @@ $('mLater').addEventListener('click', () => closeModal(false));
 $('mTake').addEventListener('click', () => closeModal(true));
 $('bCam').addEventListener('click', toggleCam);
 $('bBack').addEventListener('click', backToRoad);
-$('bSnd').addEventListener('click', () => { muted = !muted; $('bSnd').textContent = muted ? 'Sound off' : 'Sound on'; if (sfxBus && AC) sfxBus.gain.setTargetAtTime(muted ? 0 : 0.62, AC.currentTime, 0.04); });
+$('bSnd').addEventListener('click', () => setMuted(!muted));
+$('bPause').addEventListener('click', () => paused ? resumeRide() : pauseRide());
+$('resumeRide').addEventListener('click', resumeRide);
+$('pauseSound').addEventListener('click', () => setMuted(!muted));
 $('status').addEventListener('click', () => { const r = $('roster'); r.classList.toggle('hide'); if (!r.classList.contains('hide')) updateRoster(); });
 $('aExplore').addEventListener('click', () => { $('arrive').classList.add('hide'); modalOpen = false; $('aExplore').textContent = 'Explore the hub'; });
 $('aOpen').addEventListener('click', () => { if (KITLAB_URL) window.open(KITLAB_URL, '_blank', 'noopener'); });
