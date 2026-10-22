@@ -34,6 +34,20 @@ const SHARD_T = [0.12, 0.29, 0.46, 0.63, 0.80];
 const SHARD_COL = ['#19d3ea', '#ffc14d', '#ff5a67', '#4fdc86', '#8fe9f7'];
 const RIDER_PAL = ['#ff5a67', '#19d3ea', '#ffc14d', '#4fdc86', '#8fe9f7', '#ffd95e', '#ff8a5e', '#9be564'];
 const JERSEY_PAL = ['#0b3a47', '#103a5e', '#16505a', '#5a2030', '#12404a', '#5a4a1a', '#1d3a2a', '#2a3550'];
+const AI_LOOKS = [
+  { frame:'#ff4d6d', jersey:'#401329', helmet:'#ffb3c1', pack:'#ff4d6d' },
+  { frame:'#ffd166', jersey:'#174a3b', helmet:'#06d6a0', pack:'#ffd166' },
+  { frame:'#9b5de5', jersey:'#24123f', helmet:'#f15bb5', pack:'#00bbf9' },
+  { frame:'#f77f00', jersey:'#17324d', helmet:'#fcbf49', pack:'#e63946' },
+  { frame:'#00bbf9', jersey:'#092e3d', helmet:'#f1faee', pack:'#00f5d4' }
+];
+const TRICKS = [
+  { id:'stand', label:'Stand Up', key:'1' },
+  { id:'wheelie', label:'Wheelie', key:'2' },
+  { id:'nohands', label:'No Hands', key:'3' },
+  { id:'superman', label:'Superman', key:'4' }
+];
+let activeTrick = 'ride', trickTimer = 0, nextTrickIndex = 0, aiRaceStarted = false;
 
 const LESSONS = [
   { title: 'Wallets',
@@ -565,11 +579,11 @@ function makeWheel(rear) {
   return g;
 }
 
-function makeBike(frameHex, jerseyHex, helmetHex, riderGender = 'male') {
+function makeBike(frameHex, jerseyHex, helmetHex, riderGender = 'male', backpackHex = null) {
   const hs = hashStr(String(frameHex) + String(jerseyHex)), S = shm();
   const M = (c, r, m) => new THREE.MeshStandardMaterial({ color: c, roughness: r, metalness: m || 0 });
   const mFrame = M(frameHex, 0.35, 0.5), mJersey = M(jerseyHex, 0.8), mHelmet = M(helmetHex, 0.4, 0.1),
-    mSkin = M(SKIN_PAL[hs % SKIN_PAL.length], 0.75), mHair = M(HAIR_PAL[(hs >> 3) % HAIR_PAL.length], 0.9), mPack = M(0xd9692e, 0.8);
+    mSkin = M(SKIN_PAL[hs % SKIN_PAL.length], 0.75), mHair = M(HAIR_PAL[(hs >> 3) % HAIR_PAL.length], 0.9), mPack = M(backpackHex || helmetHex || 0xd9692e, 0.8);
   const root = new THREE.Group(); root.rotation.order = 'YXZ';
   const body = new THREE.Group(); root.add(body);
   const V3 = (x, y, z) => new THREE.Vector3(x, y, z);
@@ -696,9 +710,14 @@ function makeBike(frameHex, jerseyHex, helmetHex, riderGender = 'male') {
       elbow: ball(V3(0, 0, 0), 0.04, mSkin, rider, 1, 1, 1, false), hand: ball(V3(0, 0, 0), 0.048, S.rubber, rider, 1, 0.85, 1.15, false)
     });
   }
-  const obj = { root, body, rider, crank: 0, steerG, fw, rw, bubble: null, bubbleT: 0, tag: null };
+  const obj = { root, body, rider, crank: 0, steerG, fw, rw, bubble: null, bubbleT: 0, tag: null, stuntMode:'ride' };
   obj.pose = function (dt, v, steer, crankRate) {
     obj.crank += crankRate * dt;
+    // Readable rider tricks; all modes settle back into the normal riding pose.
+    const trick = obj.stuntMode || 'ride';
+    body.rotation.x = trick === 'wheelie' ? -0.34 : 0;
+    rider.position.set(0, trick === 'stand' ? 0.18 : 0, trick === 'superman' ? 0.18 : 0);
+    rider.rotation.set(0, 0, trick === 'superman' ? -0.18 : 0);
     const w = v / WR * dt; rw.rotation.x += w; fw.rotation.x += w;
     steerG.quaternion.setFromAxisAngle(AXIS, steer); steerG.updateMatrix();
     chainring.rotation.x = obj.crank;
@@ -716,6 +735,8 @@ function makeBike(frameHex, jerseyHex, helmetHex, riderGender = 'male') {
       _h.copy(_c).lerp(_b, 0.28); limb(L.sock, _h, _c);
       const A = arms[k];
       _g.set(s * GRIP.x, GRIP.y, GRIP.z).applyMatrix4(steerG.matrix);
+      if (trick === 'nohands') _g.set(s * 0.30, by + 0.48, bz + 0.13);
+      if (trick === 'superman') _g.set(s * 0.31, by + 0.12, bz + 0.28);
       const r2 = ik2(s * 0.2, 1.38, 0.04, _g.x, _g.y, _g.z, 0.29, 0.31, s * 1, -0.6, -0.25);
       _a.set(s * 0.2, 1.38, 0.04); _b.set(r2.kx, r2.ky, r2.kz); _c.set(r2.ex, r2.ey, r2.ez);
       limb(A.up, _a, _b); limb(A.lo, _b, _c); A.elbow.position.copy(_b); A.hand.position.copy(_c);
@@ -1081,6 +1102,17 @@ const P = { x: 0, z: 0, y: 0, yaw: 0, v: 0, steerAng: 0, lean: 0, vy: 0, grounde
 let camYaw = 0, camMode = 0, shake = 0, menuAng = 0, myName = 'Rider', myColor = 0, myGender = 'male', myId = '', myRoom = 'kitlab', usedKeyboard = false, lastGateMsg = 0, wipeoutPending = false, lastSocialAt = 0;
 let me = null;
 const keys = {}, touch = { steer: 0, brake: false, boost: false, jump: false };
+function activateTrick(mode) {
+  if (!started || paused || countdown > 0 || finished || modalOpen) return;
+  activeTrick = mode || TRICKS[nextTrickIndex % TRICKS.length].id;
+  nextTrickIndex = (TRICKS.findIndex(t => t.id === activeTrick) + 1 + TRICKS.length) % TRICKS.length;
+  trickTimer = 2.4;
+  if (me) me.stuntMode = activeTrick;
+  const item = TRICKS.find(t => t.id === activeTrick);
+  toast((item ? item.label : 'Trick') + '!', 900);
+  netSendNow();
+}
+function cycleTrick() { activateTrick(TRICKS[nextTrickIndex % TRICKS.length].id); }
 
 function placeAtPath(i, back) {
   P.pathIdx = i; P.x = px[i] - tx[i] * (back || 0); P.z = pz[i] - tz[i] * (back || 0);
@@ -1312,7 +1344,7 @@ const remotes = new Map();
 function storageOK() { return !!(window.storage && !window.storage.__rideKitlabLocal && typeof window.storage.set === 'function'); }
 
 function myState() {
-  return { n: myName, c: myColor, g: myGender, x: +P.x.toFixed(2), z: +P.z.toFixed(2), y: +P.y.toFixed(2), w: +P.yaw.toFixed(3), v: +P.v.toFixed(2), s: +P.steerAng.toFixed(3), l: +P.lean.toFixed(3), zn: zone, t: Date.now(), e: emote.text, et: emote.t, sh: collectedCount, f: finishTime ? +finishTime.toFixed(1) : 0 };
+  return { n: myName, c: myColor, g: myGender, x: +P.x.toFixed(2), z: +P.z.toFixed(2), y: +P.y.toFixed(2), w: +P.yaw.toFixed(3), v: +P.v.toFixed(2), s: +P.steerAng.toFixed(3), l: +P.lean.toFixed(3), zn: zone, t: Date.now(), e: emote.text, et: emote.t, sh: collectedCount, f: finishTime ? +finishTime.toFixed(1) : 0, trick: activeTrick };
 }
 async function netInit() {
   Net.pre = myRoom + ':p:'; Net.myKey = Net.pre + myId; Net.boardKey = myRoom + ':b:' + myId;
@@ -1335,7 +1367,9 @@ function ensureRemote(id, s) {
   let r = remotes.get(id);
   if (!r) {
     const c = (s.c | 0) % RIDER_PAL.length;
-    const bike = makeBike(RIDER_PAL[c], JERSEY_PAL[(c + 3) % JERSEY_PAL.length], RIDER_PAL[(c + 4) % RIDER_PAL.length], s.g === 'female' ? 'female' : 'male');
+    const ghostIndex = String(id).startsWith('ghost') ? clamp(parseInt(String(id).slice(5), 10) || 0, 0, 4) : -1;
+    const look = ghostIndex >= 0 ? AI_LOOKS[ghostIndex] : null;
+    const bike = makeBike(look ? look.frame : RIDER_PAL[c], look ? look.jersey : JERSEY_PAL[(c + 3) % JERSEY_PAL.length], look ? look.helmet : RIDER_PAL[(c + 4) % RIDER_PAL.length], s.g === 'female' ? 'female' : 'male', look ? look.pack : RIDER_PAL[(c + 2) % RIDER_PAL.length]);
     bike.setName(String(s.n || 'Rider').slice(0, 14)); scene.add(bike.root); bike.root.visible = false;
     r = { id, bike, state: s, recv: performance.now(), lastT: 0, seen: performance.now(), live: false, init: false, x: s.x, z: s.z, yaw: s.w, lastE: s.et || 0, ghost: false, color: RIDER_PAL[c] };
     remotes.set(id, r);
@@ -1402,8 +1436,9 @@ function spawnGhosts(count) {
     const initial = { n, c: i * 2 + 1, x: px[0], z: pz[0], y: 0, w: Math.atan2(tx[0], tz[0]), v: AI_SPEEDS[i], s: 0, l: 0, zn: 0, t: 1, e: '', et: 0, sh: 0, f: 0 };
     const r = ensureRemote('ghost' + i, initial);
     r.ghost = true;
-    r.color = RIDER_PAL[(i * 2 + 1) % RIDER_PAL.length];
-    r.gs = (0.003 + i * 0.0025) * PATH_LEN;
+    r.color = AI_LOOKS[i].frame;
+    r.bike.stuntMode = 'ride';
+    r.gs = 0;
     r.gsp = AI_SPEEDS[i];
     r.goff = (i % 2 ? 1 : -1) * (1.05 + Math.floor(i / 2) * 0.45);
     r.aiElapsed = 0;
@@ -1416,8 +1451,9 @@ function spawnGhosts(count) {
   syncGhosts();
 }
 function updateGhosts(dt) {
-  // AI keeps racing through the player's wipeout countdown and finish screen.
+  // AI waits at the line for the initial GO, then never resets with a crashed player.
   if (!started || paused) return;
+  if (!aiRaceStarted) { if (countdown > 0) return; aiRaceStarted = true; }
   remotes.forEach(r => {
     if (!r.ghost || !r.live) return;
     if (!r.aiFinished) {
@@ -1479,7 +1515,9 @@ function updateGhosts(dt) {
     const w = Math.atan2(tx[i], tz[i]);
     const progress = r.gs / PATH_LEN;
     const checkpoints = SHARD_T.filter(t => progress >= t).length;
-    r.state = { n: r.state.n, c: r.state.c, x, z, y: jumpY, w, v: r.gsp, s: 0, l: 0, zn: 0, e: '', et: 0, sh: checkpoints, f: r.aiFinished ? +r.aiElapsed.toFixed(1) : 0 };
+    if (!r.aiFinished && !r.aiJumping && r.aiElapsed > 3 + Number(String(r.id).slice(5) || 0) * 2 && Math.floor(r.aiElapsed) % 9 === 0) r.bike.stuntMode = TRICKS[Math.floor(r.aiElapsed / 9) % TRICKS.length].id;
+    if (Math.floor(r.aiElapsed) % 9 === 2) r.bike.stuntMode = 'ride';
+    r.state = { n: r.state.n, c: r.state.c, x, z, y: jumpY, w, v: r.gsp, s: 0, l: 0, zn: 0, e: '', et: 0, sh: checkpoints, f: r.aiFinished ? +r.aiElapsed.toFixed(1) : 0, trick:r.bike.stuntMode };
     r.recv = performance.now();
   });
 }
@@ -1499,6 +1537,7 @@ function updateRemotes(dt) {
     const gy = groundAt(zn, r.x, r.z), gF = groundAt(zn, r.x + f * 0.55, r.z + g * 0.55), gR = groundAt(zn, r.x - f * 0.55, r.z - g * 0.55);
     const root = r.bike.root; root.position.set(r.x, gy + (r.ghost ? (s.y || 0) : 0), r.z);
     root.rotation.y = r.yaw; root.rotation.x = -Math.atan2(gF - gR, 1.1); root.rotation.z = -(s.l || 0);
+    r.bike.stuntMode = s.trick || 'ride';
     r.bike.pose(dt, s.v, s.s || 0, s.v > 0.3 ? s.v * 1.32 : 0);
     if (r.bike.bubbleT > 0) { r.bike.bubbleT -= dt; if (r.bike.bubbleT <= 0 && r.bike.bubble) { root.remove(r.bike.bubble); r.bike.bubble = null; } }
     if (vis) {
@@ -1609,6 +1648,11 @@ window.addEventListener('keydown', e => {
   if (paused) return;
   if (e.code === 'KeyB') ringBell();
   if (e.code === 'KeyC') toggleCam();
+  if (e.code === 'KeyQ') cycleTrick();
+  if (e.code === 'Digit1' || e.code === 'Numpad1') activateTrick('stand');
+  if (e.code === 'Digit2' || e.code === 'Numpad2') activateTrick('wheelie');
+  if (e.code === 'Digit3' || e.code === 'Numpad3') activateTrick('nohands');
+  if (e.code === 'Digit4' || e.code === 'Numpad4') activateTrick('superman');
   if (e.code === 'KeyR') backToRoad();
 });
 window.addEventListener('keyup', e => { keys[e.code] = false; });
@@ -1636,6 +1680,7 @@ function controls() {
   }
   hold($('tBrake'), 'brake'); hold($('tBoost'), 'boost'); hold($('tJump'), 'jump');
   $('tBell').addEventListener('pointerdown', () => ringBell());
+  $('tTrick').addEventListener('pointerdown', cycleTrick);
 })();
 if (IS_TOUCH) document.body.classList.add('touch');
 
@@ -1718,6 +1763,7 @@ function startRide() {
   me.setName(myName); scene.add(me.root);
   $('menu').classList.add('hide'); $('hud').classList.remove('hide'); $('qmode').textContent = MISSION_TITLE;
   started = true; paused = false; $('pause').classList.add('hide'); $('bPause').textContent = 'Pause'; placeAtPath(0, 0); buildPips(); updatePips(); score = 0; combo = 1; coinsGot = 0; countdown = 3.2;
+  activeTrick = 'ride'; trickTimer = 0; aiRaceStarted = false;
   spawnGhosts(aiOpponentCount);
   toast(MISSION_TITLE + ': Clear all 5 checkpoints, collect coins, then beat the AI riders to the finish!', 4200);
   netInit();
@@ -1846,6 +1892,8 @@ function stepPlayer(dt) {
   me.root.position.set(P.x, P.y, P.z);
   me.root.rotation.set(-P.pitch, P.yaw, -P.lean);
   const thrNow = c.thr && canDrive;
+  if (trickTimer > 0) { trickTimer = Math.max(0, trickTimer - dt); if (trickTimer === 0) { activeTrick = 'ride'; if (me) me.stuntMode = 'ride'; netSendNow(); } }
+  me.stuntMode = activeTrick;
   me.pose(dt, P.v, P.steerAng, thrNow ? Math.max(P.v * 1.32, 2.5) : 0);
   $('vig').style.opacity = (boosting || padOn) ? 1 : clamp((P.v - 20) / 40, 0, 0.5);
 }
