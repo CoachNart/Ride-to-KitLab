@@ -1765,25 +1765,29 @@ function controls() {
 (function bindTouch() {
   const zonePad = $('padZone'), knob = $('knob');
   let steerPointer = null, steerStartX = 0;
+  const heldPointers = new Map();
+
   const resetSteer = () => {
     steerPointer = null;
     touch.steer = 0;
     knob.style.transform = '';
   };
+
   zonePad.addEventListener('pointerdown', e => {
     if (steerPointer !== null) return;
+    e.preventDefault();
     steerPointer = e.pointerId;
     steerStartX = e.clientX;
     try { zonePad.setPointerCapture(e.pointerId); } catch (er) { }
   });
-  // Track the active pointer on window too, so steering keeps responding if
-  // the browser moves the event target while the thumb is held down.
+
   window.addEventListener('pointermove', e => {
     if (e.pointerId !== steerPointer) return;
     const dx = e.clientX - steerStartX;
     touch.steer = clamp(-dx / 55, -1, 1);
     knob.style.transform = 'translateX(' + clamp(dx, -52, 52) + 'px)';
   }, { passive: true });
+
   const endSteer = e => {
     if (steerPointer === null || (e && e.pointerId !== steerPointer)) return;
     resetSteer();
@@ -1791,35 +1795,43 @@ function controls() {
   window.addEventListener('pointerup', endSteer);
   window.addEventListener('pointercancel', endSteer);
   zonePad.addEventListener('lostpointercapture', endSteer);
+
+  // Keep each action button independent. Do not capture its pointer: on some
+  // mobile browsers capture can interfere with simultaneous multi-touch input.
   function hold(el, key) {
-    const release = () => { touch[key] = false; el.classList.remove('down'); };
+    const release = pointerId => {
+      if (pointerId != null && heldPointers.get(pointerId) !== el) return;
+      if (pointerId != null) heldPointers.delete(pointerId);
+      const stillHeld = Array.from(heldPointers.values()).includes(el);
+      touch[key] = stillHeld;
+      if (!stillHeld) el.classList.remove('down');
+    };
     el.addEventListener('pointerdown', e => {
       e.preventDefault();
+      heldPointers.set(e.pointerId, el);
       touch[key] = true;
       el.classList.add('down');
-      try { el.setPointerCapture(e.pointerId); } catch (er) { }
     });
-    el.addEventListener('pointerup', release);
-    el.addEventListener('pointercancel', release);
-    el.addEventListener('lostpointercapture', release);
-    window.addEventListener('pointerup', release);
-    window.addEventListener('pointercancel', release);
+    window.addEventListener('pointerup', e => release(e.pointerId));
+    window.addEventListener('pointercancel', e => release(e.pointerId));
   }
-  hold($('tBrake'), 'brake'); hold($('tBoost'), 'boost'); hold($('tJump'), 'jump');
+
+  hold($('tBrake'), 'brake');
+  hold($('tBoost'), 'boost');
+  hold($('tJump'), 'jump');
+
   $('tBell').addEventListener('pointerdown', e => { e.preventDefault(); ringBell(); });
   $('tTrick').addEventListener('pointerdown', e => { e.preventDefault(); cycleTrick(); });
-  // Never leave a held input latched if the browser interrupts the gesture.
-  window.addEventListener('blur', () => {
+
+  const clearInputs = () => {
     resetSteer();
+    heldPointers.clear();
     ['brake', 'boost', 'jump'].forEach(key => { touch[key] = false; });
     document.querySelectorAll('.tb.down').forEach(el => el.classList.remove('down'));
-  });
+  };
+  window.addEventListener('blur', clearInputs);
   document.addEventListener('visibilitychange', () => {
-    if (document.hidden) {
-      resetSteer();
-      ['brake', 'boost', 'jump'].forEach(key => { touch[key] = false; });
-      document.querySelectorAll('.tb.down').forEach(el => el.classList.remove('down'));
-    }
+    if (document.hidden) clearInputs();
   });
 })();
 if (IS_TOUCH) document.body.classList.add('touch');
