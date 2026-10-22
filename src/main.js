@@ -726,7 +726,9 @@ function makeBike(frameHex, jerseyHex, helmetHex, riderGender = 'male', backpack
     const trick = obj.stuntMode || 'ride';
     if (trick !== obj.lastStuntMode) { obj.lastStuntMode = trick; obj.stuntClock = 0; }
     else if (trick !== 'ride') obj.stuntClock += dt;
-    const phase = clamp(obj.stuntClock / 2.4, 0, 1);
+    // Complete aerial rotations during the real jump arc (~0.84s), not after landing.
+    const isAirTrick = ['barspin', 'tailwhip', 'tabletop', 'superman', 'nohander', 'backflip', '360'].includes(trick);
+    const phase = clamp(obj.stuntClock / (isAirTrick ? 0.84 : 2.4), 0, 1);
     const wave = Math.sin(Math.PI * phase);
     const spin = Math.PI * 2 * phase;
     // Stunts rotate around a real centre-of-mass pivot, never around ground level.
@@ -1144,6 +1146,14 @@ function activateTrick(mode) {
   activeTrick = mode || TRICKS[nextTrickIndex % TRICKS.length].id;
   nextTrickIndex = (TRICKS.findIndex(t => t.id === activeTrick) + 1 + TRICKS.length) % TRICKS.length;
   trickTimer = 2.4;
+  // Aerial tricks must launch the actual rider physics, not just lift the bike mesh.
+  // This is independent of the Jump button so mobile trick taps work on their own.
+  if (requested && requested.kind === 'air' && P.grounded) {
+    P.vy = Math.max(P.vy, 9.2);
+    P.grounded = false;
+    P.jumpCd = Math.max(P.jumpCd, 0.45);
+    P.y += 0.04;
+  }
   if (me) me.stuntMode = activeTrick;
   const item = TRICKS.find(t => t.id === activeTrick);
   if ($('tTrick')) $('tTrick').textContent = item ? item.label : 'Stunt';
