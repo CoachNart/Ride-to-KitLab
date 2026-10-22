@@ -1408,6 +1408,8 @@ function spawnGhosts(count) {
     r.goff = (i % 2 ? 1 : -1) * (1.05 + Math.floor(i / 2) * 0.45);
     r.aiElapsed = 0;
     r.aiFinished = false;
+    r.aiJumping = false;
+    r.aiJumpT = 0;
     r.init = false;
     r.state = { ...initial };
   });
@@ -1456,12 +1458,20 @@ function updateGhosts(dt) {
     }
     // If the road is blocked across all lanes, launch a visible jump over the obstacle.
     let jumpY = 0;
-    const blocked = relevant.find(item => item.ahead > 0.5 && item.ahead < 8 &&
-      Math.hypot(centerX - item.h.x, centerZ - item.h.z) < item.radius + 1.0);
-    if (!anySafeLane && blocked) {
-      const jumpT = clamp((8 - blocked.ahead) / 8, 0, 1);
-      jumpY = Math.sin(jumpT * Math.PI) * 3.0;
+    const blocked = relevant.find(item => {
+      if (item.ahead <= 0.5 || item.ahead >= 8) return false;
+      const p = pointAt(item.hp, r.goff);
+      return Math.hypot(p.x - item.h.x, p.z - item.h.z) < item.radius;
+    });
+    if (!anySafeLane && blocked && !r.aiJumping) {
+      r.aiJumping = true;
+      r.aiJumpT = 0;
       bestLane = r.goff;
+    }
+    if (r.aiJumping) {
+      r.aiJumpT += dt;
+      jumpY = Math.sin(Math.PI * clamp(r.aiJumpT / 0.8, 0, 1)) * 3.0;
+      if (r.aiJumpT >= 0.8) { r.aiJumping = false; r.aiJumpT = 0; }
     }
     // Smoothly steer between lanes instead of snapping sideways.
     r.goff += (bestLane - r.goff) * Math.min(1, dt * 2.8);
