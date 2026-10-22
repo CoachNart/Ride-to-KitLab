@@ -44,6 +44,7 @@ button{font:inherit;color:inherit;cursor:pointer}
 #hit{position:fixed;inset:0;pointer-events:none;background:radial-gradient(ellipse at center,rgba(255,60,80,0) 35%,rgba(255,40,70,.55) 100%);opacity:0;transition:opacity .35s}
 #hit.on{opacity:1;transition:opacity .05s}
 #tJump{width:62px;height:62px;right:calc(max(18px,env(safe-area-inset-right)) + 108px);bottom:calc(max(26px,env(safe-area-inset-bottom)) + 96px);font-size:12px}
+#tTrick{width:62px;height:62px;right:calc(max(18px,env(safe-area-inset-right)) + 20px);bottom:calc(max(26px,env(safe-area-inset-bottom)) + 220px);font-size:11px;border-color:rgba(25,211,234,.75);color:#c9fbff}
 #roster{position:absolute;right:max(10px,env(safe-area-inset-right));top:calc(max(10px,env(safe-area-inset-top)) + 40px);width:210px;border-radius:16px;padding:10px 12px;font-size:13px;max-height:50vh;overflow:auto}
 #roster .rw{display:flex;align-items:center;gap:8px;padding:4px 0}
 #roster .sw{width:10px;height:10px;border-radius:50%;flex:none}
@@ -83,7 +84,7 @@ body.touch #touch{display:block}
 .fld span{display:block;margin-bottom:4px;opacity:.85}
 .fld small{font-weight:500;opacity:.7}
 input[type=text]{width:100%;padding:11px 12px;border-radius:12px;border:1px solid var(--line);background:rgba(255,255,255,.1);color:var(--paper);font:inherit;font-size:16px;user-select:text;-webkit-user-select:text}
-select#inGender{width:100%;padding:11px 12px;border-radius:12px;border:1px solid var(--line);background:#0a3442;color:var(--paper);font:inherit;font-size:16px;outline-offset:2px}select#inGender option{background:#0a3442;color:var(--paper)}
+select#inGender,select#inAICount{width:100%;padding:11px 12px;border-radius:12px;border:1px solid var(--line);background:#0a3442;color:var(--paper);font:inherit;font-size:16px;outline-offset:2px}select#inGender option,select#inAICount option{background:#0a3442;color:var(--paper)}
 #help{font-size:12.5px;line-height:1.5;opacity:.8;margin-top:12px}
 #modal{background:rgba(2,16,22,.6);align-items:flex-end}
 #mCard{width:min(460px,100%);border-radius:22px;padding:18px 18px 16px;margin-bottom:max(0px,env(safe-area-inset-bottom));max-height:92vh;overflow:auto}
@@ -140,6 +141,7 @@ select#inGender{width:100%;padding:11px 12px;border-radius:12px;border:1px solid
   #tBrake{width:54px;height:54px;right:calc(max(10px,env(safe-area-inset-right)) + 72px);bottom:calc(max(8px,env(safe-area-inset-bottom)) + 8px)}
   #tBell{width:42px;height:42px;right:calc(max(10px,env(safe-area-inset-right)) + 16px);bottom:calc(max(8px,env(safe-area-inset-bottom)) + 80px);font-size:10px}
   #tJump{width:48px;height:48px;right:calc(max(10px,env(safe-area-inset-right)) + 72px);bottom:calc(max(8px,env(safe-area-inset-bottom)) + 68px);font-size:10px}
+   #tTrick{width:48px;height:48px;right:calc(max(10px,env(safe-area-inset-right)) + 8px);bottom:calc(max(8px,env(safe-area-inset-bottom)) + 170px);font-size:9px}
 }
 @media (orientation:landscape) and (max-height:420px){
   #mini{width:76px;height:58px}
@@ -148,4 +150,277 @@ select#inGender{width:100%;padding:11px 12px;border-radius:12px;border:1px solid
   #quest{max-width:30vw}
   #qtime{font-size:11px}
   #qobj{font-size:10px}
+}
+
+
+/* Game front end: title screen and dedicated ride-selection flow */
+#menu{
+  align-items:center;
+  justify-content:flex-start;
+  padding:clamp(16px,4vw,64px);
+  background:linear-gradient(90deg,rgba(2,18,25,.76) 0%,rgba(2,18,25,.42) 43%,rgba(2,18,25,.05) 76%),linear-gradient(0deg,rgba(2,18,25,.28),transparent 60%);
+}
+#menuCard{
+  width:min(430px,calc(100vw - 32px));
+  max-height:calc(100dvh - 32px);
+  overflow-y:auto;
+  overscroll-behavior:contain;
+  padding:clamp(22px,3vw,32px);
+  margin:0;
+  border-radius:24px;
+  border-color:rgba(148,232,244,.24);
+  background:linear-gradient(145deg,rgba(5,35,45,.91),rgba(3,19,27,.87));
+  box-shadow:0 24px 80px rgba(0,0,0,.34),inset 0 1px 0 rgba(255,255,255,.06);
+  text-align:left;
+}
+#landingActions{display:grid;gap:12px}
+#landingActions h1{
+  margin:0 0 2px;
+  font-size:clamp(34px,4.4vw,48px);
+  line-height:.99;
+  letter-spacing:-.055em;
+  font-weight:950;
+}
+#landingActions h1 span{display:block;margin-top:5px}
+#menuCard .tagline{
+  margin:9px 0 17px;
+  color:rgba(232,249,252,.7);
+  font-size:12px;
+  line-height:1.6;
+  letter-spacing:.11em;
+  text-transform:uppercase;
+}
+#landingActions .btn{
+  width:100%;
+  min-height:54px;
+  border-radius:14px;
+  font-size:13px;
+  letter-spacing:.16em;
+  font-weight:900;
+}
+#landingActions .btn.primary{
+  box-shadow:0 8px 24px rgba(25,211,234,.2);
+  transition:transform .16s ease,box-shadow .16s ease,filter .16s ease;
+}
+#landingActions .btn.primary:hover{transform:translateY(-2px);filter:brightness(1.04);box-shadow:0 12px 30px rgba(25,211,234,.27)}
+#menuCard .menu-foot{
+  margin:3px 0 0;
+  color:rgba(232,249,252,.45);
+  font-size:9px;
+  letter-spacing:.16em;
+  text-transform:uppercase;
+}
+#menuCard .menu-foot span{padding:0 6px;color:var(--portal)}
+#setupPanel{display:none;text-align:left}
+#setupPanel.show{display:block;animation:menuPanelIn .2s ease-out}
+#landingActions.hide{display:none}
+#screenHeading{display:flex;align-items:center;justify-content:space-between;gap:12px;margin:0 0 17px}
+#screenHeading h2{font-size:16px;letter-spacing:.1em;margin:0;font-weight:900}
+#screenHeading button{background:transparent;border:0;color:#9bdce7;padding:7px 0 7px 7px;font-size:11px;letter-spacing:.1em;font-weight:800;cursor:pointer}
+#missionPicker{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:0 0 18px}
+#missionPicker .btn{
+  min-width:0;min-height:58px;padding:10px 11px!important;
+  text-align:left;background:rgba(7,29,38,.72);color:#f1fbfd;
+  border:1px solid rgba(150,235,248,.19);border-radius:13px;cursor:pointer;
+  transition:background .16s ease,border-color .16s ease,transform .16s ease;
+}
+#missionPicker .btn:hover{transform:translateY(-1px);border-color:rgba(25,211,234,.58)}
+#missionPicker .btn b{display:block;font-size:10px;letter-spacing:.035em;white-space:nowrap}
+#missionPicker .btn small{display:none!important}
+#missionPicker .btn span{display:block!important;font-size:9px!important;line-height:1.2;margin-top:5px!important;letter-spacing:.09em;opacity:.67}
+#missionPicker .btn.active{background:rgba(13,80,91,.58);border-color:#19d3ea!important;box-shadow:inset 0 0 0 1px rgba(25,211,234,.12)}
+#missionPicker .btn:disabled{opacity:.58;cursor:not-allowed}
+#menuCard .fld{margin-bottom:10px;font-size:12px}
+#menuCard .fld span{margin-bottom:5px}
+#menuCard input[type=text],#menuCard select#inGender,#menuCard select#inAICount{padding:11px 12px;border-radius:11px}
+#go{margin-top:5px;border-radius:13px;font-weight:900;letter-spacing:.1em;min-height:48px}
+@keyframes menuPanelIn{from{opacity:0;transform:translateY(7px)}to{opacity:1;transform:translateY(0)}}
+@media(max-width:699px){
+  #menu{justify-content:center;align-items:flex-end;padding:12px 12px max(12px,env(safe-area-inset-bottom));background:linear-gradient(0deg,rgba(2,18,25,.88) 0%,rgba(2,18,25,.56) 44%,rgba(2,18,25,.12) 100%)}
+  #menuCard{width:min(430px,100%);max-height:calc(100dvh - 24px);padding:22px 18px 18px;border-radius:22px}
+  #landingActions h1{font-size:35px}
+  #menuCard .tagline{font-size:10px;margin:8px 0 14px}
+  #landingActions .btn{min-height:49px}
+  #missionPicker{gap:7px;margin-bottom:14px}
+  #missionPicker .btn{min-height:51px;padding:8px!important}
+  #missionPicker .btn b{font-size:9.5px}
+  #menuCard .fld{font-size:11px;margin-bottom:8px}
+}
+@media(max-height:700px){
+  #menuCard{padding-top:17px;padding-bottom:16px}
+  #landingActions h1{font-size:32px}
+  #menuCard .tagline{margin:5px 0 10px}
+  #landingActions .btn{min-height:44px}
+  #missionPicker{gap:6px;margin-bottom:10px}
+  #missionPicker .btn{min-height:46px}
+  #menuCard .fld{margin-bottom:6px}
+}
+@media(prefers-reduced-motion:reduce){#setupPanel.show{animation:none}#landingActions .btn.primary,#missionPicker .btn{transition:none}}
+
+#landingActions .game-kicker{display:flex;align-items:center;gap:8px;margin-bottom:5px;color:rgba(206,242,247,.58);font-size:9px;font-weight:800;letter-spacing:.18em}
+#landingActions .game-kicker i{display:block;width:7px;height:7px;border-radius:2px;background:var(--portal);box-shadow:0 0 12px rgba(25,211,234,.55);transform:rotate(45deg)}
+
+
+/* ============================================================
+   RIDE TO KITLAB — PREMIUM GAME UI PASS
+   Keep gameplay/scene logic untouched; upgrade presentation only.
+   ============================================================ */
+:root{
+  --font:"Rajdhani","Oxanium",system-ui,sans-serif;
+  --font-display:"Oxanium","Rajdhani",system-ui,sans-serif;
+  --ui-bg:rgba(3,15,22,.78);
+  --ui-panel:rgba(4,24,32,.84);
+  --ui-border:rgba(127,226,240,.25);
+  --ui-border-hot:rgba(25,211,234,.72);
+  --ui-shadow:0 16px 44px rgba(0,0,0,.36),inset 0 1px 0 rgba(255,255,255,.055);
+}
+html,body{font-family:var(--font);font-weight:600;letter-spacing:.012em}
+button,input,select{font-family:var(--font)}
+button{transition:transform .16s ease,border-color .16s ease,background .16s ease,box-shadow .16s ease,filter .16s ease}
+button:active:not(:disabled){transform:translateY(1px) scale(.985)}
+.panel{background:var(--ui-panel);border:1px solid var(--ui-border);backdrop-filter:blur(18px) saturate(135%);-webkit-backdrop-filter:blur(18px) saturate(135%);box-shadow:var(--ui-shadow)}
+.btn{position:relative;border-radius:12px;padding:11px 16px;border:1px solid rgba(151,224,235,.25);background:linear-gradient(180deg,rgba(12,48,60,.94),rgba(4,25,34,.96));font-family:var(--font-display);font-size:12px;font-weight:800;letter-spacing:.075em;text-transform:uppercase}
+.btn:hover:not(:disabled){border-color:var(--ui-border-hot);filter:brightness(1.08)}
+.btn.primary{background:linear-gradient(135deg,#35e0ef 0%,#13bcd2 62%,#0aa4bd 100%);border:1px solid rgba(164,250,255,.8);color:#03202a;box-shadow:0 8px 24px rgba(25,211,234,.22),inset 0 1px 0 rgba(255,255,255,.45);text-shadow:0 1px rgba(255,255,255,.18)}
+.btn.primary:hover:not(:disabled){box-shadow:0 10px 30px rgba(25,211,234,.32),inset 0 1px 0 rgba(255,255,255,.5)}
+#menu{
+  align-items:center;justify-content:flex-start;
+  padding:clamp(16px,4.5vw,72px);
+  background:linear-gradient(90deg,rgba(2,13,19,.88) 0%,rgba(2,15,21,.66) 36%,rgba(2,15,21,.14) 75%),linear-gradient(0deg,rgba(2,13,19,.3),transparent 70%);
+}
+#menuCard{
+  position:relative;width:min(440px,calc(100vw - 32px));padding:clamp(22px,3.2vw,32px);
+  border-radius:5px 22px 5px 22px;border:1px solid rgba(110,223,239,.32);
+  background:linear-gradient(145deg,rgba(5,29,39,.96),rgba(2,14,21,.94));
+  box-shadow:0 28px 90px rgba(0,0,0,.5),inset 0 1px 0 rgba(255,255,255,.07);
+}
+#menuCard:before,#mCard:before,#aCard:before,#pauseCard:before{
+  content:"";position:absolute;left:-1px;top:-1px;width:54px;height:3px;background:var(--portal);
+  box-shadow:0 0 18px rgba(25,211,234,.42);pointer-events:none
+}
+#landingActions{gap:13px}
+#landingActions .game-kicker{font-family:var(--font-display);font-size:10px;letter-spacing:.2em;color:#9cbac2}
+#landingActions .game-kicker i{width:8px;height:8px;border-radius:1px}
+#landingActions h1{
+  font-family:var(--font-display);font-size:clamp(38px,4.8vw,54px);font-weight:800;
+  letter-spacing:-.055em;line-height:.98;text-transform:uppercase;
+  text-shadow:0 4px 30px rgba(0,0,0,.35)
+}
+#landingActions h1 span{margin-top:6px;color:var(--portal)!important;text-shadow:0 0 28px rgba(25,211,234,.18)}
+#menuCard .tagline{font-family:var(--font);font-size:14px;letter-spacing:.045em;text-transform:none;color:rgba(225,246,250,.7);margin:8px 0 15px}
+#landingActions .btn{min-height:54px;border-radius:5px 13px 5px 13px;font-family:var(--font-display);font-size:14px;letter-spacing:.2em}
+#landingActions .btn.primary:after,#go:after{
+  content:"↗";display:inline-block;margin-left:14px;font-size:17px;line-height:0;vertical-align:-1px
+}
+#menuCard .menu-foot{font-family:var(--font-display);font-size:10px;letter-spacing:.17em;color:rgba(215,241,245,.46)}
+#screenHeading{margin-bottom:18px}
+#screenHeading h2{font-family:var(--font-display);font-size:18px;letter-spacing:.11em;font-weight:800}
+#screenHeading button{font-family:var(--font-display);border:1px solid rgba(151,224,235,.2);border-radius:8px;padding:8px 10px;color:#a8eaf2}
+#missionPicker{gap:9px;margin-bottom:18px}
+#missionPicker .btn{
+  position:relative;min-height:65px;padding:12px!important;border-radius:4px 12px 4px 12px;
+  background:linear-gradient(145deg,rgba(13,43,53,.86),rgba(4,22,30,.94));
+  border-color:rgba(151,224,235,.17);overflow:hidden
+}
+#missionPicker .btn:before{content:"";position:absolute;left:0;top:0;bottom:0;width:2px;background:rgba(151,224,235,.15)}
+#missionPicker .btn.active{background:linear-gradient(135deg,rgba(12,90,103,.72),rgba(4,37,47,.96));border-color:var(--portal)!important;box-shadow:inset 0 0 0 1px rgba(25,211,234,.12),0 5px 18px rgba(0,0,0,.15)}
+#missionPicker .btn.active:before{background:var(--portal);box-shadow:0 0 12px rgba(25,211,234,.65)}
+#missionPicker .btn b{font-family:var(--font-display);font-size:11px;letter-spacing:.035em}
+#missionPicker .btn span{font-family:var(--font-display);font-size:10px!important;letter-spacing:.13em;opacity:.58}
+#missionPicker .btn.active span{color:var(--portal);opacity:1}
+#menuCard .fld{font-family:var(--font);font-size:13px;font-weight:700;color:rgba(232,249,252,.9)}
+#menuCard .fld span{font-family:var(--font-display);font-size:11px;letter-spacing:.09em;text-transform:uppercase;color:#a8c9d0}
+#menuCard .fld small{font-family:var(--font);font-size:11px;letter-spacing:0;text-transform:none}
+#menuCard input[type=text],#menuCard select#inGender,#menuCard select#inAICount{
+  border-radius:4px 10px 4px 10px;border-color:rgba(151,224,235,.24);
+  background:rgba(1,14,21,.78);min-height:43px;font-family:var(--font);font-weight:600
+}
+#menuCard input[type=text]:focus,#menuCard select:focus{border-color:var(--portal);box-shadow:0 0 0 3px rgba(25,211,234,.1)}
+#go{min-height:52px!important;border-radius:5px 13px 5px 13px!important;font-family:var(--font-display);font-size:14px;letter-spacing:.15em}
+#help{font-family:var(--font);font-size:12px}
+#quest{
+  border-left:2px solid var(--portal);border-radius:4px 14px 4px 14px;padding:11px 13px;
+  background:linear-gradient(135deg,rgba(3,21,29,.87),rgba(4,29,38,.73));min-width:180px;
+  box-shadow:0 10px 28px rgba(0,0,0,.24),inset 0 1px 0 rgba(255,255,255,.06)
+}
+#qmode{font-family:var(--font-display);font-size:11px;letter-spacing:.15em}
+#qtime{font-family:var(--font-display);font-size:15px;font-weight:700}
+#qobj{font-size:14px;font-weight:600}
+#qscore{font-family:var(--font-display);font-size:13px}
+#qscore b{font-size:21px;font-weight:800}
+#tr{gap:8px}
+#status{font-family:var(--font-display);font-size:12px;letter-spacing:.05em;border-radius:4px 12px 4px 12px;padding:8px 12px;background:rgba(3,18,25,.84)}
+#mini{border-radius:4px 13px 4px 13px;border-color:rgba(127,226,240,.3);box-shadow:0 8px 24px rgba(0,0,0,.25)}
+#btnrow{gap:6px}
+#btnrow .sbtn{
+  min-height:34px;padding:7px 11px;border-radius:4px 10px 4px 10px;
+  border:1px solid rgba(151,224,235,.27);background:linear-gradient(145deg,rgba(5,32,42,.92),rgba(2,18,25,.94));
+  box-shadow:0 4px 12px rgba(0,0,0,.2);font-family:var(--font-display);font-size:11px;
+  font-weight:800;letter-spacing:.055em;text-transform:uppercase;color:#e3f8fa
+}
+#btnrow .sbtn:hover{border-color:var(--portal);background:rgba(9,68,80,.96)}
+#btnrow .sbtn:focus-visible{outline:2px solid var(--portal);outline-offset:2px}
+#bCam:before{content:"◉";margin-right:6px;color:var(--portal)}
+#bSnd:before{content:"♫";margin-right:6px;color:var(--portal)}
+#bPause:before{content:"Ⅱ";margin-right:6px;color:var(--sun)}
+#bBack:before{content:"↩";margin-right:6px;color:var(--portal)}
+#speedo{font-family:var(--font-display);font-size:18px;font-weight:800;letter-spacing:.08em;text-shadow:0 2px 12px rgba(0,0,0,.75)}
+#stam{height:5px;border-radius:2px;background:rgba(1,12,17,.65);border:1px solid rgba(255,255,255,.12)}
+#stam i{box-shadow:0 0 10px rgba(255,193,77,.3)}
+#pad{border-radius:12px;background:rgba(3,19,26,.32);border:1px solid rgba(151,224,235,.18);box-shadow:0 12px 30px rgba(0,0,0,.18)}
+#knob{background:linear-gradient(145deg,#f2feff,#8caeb5);border:2px solid rgba(255,255,255,.72);box-shadow:0 5px 16px rgba(0,0,0,.35),inset 0 1px 1px #fff}
+.tb{font-family:var(--font-display);font-size:11px;letter-spacing:.05em;text-transform:uppercase;border:1px solid rgba(151,224,235,.38);background:linear-gradient(145deg,rgba(4,31,41,.91),rgba(2,17,24,.94));box-shadow:0 8px 24px rgba(0,0,0,.3),inset 0 1px 0 rgba(255,255,255,.08)}
+#tBoost{border:2px solid rgba(25,211,234,.75);color:#d9fbff;box-shadow:0 0 0 4px rgba(25,211,234,.07),0 8px 26px rgba(0,0,0,.34),inset 0 1px 0 rgba(255,255,255,.1)}
+#tJump,#tTrick{border-color:rgba(25,211,234,.58);background:linear-gradient(145deg,rgba(6,56,68,.94),rgba(2,21,29,.96));font-weight:800}
+.tb.down{background:linear-gradient(135deg,#4be7f2,#11b8d0);border-color:#c0fbff;color:#03202a;box-shadow:0 0 22px rgba(25,211,234,.32)}
+#toast{font-family:var(--font-display);font-size:15px;letter-spacing:.025em;border-radius:4px 12px 4px 12px;background:rgba(3,19,27,.92);border-color:rgba(25,211,234,.38);box-shadow:0 10px 30px rgba(0,0,0,.3)}
+#roster{border-radius:4px 13px 4px 13px}
+#modal,#arrive,#pause{background:rgba(1,10,15,.74);backdrop-filter:blur(9px);-webkit-backdrop-filter:blur(9px)}
+#mCard,#aCard,#pauseCard{
+  position:relative;border-radius:5px 20px 5px 20px;border-color:rgba(127,226,240,.3);
+  background:linear-gradient(145deg,rgba(5,31,41,.98),rgba(2,14,21,.98));
+  box-shadow:0 26px 90px rgba(0,0,0,.52),inset 0 1px 0 rgba(255,255,255,.06)
+}
+#mTitle,#aCard h2,#pauseCard h2{font-family:var(--font-display);font-weight:800;letter-spacing:-.025em;text-transform:uppercase}
+#mTitle{font-size:23px}
+#mStep{font-family:var(--font-display);font-size:12px;letter-spacing:.1em;text-transform:uppercase;color:#8ebdc6}
+#mBody,#mQ,#aCard p,#pauseCard p{font-family:var(--font);font-size:15px}
+.opt{border-radius:4px 11px 4px 11px;background:rgba(11,42,52,.62);border-color:rgba(151,224,235,.19);font-family:var(--font);font-weight:650}
+.opt:hover{border-color:rgba(25,211,234,.58);background:rgba(12,64,75,.72)}
+#mBtns .btn,#aBtns .btn,#pauseCard .btn{min-height:43px}
+#aCard h2,#pauseCard h2{font-size:30px}
+.brow{font-family:var(--font);border-color:rgba(151,224,235,.14)}
+#pauseCard{width:min(390px,100%);padding:28px}
+#pauseCard button{min-width:145px}
+@media(max-width:699px){
+  #menu{align-items:flex-end;justify-content:center;padding:10px 10px max(10px,env(safe-area-inset-bottom));background:linear-gradient(0deg,rgba(1,12,18,.96) 0%,rgba(2,17,23,.76) 48%,rgba(2,17,23,.18) 100%)}
+  #menuCard{width:min(440px,100%);padding:20px 16px 16px;max-height:calc(100dvh - 20px)}
+  #landingActions{gap:10px}
+  #landingActions h1{font-size:36px}
+  #menuCard .tagline{font-size:13px;margin:5px 0 10px}
+  #landingActions .btn{min-height:48px}
+  #missionPicker{gap:7px;margin-bottom:13px}
+  #missionPicker .btn{min-height:55px;padding:9px!important}
+  #missionPicker .btn b{font-size:10px}
+  #menuCard .fld{margin-bottom:8px;font-size:12px}
+  #menuCard input[type=text],#menuCard select#inGender,#menuCard select#inAICount{min-height:40px;padding:9px 10px}
+  #go{min-height:46px!important}
+  #quest{min-width:0;max-width:calc(100vw - 150px);padding:8px 10px}
+  #qmode{font-size:9px;letter-spacing:.1em}
+  #qobj{font-size:12px;gap:5px}
+  #qscore b{font-size:18px}
+  #btnrow{width:132px;gap:5px}
+  #btnrow .sbtn{min-height:31px;padding:6px 8px;font-size:10px;border-radius:4px 8px 4px 8px}
+  #mini{width:66px;height:88px}
+  #speedo{font-size:15px}
+}
+@media (orientation:landscape) and (max-height:600px){
+  #quest{min-width:145px;padding:7px 9px}
+  #btnrow .sbtn{min-height:27px;padding:5px 7px;font-size:9px}
+  #status{padding:5px 8px}
+  #mini{width:80px;height:62px}
+}
+@media(prefers-reduced-motion:reduce){
+  button{transition:none}
+  #landingActions .btn.primary:after,#go:after{transition:none}
 }

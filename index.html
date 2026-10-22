@@ -6,6 +6,10 @@
   <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover" />
   <meta name="description" content="Ride through a 3D Web3 learning world, dodge obstacles, grab boosts and tokens, and reach KitLab." />
   <title>Ride to KitLab</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Oxanium:wght@500;600;700;800&family=Rajdhani:wght@500;600;700&display=swap" rel="stylesheet">
+<style></style>
 </head>
 <body>
 <canvas id="gl"></canvas>
@@ -43,18 +47,35 @@
     <button class="tb" id="tBoost">Boost</button>
     <button class="tb" id="tBell">Bell</button>
     <button class="tb" id="tJump">Jump</button>
+    <button class="tb" id="tTrick" aria-label="Perform a stunt">Trick</button>
   </div>
 </div>
 
 <div id="menu" class="ov">
   <div id="menuCard" class="panel">
-    <h1>Ride to <span style="color:var(--portal)">Kitlab</span></h1>
-    <p>Race through a living 3D world. Hit all five glowing checkpoints, dodge obstacles, collect coins and boost pads, then blast through the finish line. Beat your best time.</p>
-    <label class="fld"><span>Rider name</span><input id="inName" type="text" maxlength="14" autocomplete="off"></label>
-    <label class="fld"><span>Rider style</span><select id="inGender" aria-label="Choose rider style"><option value="male">Male rider</option><option value="female">Female rider</option></select></label>
-    <label class="fld"><span>Room <small>Riders in the same room share the road.</small></span><input id="inRoom" type="text" maxlength="16" value="kitlab" autocomplete="off"></label>
-    <button id="go" class="btn primary" style="width:100%;padding:13px" disabled>Building the world...</button>
-    <div id="help"></div>
+    <section id="landingActions">
+      <div class="game-kicker"><i></i> KITLAB RIDING EXPERIENCE</div>
+      <h1>Ride to <span style="color:var(--portal)">KitLab</span></h1>
+      <p class="tagline">Choose your road. Earn your finish.</p>
+      <button type="button" id="playBtn" class="btn primary">PLAY</button>
+      <p class="menu-foot">5 RIDES <span>•</span> SOLO OR ROOM PLAY</p>
+    </section>
+    <section id="setupPanel">
+      <div id="screenHeading"><h2>SELECT YOUR RIDE</h2><button type="button" id="backToTitle">← BACK</button></div>
+      <div id="missionPicker">
+        <button type="button" id="pickNeon" class="btn active" data-mission="neon"><b>⚡ NEON SPRINT</b><span>SELECTED</span></button>
+        <button type="button" id="pickCoast" class="btn" data-mission="coastline"><b>🌊 COASTLINE RUSH</b><span>AVAILABLE</span></button>
+        <button type="button" id="pickDesert" class="btn" data-mission="desert"><b>🏜️ DUST DEVIL</b><span>AVAILABLE</span></button>
+        <button type="button" id="pickMountain" class="btn" data-mission="mountain"><b>⛰️ MOUNTAIN PASS</b><span>AVAILABLE</span></button>
+        <button type="button" id="pickCity" class="btn" data-mission="city"><b>🌃 CITY LIGHTS</b><span>AVAILABLE</span></button>
+      </div>
+      <label class="fld"><span>Rider name</span><input id="inName" type="text" maxlength="14" autocomplete="off"></label>
+      <label class="fld"><span>Rider style</span><select id="inGender" aria-label="Choose rider style"><option value="male">Male rider</option><option value="female">Female rider</option></select></label>
+      <label class="fld"><span>Room <small>Riders in the same room share the road.</small></span><input id="inRoom" type="text" maxlength="16" value="kitlab" autocomplete="off"></label>
+      <label class="fld"><span>AI opponents <small>Computer riders join when no people are online.</small></span><select id="inAICount" class="fld-select" aria-label="Choose number of AI opponents"><option value="0">No AI riders</option><option value="1">1 AI rider</option><option value="2">2 AI riders</option><option value="3">3 AI riders</option><option value="4">4 AI riders</option><option value="5" selected>5 AI riders</option></select></label>
+      <button id="go" class="btn primary" style="width:100%;padding:13px" disabled>Building the world...</button>
+      <div id="help"></div>
+    </section>
   </div>
 </div>
 
@@ -75,6 +96,7 @@
     <p id="aSum"></p>
     <div id="aBoard"></div>
     <div id="aBtns">
+      <button class="btn primary hide" id="aNext">Next Mission →</button>
       <button class="btn primary" id="aExplore">Free ride</button>
       <button class="btn hide" id="aOpen">Open Kitlab</button>
       <button class="btn" id="aAgain">Race again</button>

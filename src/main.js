@@ -24,11 +24,37 @@ if (!window.storage) {
 const KITLAB_URL = '';
 
 const IS_TOUCH = (window.matchMedia && matchMedia('(pointer:coarse)').matches) || ('ontouchstart' in window);
+const MISSION_IDS = ['neon', 'coastline', 'desert', 'mountain', 'city'];
+const requestedMission = new URLSearchParams(window.location.search).get('mission');
+const ACTIVE_MISSION = MISSION_IDS.includes(requestedMission) ? requestedMission : 'neon';
+const MISSION_TITLES = { neon: 'NEON SPRINT', coastline: 'COASTLINE RUSH', desert: 'DUST DEVIL', mountain: 'MOUNTAIN PASS', city: 'CITY LIGHTS' };
+const MISSION_TITLE = MISSION_TITLES[ACTIVE_MISSION];
 const SEED = 7731, HALF = 1350, N = 320, CELL = (HALF * 2) / N, WATER = -5.5, PS = 1100;
 const SHARD_T = [0.12, 0.29, 0.46, 0.63, 0.80];
 const SHARD_COL = ['#19d3ea', '#ffc14d', '#ff5a67', '#4fdc86', '#8fe9f7'];
 const RIDER_PAL = ['#ff5a67', '#19d3ea', '#ffc14d', '#4fdc86', '#8fe9f7', '#ffd95e', '#ff8a5e', '#9be564'];
 const JERSEY_PAL = ['#0b3a47', '#103a5e', '#16505a', '#5a2030', '#12404a', '#5a4a1a', '#1d3a2a', '#2a3550'];
+const AI_LOOKS = [
+  { frame:'#ff4d6d', jersey:'#401329', helmet:'#ffb3c1', pack:'#ff4d6d' },
+  { frame:'#ffd166', jersey:'#174a3b', helmet:'#06d6a0', pack:'#ffd166' },
+  { frame:'#9b5de5', jersey:'#24123f', helmet:'#f15bb5', pack:'#00bbf9' },
+  { frame:'#f77f00', jersey:'#17324d', helmet:'#fcbf49', pack:'#e63946' },
+  { frame:'#00bbf9', jersey:'#092e3d', helmet:'#f1faee', pack:'#00f5d4' }
+];
+const TRICKS = [
+  { id:'wheelie', label:'Wheelie', key:'1', kind:'ground' },
+  { id:'manual', label:'Manual', key:'2', kind:'ground' },
+  { id:'endo', label:'Endo / Stoppie', key:'3', kind:'ground' },
+  { id:'bunnyhop', label:'Bunny Hop', key:'4', kind:'ground' },
+  { id:'barspin', label:'Barspin', key:'5', kind:'air' },
+  { id:'tailwhip', label:'Tailwhip', key:'6', kind:'air' },
+  { id:'tabletop', label:'Tabletop', key:'7', kind:'air' },
+  { id:'superman', label:'Superman', key:'8', kind:'air' },
+  { id:'nohander', label:'No-Hander', key:'9', kind:'air' },
+  { id:'backflip', label:'Backflip', key:'0', kind:'air' },
+  { id:'360', label:'360 Spin', key:'Q', kind:'air' }
+];
+let activeTrick = 'ride', trickTimer = 0, nextTrickIndex = 0, aiRaceStarted = false;
 
 const LESSONS = [
   { title: 'Wallets',
@@ -135,7 +161,15 @@ const hubGroup = new THREE.Group(); hubGroup.visible = false; scene.add(hubGroup
 /* ============================================================
    WORLD: path, heightfield, terrain
    ============================================================ */
-const CTRL = [[0, 300], [50, 255], [135, 215], [175, 140], [120, 60], [10, 25], [-110, -10], [-185, -85], [-160, -175], [-70, -225], [40, -250], [120, -295], [200, -335], [285, -365], [350, -315], [385, -225], [330, -145], [245, -105], [180, -35]];
+const CTRL = ACTIVE_MISSION === 'coastline'
+  ? [[-220,300],[-120,270],[10,285],[145,245],[210,170],[170,90],[70,55],[-10,5],[-5,-80],[100,-135],[205,-190],[225,-270],[140,-330],[20,-310],[-70,-240],[-165,-220],[-230,-145],[-180,-70],[-80,-25]]
+  : ACTIVE_MISSION === 'desert'
+    ? [[-280,310],[-180,270],[-65,300],[45,250],[165,275],[255,205],[215,110],[100,70],[-25,95],[-135,35],[-205,-65],[-135,-160],[-10,-190],[120,-165],[235,-225],[260,-320],[135,-360],[10,-315],[-95,-260]]
+    : ACTIVE_MISSION === 'mountain'
+      ? [[-260,320],[-175,260],[-190,160],[-100,100],[10,145],[115,230],[195,190],[165,80],[65,20],[-10,-55],[45,-145],[150,-195],[225,-275],[135,-330],[15,-285],[-80,-205],[-175,-220],[-245,-125],[-160,-35]]
+      : ACTIVE_MISSION === 'city'
+        ? [[-230,310],[-100,310],[-100,205],[40,205],[40,300],[185,300],[185,165],[80,165],[80,55],[220,55],[220,-65],[90,-65],[90,-180],[-40,-180],[-40,-285],[-190,-285],[-190,-150],[-75,-150],[-75,-35],[-230,-35]]
+        : [[0,300],[50,255],[135,215],[175,140],[120,60],[10,25],[-110,-10],[-185,-85],[-160,-175],[-70,-225],[40,-250],[120,-295],[200,-335],[285,-365],[350,-315],[385,-225],[330,-145],[245,-105],[180,-35]];
 const curve = new THREE.CatmullRomCurve3(CTRL.map(p => new THREE.Vector3(p[0] * 1.7, 0, p[1] * 1.7)), false, 'centripetal');
 const PATH_LEN = curve.getLength();
 const pp = curve.getSpacedPoints(PS);
@@ -148,6 +182,27 @@ for (let i = 0; i <= PS; i++) {
 }
 
 function baseH(x, z) {
+  if (ACTIVE_MISSION === 'coastline') {
+    const rolling = (fbm(x * 0.003 + 11.3, z * 0.003 + 7.1, 4) - 0.5) * 13;
+    const shore = (fbm(x * 0.0095 + 3.7, z * 0.0095 + 19.2, 3) - 0.5) * 5;
+    const detail = (fbm(x * 0.03 + 8.1, z * 0.03 + 2.4, 2) - 0.5) * 1.2;
+    const edge = smooth(0.68, 0.98, Math.max(Math.abs(x), Math.abs(z)) / HALF);
+    return rolling + shore + detail + edge * 5 - 5.5;
+  }
+  if (ACTIVE_MISSION === 'desert') {
+    const dunes = (fbm(x * 0.0025 + 37, z * 0.0025 + 12, 4) - 0.5) * 22;
+    const ripples = (fbm(x * 0.012 + 7, z * 0.012 + 31, 3) - 0.5) * 4;
+    return dunes + ripples + smooth(0.68, 0.98, Math.max(Math.abs(x), Math.abs(z)) / HALF) * 18 + 15;
+  }
+  if (ACTIVE_MISSION === 'mountain') {
+    const ridges = (fbm(x * 0.0024 + 81, z * 0.0024 + 5, 5) - 0.5) * 82;
+    const rock = (fbm(x * 0.012 + 18, z * 0.012 + 43, 3) - 0.5) * 18;
+    return ridges + rock + smooth(0.65, 0.98, Math.max(Math.abs(x), Math.abs(z)) / HALF) * 55 + 60;
+  }
+  if (ACTIVE_MISSION === 'city') {
+    const subtle = (fbm(x * 0.004 + 11, z * 0.004 + 21, 3) - 0.5) * 3;
+    return subtle + smooth(0.7, 0.98, Math.max(Math.abs(x), Math.abs(z)) / HALF) * 8 + 1;
+  }
   const a = (fbm(x * 0.003 + 11.3, z * 0.003 + 7.1, 4) - 0.5) * 62;
   const b = (fbm(x * 0.0095 + 3.7, z * 0.0095 + 19.2, 3) - 0.5) * 20;
   const c = (fbm(x * 0.03 + 8.1, z * 0.03 + 2.4, 2) - 0.5) * 3;
@@ -216,8 +271,14 @@ function buildTerrain() {
   }
   // vertex data
   const pos = new Float32Array(V * 3), col = new Float32Array(V * 3), uv = new Float32Array(V * 2);
-  const cG1 = new THREE.Color(0x5e9a38), cG2 = new THREE.Color(0x88b24c), cDry = new THREE.Color(0xb7b05a), cDirt = new THREE.Color(0x9c7c52),
-    cRock = new THREE.Color(0x8c8984), cSand = new THREE.Color(0xdac790), cSnow = new THREE.Color(0xf2f4f7), c = new THREE.Color();
+  const palette = ({
+    neon: [0x5e9a38,0x88b24c,0xb7b05a,0x9c7c52,0x8c8984,0xe4d09d],
+    coastline: [0x4f9b62,0x78b86c,0xb5b16a,0xd6bc88,0xa69a83,0xe4d09d],
+    desert: [0xc99a4b,0xe0bd6b,0xd5a35e,0xe0bd6b,0x9e704b,0xf1d38e],
+    mountain: [0x526e65,0x779087,0x9a9a8b,0x777f86,0x777f86,0xd8d5c9],
+    city: [0x4b5557,0x667071,0x777a73,0x667071,0x424a50,0x8a8b80]
+  })[ACTIVE_MISSION] || [0x5e9a38,0x88b24c,0xb7b05a,0x9c7c52,0x8c8984,0xe4d09d];
+  const cG1 = new THREE.Color(palette[0]), cG2 = new THREE.Color(palette[1]), cDry = new THREE.Color(palette[2]), cDirt = new THREE.Color(palette[3]), cRock = new THREE.Color(palette[4]), cSand = new THREE.Color(palette[5]), cSnow = new THREE.Color(0xf2f4f7), c = new THREE.Color()
   for (let iz = 0; iz <= N; iz++) {
     for (let ix = 0; ix <= N; ix++) {
       const i = iz * (N + 1) + ix, x = -HALF + ix * CELL, z = -HALF + iz * CELL, h = H[i];
@@ -263,10 +324,21 @@ function buildTerrain() {
 
   // road ribbon
   const rc = mkCanvas(128, 256), rx = rc.getContext('2d');
-  rx.fillStyle = '#b48e5c'; rx.fillRect(0, 0, 128, 256);
-  for (let i = 0; i < 1800; i++) { const v = 120 + Math.floor(rr() * 90); rx.fillStyle = 'rgba(' + v + ',' + (v - 28) + ',' + (v - 60) + ',0.35)'; rx.fillRect(rr() * 128, rr() * 256, 1 + rr() * 3, 1 + rr() * 4); }
-  rx.fillStyle = 'rgba(70,45,20,0.28)'; rx.fillRect(34, 0, 12, 256); rx.fillRect(82, 0, 12, 256);
-  rx.fillStyle = 'rgba(120,150,70,0.35)'; rx.fillRect(60, 0, 8, 256);
+  const roadStyles = {
+    neon: { base: '#b48e5c', edge: 'rgba(70,45,20,0.28)', center: 'rgba(120,150,70,0.35)' },
+    coastline: { base: '#505a60', edge: 'rgba(245,232,190,0.9)', center: 'rgba(230,238,228,0.72)' },
+    desert: { base: '#8c6744', edge: 'rgba(231,192,120,0.9)', center: 'rgba(62,43,28,0.34)' },
+    mountain: { base: '#454c52', edge: 'rgba(231,232,216,0.78)', center: 'rgba(250,250,240,0.55)' },
+    city: { base: '#252d33', edge: 'rgba(225,235,237,0.9)', center: 'rgba(255,203,82,0.95)' }
+  };
+  const rs = roadStyles[ACTIVE_MISSION] || roadStyles.neon;
+  rx.fillStyle = rs.base; rx.fillRect(0, 0, 128, 256);
+  for (let i = 0; i < 1800; i++) { const v = 120 + Math.floor(rr() * 90); rx.fillStyle = ACTIVE_MISSION === 'desert' ? 'rgba(48,32,20,0.22)' : ACTIVE_MISSION === 'city' ? 'rgba(185,205,215,0.12)' : 'rgba(' + v + ',' + v + ',' + v + ',0.22)'; rx.fillRect(rr() * 128, rr() * 256, 1 + rr() * 3, 1 + rr() * 4); }
+  if (ACTIVE_MISSION === 'coastline') { rx.fillStyle = rs.edge; rx.fillRect(4, 0, 3, 256); rx.fillRect(121, 0, 3, 256); rx.fillStyle = rs.center; rx.fillRect(62, 0, 4, 256); }
+  else if (ACTIVE_MISSION === 'city') { rx.fillStyle = rs.edge; rx.fillRect(5, 0, 3, 256); rx.fillRect(120, 0, 3, 256); rx.fillStyle = rs.center; for (let y = 0; y < 256; y += 38) rx.fillRect(62, y, 4, 19); }
+  else if (ACTIVE_MISSION === 'mountain') { rx.fillStyle = rs.edge; rx.fillRect(7, 0, 2, 256); rx.fillRect(119, 0, 2, 256); rx.fillStyle = rs.center; rx.fillRect(62, 0, 4, 256); }
+  else if (ACTIVE_MISSION === 'desert') { rx.fillStyle = rs.edge; rx.fillRect(5, 0, 3, 256); rx.fillRect(120, 0, 3, 256); rx.fillStyle = rs.center; rx.fillRect(61, 0, 6, 256); }
+  else { rx.fillStyle = rs.edge; rx.fillRect(34, 0, 12, 256); rx.fillRect(82, 0, 12, 256); rx.fillStyle = rs.center; rx.fillRect(60, 0, 8, 256); }
   rx.globalCompositeOperation = 'destination-in';
   const gr = rx.createLinearGradient(0, 0, 128, 0);
   gr.addColorStop(0, 'rgba(0,0,0,0)'); gr.addColorStop(0.14, 'rgba(0,0,0,1)'); gr.addColorStop(0.86, 'rgba(0,0,0,1)'); gr.addColorStop(1, 'rgba(0,0,0,0)');
@@ -295,7 +367,10 @@ function buildTerrain() {
 function mergeColored(parts) {
   const pos = [], col = [];
   for (const p of parts) {
-    const g = p.geo.toNonIndexed(); g.translate(p.x || 0, p.y || 0, p.z || 0);
+    const g = p.geo.toNonIndexed();
+    if (p.sx || p.sy || p.sz) g.scale(p.sx || 1, p.sy || 1, p.sz || 1);
+    if (p.rx) g.rotateX(p.rx); if (p.ry) g.rotateY(p.ry); if (p.rz) g.rotateZ(p.rz);
+    g.translate(p.x || 0, p.y || 0, p.z || 0);
     const a = g.attributes.position.array, c = new THREE.Color(p.color);
     for (let i = 0; i < a.length; i++) pos.push(a[i]);
     for (let i = 0; i < g.attributes.position.count; i++) col.push(c.r, c.g, c.b);
@@ -309,7 +384,52 @@ function mergeColored(parts) {
 
 function buildScenery() {
   const rnd = mulberry32(99), dummy = new THREE.Object3D(), tmpC = new THREE.Color();
-  const pineGeo = mergeColored([
+  if (ACTIVE_MISSION === 'coastline') {
+    const ocean = new THREE.Mesh(new THREE.PlaneGeometry(HALF * 2.35, HALF * 2.35), new THREE.MeshStandardMaterial({ color: 0x087fa5, emissive: 0x06364b, emissiveIntensity: 0.22, roughness: 0.24, metalness: 0.12 }));
+    ocean.rotation.x = -Math.PI / 2; ocean.position.y = WATER - 0.18; ocean.receiveShadow = true; ocean.renderOrder = -2; worldGroup.add(ocean);
+    scene.background.setHex(0x8dd9ed); scene.fog.color.setHex(0xa9e1e9); scene.fog.near = 85; scene.fog.far = 760;
+    skyMat.uniforms.top.value.setHex(0x197fb6); skyMat.uniforms.mid.value.setHex(0xa8e7ee); skyMat.uniforms.bot.value.setHex(0x68c4d7); skyMat.uniforms.sunCol.value.setHex(0xfff3cf);
+    hemi.color.setHex(0xd8f7ff); hemi.groundColor.setHex(0x4c8054); hemi.intensity = 0.92; sun.color.setHex(0xffedc5); sun.intensity = 1.05;
+  } else if (ACTIVE_MISSION === 'desert') {
+    scene.background.setHex(0xe9b875); scene.fog.color.setHex(0xe8c18b); scene.fog.near = 100; scene.fog.far = 850;
+    skyMat.uniforms.top.value.setHex(0x497eaa); skyMat.uniforms.mid.value.setHex(0xf1c58c); skyMat.uniforms.bot.value.setHex(0xe9ad70); skyMat.uniforms.sunCol.value.setHex(0xffdf9e);
+    hemi.color.setHex(0xffe4b5); hemi.groundColor.setHex(0x8c5b32); hemi.intensity = 0.82; sun.color.setHex(0xffd29a); sun.intensity = 1.18;
+  } else if (ACTIVE_MISSION === 'mountain') {
+    scene.background.setHex(0x9db6c7); scene.fog.color.setHex(0xaebfc8); scene.fog.near = 75; scene.fog.far = 700;
+    skyMat.uniforms.top.value.setHex(0x315b83); skyMat.uniforms.mid.value.setHex(0xc7d3d8); skyMat.uniforms.bot.value.setHex(0x8ea9b5); skyMat.uniforms.sunCol.value.setHex(0xf5f3e8);
+    hemi.color.setHex(0xd9e7f2); hemi.groundColor.setHex(0x4a6259); hemi.intensity = 0.8; sun.color.setHex(0xf2f1e8); sun.intensity = 0.98;
+  } else if (ACTIVE_MISSION === 'city') {
+    scene.background.setHex(0x081827); scene.fog.color.setHex(0x102a3a); scene.fog.near = 65; scene.fog.far = 520;
+    skyMat.uniforms.top.value.setHex(0x030914); skyMat.uniforms.mid.value.setHex(0x10283c); skyMat.uniforms.bot.value.setHex(0x081827); skyMat.uniforms.sunCol.value.setHex(0x3abfe5);
+    skyMat.uniforms.stars.value = 0.55; hemi.color.setHex(0x7897b8); hemi.groundColor.setHex(0x17232b); hemi.intensity = 0.52; sun.color.setHex(0x66c9f0); sun.intensity = 0.52;
+    const buildingMats = [0x182a38,0x263846,0x304451,0x26313f].map(color => new THREE.MeshStandardMaterial({ color, roughness: 0.82, metalness: 0.12 }));
+    const windowMat = new THREE.MeshBasicMaterial({ color: 0x83e8f5 });
+    for (let i = 65; i < PS - 20; i += 35) {
+      for (const side of [-1, 1]) {
+        const x = px[i] + -tz[i] * side * (13 + (i % 3) * 2), z = pz[i] + tx[i] * side * (13 + (i % 3) * 2);
+        const h = 8 + rnd() * 27, w = 5 + rnd() * 5, depth = 5 + rnd() * 5;
+        const b = new THREE.Mesh(new THREE.BoxGeometry(w,h,depth), buildingMats[Math.floor(rnd()*buildingMats.length)]);
+        b.position.set(x, terrainH(x,z) + h/2, z); b.castShadow = true; b.receiveShadow = true; worldGroup.add(b);
+        for (let floor = 2; floor < h - 2; floor += 4) {
+          const win = new THREE.Mesh(new THREE.BoxGeometry(w*0.62,0.7,0.08), windowMat);
+          win.position.set(x, terrainH(x,z) + floor, z + depth/2 + 0.05); worldGroup.add(win);
+        }
+      }
+    }
+  }
+  const pineGeo = ACTIVE_MISSION === 'coastline' ? mergeColored([
+    { geo: new THREE.CylinderGeometry(0.18, 0.3, 5.4, 7), color: 0x8b5b35, y: 2.7 },
+    { geo: new THREE.ConeGeometry(0.18, 3.8, 5), color: 0x23834c, y: 5.45, rz: 1.12, sx: 1.3 },
+    { geo: new THREE.ConeGeometry(0.18, 3.8, 5), color: 0x23834c, y: 5.45, rz: -1.12, sx: 1.3 },
+    { geo: new THREE.ConeGeometry(0.18, 3.5, 5), color: 0x329b55, y: 5.5, rz: 0.72, sx: 1.2 },
+    { geo: new THREE.ConeGeometry(0.18, 3.5, 5), color: 0x329b55, y: 5.5, rz: -0.72, sx: 1.2 },
+    { geo: new THREE.ConeGeometry(0.18, 3.2, 5), color: 0x43b967, y: 5.55, rx: 0.8, sx: 1.2 },
+    { geo: new THREE.ConeGeometry(0.18, 3.2, 5), color: 0x43b967, y: 5.55, rx: -0.8, sx: 1.2 }
+  ]) : ACTIVE_MISSION === 'desert' ? mergeColored([
+    { geo: new THREE.CylinderGeometry(0.28, 0.38, 2.8, 7), color: 0x347044, y: 1.4 },
+    { geo: new THREE.CylinderGeometry(0.14, 0.18, 1.7, 6), color: 0x347044, y: 2.6, x: 0.42, rz: -0.42 },
+    { geo: new THREE.CylinderGeometry(0.14, 0.18, 1.3, 6), color: 0x347044, y: 1.9, x: -0.38, rz: 0.42 }
+  ]) : mergeColored([
     { geo: new THREE.CylinderGeometry(0.22, 0.3, 1.6, 6), color: 0x5b3d24, y: 0.8 },
     { geo: new THREE.ConeGeometry(2.0, 3.2, 7), color: 0x2f6b3a, y: 2.9 },
     { geo: new THREE.ConeGeometry(1.6, 2.8, 7), color: 0x37793f, y: 4.4 },
@@ -320,7 +440,7 @@ function buildScenery() {
     { geo: new THREE.IcosahedronGeometry(1.9, 0), color: 0x5c9a3a, y: 3.5 },
     { geo: new THREE.IcosahedronGeometry(1.3, 0), color: 0x6fae45, y: 4.7, x: 0.7 }
   ]);
-  const NP = 1700, NO = 700, NR = 380, NF = 2600;
+  const NP = ACTIVE_MISSION === 'city' ? 0 : ACTIVE_MISSION === 'desert' ? 900 : 1700, NO = ACTIVE_MISSION === 'city' ? 0 : ACTIVE_MISSION === 'desert' ? 420 : 700, NR = ACTIVE_MISSION === 'city' ? 520 : ACTIVE_MISSION === 'desert' ? 560 : 380, NF = ACTIVE_MISSION === 'city' || ACTIVE_MISSION === 'desert' ? 0 : 2600;
   const pines = new THREE.InstancedMesh(pineGeo, new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.95 }), NP);
   const oaks = new THREE.InstancedMesh(oakGeo, new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.95 }), NO);
   const rocks = new THREE.InstancedMesh(new THREE.IcosahedronGeometry(1, 0), new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 1, flatShading: true }), NR);
@@ -466,13 +586,16 @@ function makeWheel(rear) {
   return g;
 }
 
-function makeBike(frameHex, jerseyHex, helmetHex, riderGender = 'male') {
+function makeBike(frameHex, jerseyHex, helmetHex, riderGender = 'male', backpackHex = null) {
   const hs = hashStr(String(frameHex) + String(jerseyHex)), S = shm();
   const M = (c, r, m) => new THREE.MeshStandardMaterial({ color: c, roughness: r, metalness: m || 0 });
   const mFrame = M(frameHex, 0.35, 0.5), mJersey = M(jerseyHex, 0.8), mHelmet = M(helmetHex, 0.4, 0.1),
-    mSkin = M(SKIN_PAL[hs % SKIN_PAL.length], 0.75), mHair = M(HAIR_PAL[(hs >> 3) % HAIR_PAL.length], 0.9), mPack = M(0xd9692e, 0.8);
+    mSkin = M(SKIN_PAL[hs % SKIN_PAL.length], 0.75), mHair = M(HAIR_PAL[(hs >> 3) % HAIR_PAL.length], 0.9), mPack = M(backpackHex || helmetHex || 0xd9692e, 0.8);
   const root = new THREE.Group(); root.rotation.order = 'YXZ';
-  const body = new THREE.Group(); root.add(body);
+  // Keep the stunt pivot at the bike's centre of mass. The geometry stays in its
+  // original local coordinates, offset down by one wheel radius inside the pivot.
+  const stuntPivot = new THREE.Group(); stuntPivot.position.y = WR; root.add(stuntPivot);
+  const body = new THREE.Group(); body.position.y = -WR; stuntPivot.add(body);
   const V3 = (x, y, z) => new THREE.Vector3(x, y, z);
   function mesh(geo, mat, parent, cast) { const m = new THREE.Mesh(geo, mat); if (cast) m.castShadow = true; (parent || body).add(m); return m; }
   function tube(a, b, rb, rt, mat, parent) { const t = mesh(G('CylinderGeometry', rt, rb, 1, 10), mat, parent, true); limb(t, a, b); return t; }
@@ -597,11 +720,43 @@ function makeBike(frameHex, jerseyHex, helmetHex, riderGender = 'male') {
       elbow: ball(V3(0, 0, 0), 0.04, mSkin, rider, 1, 1, 1, false), hand: ball(V3(0, 0, 0), 0.048, S.rubber, rider, 1, 0.85, 1.15, false)
     });
   }
-  const obj = { root, body, rider, crank: 0, steerG, fw, rw, bubble: null, bubbleT: 0, tag: null };
+  const obj = { root, body, rider, crank: 0, steerG, fw, rw, bubble: null, bubbleT: 0, tag: null, stuntMode:'ride', stuntClock:0, lastStuntMode:'ride' };
   obj.pose = function (dt, v, steer, crankRate) {
     obj.crank += crankRate * dt;
+    const trick = obj.stuntMode || 'ride';
+    if (trick !== obj.lastStuntMode) { obj.lastStuntMode = trick; obj.stuntClock = 0; }
+    else if (trick !== 'ride') obj.stuntClock += dt;
+    // Complete aerial rotations during the real jump arc (~0.84s), not after landing.
+    const isAirTrick = ['barspin', 'tailwhip', 'tabletop', 'superman', 'nohander', 'backflip', '360'].includes(trick);
+    const phase = clamp(obj.stuntClock / (isAirTrick ? 0.84 : 2.4), 0, 1);
+    const wave = Math.sin(Math.PI * phase);
+    const spin = Math.PI * 2 * phase;
+    // Stunts rotate around a real centre-of-mass pivot, never around ground level.
+    stuntPivot.rotation.set(0, 0, 0);
+    if (trick === 'wheelie') stuntPivot.rotation.x = -0.48;
+    if (trick === 'manual') stuntPivot.rotation.x = -0.24;
+    if (trick === 'endo') stuntPivot.rotation.x = 0.38;
+    if (trick === 'tailwhip') stuntPivot.rotation.y = Math.sin(Math.PI * phase) * Math.PI * 2;
+    if (trick === 'tabletop') { stuntPivot.rotation.z = wave * 0.92; stuntPivot.rotation.x = -wave * 0.12; }
+    if (trick === 'backflip') stuntPivot.rotation.x = spin;
+    if (trick === '360') stuntPivot.rotation.y = spin;
+    // Aerial tricks now launch automatically. Keep enough clearance throughout the
+    // full rotation, including the first/last frames when the bike starts to tilt.
+    const airTrick = ['barspin', 'tailwhip', 'tabletop', 'superman', 'nohander', 'backflip', '360'].includes(trick);
+    const flipLift = trick === 'backflip' ? 1.45 * Math.sin(Math.PI * phase) : 0;
+    const airLift = airTrick ? Math.max(0.48 * Math.sin(Math.PI * phase), flipLift) : 0;
+    stuntPivot.position.y = WR + airLift + (trick === 'bunnyhop' ? wave * 0.72 : 0);
+    body.position.y = -WR;
+    rider.position.set(0, trick === 'bunnyhop' ? wave * 0.08 : 0, trick === 'superman' ? 0.32 : 0);
+    rider.rotation.set(
+      trick === 'superman' ? -0.62 : trick === 'backflip' ? -Math.sin(spin) * 0.2 : 0,
+      trick === 'tailwhip' ? -body.rotation.y : trick === 'nohander' ? Math.sin(Math.PI * phase) * 0.08 : 0,
+      trick === 'tabletop' ? -wave * 0.35 : 0
+    );
     const w = v / WR * dt; rw.rotation.x += w; fw.rotation.x += w;
-    steerG.quaternion.setFromAxisAngle(AXIS, steer); steerG.updateMatrix();
+    steerG.quaternion.setFromAxisAngle(AXIS, steer);
+    if (trick === 'barspin') steerG.rotateOnAxis(AXIS, spin);
+    steerG.updateMatrix();
     chainring.rotation.x = obj.crank;
     pivot.rotation.z = Math.sin(obj.crank) * 0.03 * clamp(v / 6, 0, 1);
     headG.rotation.y = clamp(steer * 1.6, -0.5, 0.5);
@@ -617,6 +772,9 @@ function makeBike(frameHex, jerseyHex, helmetHex, riderGender = 'male') {
       _h.copy(_c).lerp(_b, 0.28); limb(L.sock, _h, _c);
       const A = arms[k];
       _g.set(s * GRIP.x, GRIP.y, GRIP.z).applyMatrix4(steerG.matrix);
+      if (trick === 'nohander') _g.set(s * 0.30, by + 0.48, bz + 0.13);
+      if (trick === 'superman') _g.set(s * 0.31, by + 0.12, bz + 0.28);
+      if (trick === 'tabletop') _g.set(s * 0.30, by + 0.18, bz + 0.18);
       const r2 = ik2(s * 0.2, 1.38, 0.04, _g.x, _g.y, _g.z, 0.29, 0.31, s * 1, -0.6, -0.25);
       _a.set(s * 0.2, 1.38, 0.04); _b.set(r2.kx, r2.ky, r2.kz); _c.set(r2.ex, r2.ey, r2.ez);
       limb(A.up, _a, _b); limb(A.lo, _b, _c); A.elbow.position.copy(_b); A.hand.position.copy(_c);
@@ -982,6 +1140,27 @@ const P = { x: 0, z: 0, y: 0, yaw: 0, v: 0, steerAng: 0, lean: 0, vy: 0, grounde
 let camYaw = 0, camMode = 0, shake = 0, menuAng = 0, myName = 'Rider', myColor = 0, myGender = 'male', myId = '', myRoom = 'kitlab', usedKeyboard = false, lastGateMsg = 0, wipeoutPending = false, lastSocialAt = 0;
 let me = null;
 const keys = {}, touch = { steer: 0, brake: false, boost: false, jump: false };
+function activateTrick(mode) {
+  if (!started || paused || countdown > 0 || finished || modalOpen) return;
+  const requested = TRICKS.find(t => t.id === mode);
+  activeTrick = mode || TRICKS[nextTrickIndex % TRICKS.length].id;
+  nextTrickIndex = (TRICKS.findIndex(t => t.id === activeTrick) + 1 + TRICKS.length) % TRICKS.length;
+  trickTimer = 2.4;
+  // Aerial tricks must launch the actual rider physics, not just lift the bike mesh.
+  // This is independent of the Jump button so mobile trick taps work on their own.
+  if (requested && requested.kind === 'air' && P.grounded) {
+    P.vy = Math.max(P.vy, 9.2);
+    P.grounded = false;
+    P.jumpCd = Math.max(P.jumpCd, 0.45);
+    P.y += 0.04;
+  }
+  if (me) me.stuntMode = activeTrick;
+  const item = TRICKS.find(t => t.id === activeTrick);
+  if ($('tTrick')) $('tTrick').textContent = item ? item.label : 'Stunt';
+  toast((item ? item.label : 'Stunt') + '!', 1100);
+  netSendNow();
+}
+function cycleTrick() { activateTrick(TRICKS[nextTrickIndex % TRICKS.length].id); }
 
 function placeAtPath(i, back) {
   P.pathIdx = i; P.x = px[i] - tx[i] * (back || 0); P.z = pz[i] - tz[i] * (back || 0);
@@ -1213,7 +1392,7 @@ const remotes = new Map();
 function storageOK() { return !!(window.storage && !window.storage.__rideKitlabLocal && typeof window.storage.set === 'function'); }
 
 function myState() {
-  return { n: myName, c: myColor, g: myGender, x: +P.x.toFixed(2), z: +P.z.toFixed(2), y: +P.y.toFixed(2), w: +P.yaw.toFixed(3), v: +P.v.toFixed(2), s: +P.steerAng.toFixed(3), l: +P.lean.toFixed(3), zn: zone, t: Date.now(), e: emote.text, et: emote.t, sh: collectedCount, f: finishTime ? +finishTime.toFixed(1) : 0 };
+  return { n: myName, c: myColor, g: myGender, x: +P.x.toFixed(2), z: +P.z.toFixed(2), y: +P.y.toFixed(2), w: +P.yaw.toFixed(3), v: +P.v.toFixed(2), s: +P.steerAng.toFixed(3), l: +P.lean.toFixed(3), zn: zone, t: Date.now(), e: emote.text, et: emote.t, sh: collectedCount, f: finishTime ? +finishTime.toFixed(1) : 0, trick: activeTrick };
 }
 async function netInit() {
   Net.pre = myRoom + ':p:'; Net.myKey = Net.pre + myId; Net.boardKey = myRoom + ':b:' + myId;
@@ -1236,7 +1415,9 @@ function ensureRemote(id, s) {
   let r = remotes.get(id);
   if (!r) {
     const c = (s.c | 0) % RIDER_PAL.length;
-    const bike = makeBike(RIDER_PAL[c], JERSEY_PAL[(c + 3) % JERSEY_PAL.length], RIDER_PAL[(c + 4) % RIDER_PAL.length], s.g === 'female' ? 'female' : 'male');
+    const ghostIndex = String(id).startsWith('ghost') ? clamp(parseInt(String(id).slice(5), 10) || 0, 0, 4) : -1;
+    const look = ghostIndex >= 0 ? AI_LOOKS[ghostIndex] : null;
+    const bike = makeBike(look ? look.frame : RIDER_PAL[c], look ? look.jersey : JERSEY_PAL[(c + 3) % JERSEY_PAL.length], look ? look.helmet : RIDER_PAL[(c + 4) % RIDER_PAL.length], s.g === 'female' ? 'female' : 'male', look ? look.pack : RIDER_PAL[(c + 2) % RIDER_PAL.length]);
     bike.setName(String(s.n || 'Rider').slice(0, 14)); scene.add(bike.root); bike.root.visible = false;
     r = { id, bike, state: s, recv: performance.now(), lastT: 0, seen: performance.now(), live: false, init: false, x: s.x, z: s.z, yaw: s.w, lastE: s.et || 0, ghost: false, color: RIDER_PAL[c] };
     remotes.set(id, r);
@@ -1276,24 +1457,116 @@ async function netPoll() {
   updateStatus();
 }
 
-/* ghost riders when storage is unavailable */
-const GHOSTS = ['Mira', 'Tobi', 'Juno', 'Axel'];
-let ghostsOn = false;
-function spawnGhosts() {
-  if (ghostsOn) return; ghostsOn = true;
-  GHOSTS.forEach((n, i) => {
-    const r = ensureRemote('ghost' + i, { n, c: i * 2 + 1, x: 0, z: 0, y: 0, w: 0, v: 7, s: 0, l: 0, zn: 0, t: 1, e: '', et: 0, sh: 0, f: 0 });
-    r.ghost = true; r.live = true; r.gs = (i * 0.07 + 0.02) * PATH_LEN; r.gsp = 14 + i * 2.4; r.goff = (i % 2 ? 1 : -1) * (0.9 + i * 0.3);
-  });
-}
-function updateGhosts(dt) {
+/* Optional AI race field: up to five computer riders, available without other people online. */
+const GHOSTS = ['Mira', 'Tobi', 'Juno', 'Axel', 'Zuri'];
+const AI_SPEEDS = [16.8, 18.2, 19.6, 21.1, 22.7];
+let ghostsOn = false, aiOpponentCount = 5;
+function syncGhosts() {
+  const humanOnline = Net.mode === 'live' && Array.from(remotes.values()).some(r => !r.ghost && r.live);
+  const showAI = aiOpponentCount > 0 && !humanOnline;
   remotes.forEach(r => {
     if (!r.ghost) return;
-    r.gs += r.gsp * dt; if (r.gs > PATH_LEN * 0.985) r.gs = 0;
+    const idx = Number(String(r.id).replace('ghost', ''));
+    r.live = showAI && Number.isInteger(idx) && idx >= 0 && idx < aiOpponentCount;
+    if (!r.live) r.bike.root.visible = false;
+  });
+}
+function spawnGhosts(count) {
+  aiOpponentCount = clamp(Number.isFinite(Number(count)) ? Math.floor(Number(count)) : 5, 0, 5);
+  ghostsOn = true;
+  // Cache each obstacle's route position so AI can choose a clear lane or jump.
+  hazards.forEach(h => {
+    const near = nearestPath(h.x, h.z, Math.round(PS * 0.5));
+    h.aiPath = near.i;
+    h.aiLane = (h.x - px[near.i]) * -tz[near.i] + (h.z - pz[near.i]) * tx[near.i];
+  });
+  GHOSTS.forEach((n, i) => {
+    const startLane = (i % 2 ? 1 : -1) * (1.05 + Math.floor(i / 2) * 0.45);
+    const initial = { n, c: i * 2 + 1, x: px[0] - tz[0] * startLane, z: pz[0] + tx[0] * startLane, y: 0, w: Math.atan2(tx[0], tz[0]), v: 0, s: 0, l: 0, zn: 0, t: 1, e: '', et: 0, sh: 0, f: 0, trick:'ride' };
+    const r = ensureRemote('ghost' + i, initial);
+    r.ghost = true;
+    r.color = AI_LOOKS[i].frame;
+    r.bike.stuntMode = 'ride';
+    r.gs = 0;
+    r.gsp = AI_SPEEDS[i];
+    r.goff = (i % 2 ? 1 : -1) * (1.05 + Math.floor(i / 2) * 0.45);
+    r.aiElapsed = 0;
+    r.aiFinished = false;
+    r.aiJumping = false;
+    r.aiJumpT = 0;
+    r.init = false;
+    r.state = { ...initial };
+  });
+  syncGhosts();
+}
+function updateGhosts(dt) {
+  // AI waits at the line for the initial GO, then never resets with a crashed player.
+  if (!started || paused) return;
+  if (!aiRaceStarted) { if (countdown > 0) return; aiRaceStarted = true; }
+  remotes.forEach(r => {
+    if (!r.ghost || !r.live) return;
+    if (!r.aiFinished) {
+      r.aiElapsed += dt;
+      r.gs = Math.min(PATH_LEN * 0.998, r.gs + r.gsp * dt);
+      if (r.gs >= PATH_LEN * 0.998) { r.aiFinished = true; r.gsp = 0; }
+    }
     const f = clamp(r.gs / PATH_LEN * PS, 0, PS - 1.001), i = Math.floor(f), k = f - i;
-    const x = lerp(px[i], px[i + 1], k) - tz[i] * r.goff, z = lerp(pz[i], pz[i + 1], k) + tx[i] * r.goff;
+    const centerX = lerp(px[i], px[i + 1], k), centerZ = lerp(pz[i], pz[i + 1], k);
+    const laneOptions = [-3.0, -1.5, 0, 1.5, 3.0];
+    const pointAt = (pathIndex, lane) => ({
+      x: px[pathIndex] - tz[pathIndex] * lane,
+      z: pz[pathIndex] + tx[pathIndex] * lane
+    });
+    let bestLane = r.goff, bestCost = Infinity, anySafeLane = false;
+    const relevant = [];
+    for (const h of hazards) {
+      if (h.broken || h.type === 'puddle') continue;
+      const hp = Number.isFinite(h.aiPath) ? h.aiPath : nearestPath(h.x, h.z, i).i;
+      const ahead = (hp / PS) * PATH_LEN - r.gs;
+      if (ahead < -2 || ahead > 17) continue;
+      const p = pointAt(hp, 0);
+      const lateral = (h.x - p.x) * -tz[hp] + (h.z - p.z) * tx[hp];
+      const radius = Math.max(h.r || 0, h.half || 0, h.type === 'log' ? 2.2 : 0) + 1.05;
+      relevant.push({ h, hp, ahead, lateral, radius });
+    }
+    for (const lane of laneOptions) {
+      let safe = true;
+      for (const item of relevant) {
+        const p = pointAt(item.hp, lane);
+        if (Math.hypot(p.x - item.h.x, p.z - item.h.z) < item.radius) { safe = false; break; }
+      }
+      if (safe) {
+        anySafeLane = true;
+        const cost = Math.abs(lane - r.goff) + (Math.abs(lane) > 2.5 ? 0.35 : 0);
+        if (cost < bestCost) { bestCost = cost; bestLane = lane; }
+      }
+    }
+    // If the road is blocked across all lanes, launch a visible jump over the obstacle.
+    let jumpY = 0;
+    const blocked = relevant.find(item => {
+      if (item.ahead <= 0.5 || item.ahead >= 8) return false;
+      const p = pointAt(item.hp, r.goff);
+      return Math.hypot(p.x - item.h.x, p.z - item.h.z) < item.radius;
+    });
+    if (!anySafeLane && blocked && !r.aiJumping) {
+      r.aiJumping = true;
+      r.aiJumpT = 0;
+      bestLane = r.goff;
+    }
+    if (r.aiJumping) {
+      r.aiJumpT += dt;
+      jumpY = Math.sin(Math.PI * clamp(r.aiJumpT / 0.8, 0, 1)) * 3.0;
+      if (r.aiJumpT >= 0.8) { r.aiJumping = false; r.aiJumpT = 0; }
+    }
+    // Smoothly steer between lanes instead of snapping sideways.
+    r.goff += (bestLane - r.goff) * Math.min(1, dt * 2.8);
+    const x = centerX - tz[i] * r.goff, z = centerZ + tx[i] * r.goff;
     const w = Math.atan2(tx[i], tz[i]);
-    r.state = { n: r.state.n, c: r.state.c, x, z, y: 0, w, v: r.gsp, s: 0, l: 0, zn: 0, e: '', et: 0, sh: Math.min(5, Math.floor(r.gs / PATH_LEN * 6)), f: 0 };
+    const progress = r.gs / PATH_LEN;
+    const checkpoints = SHARD_T.filter(t => progress >= t).length;
+    if (!r.aiFinished && !r.aiJumping && r.aiElapsed > 3 + Number(String(r.id).slice(5) || 0) * 2 && Math.floor(r.aiElapsed) % 9 === 0) r.bike.stuntMode = TRICKS[Math.floor(r.aiElapsed / 9) % TRICKS.length].id;
+    if (Math.floor(r.aiElapsed) % 9 === 2) r.bike.stuntMode = 'ride';
+    r.state = { n: r.state.n, c: r.state.c, x, z, y: jumpY, w, v: r.gsp, s: 0, l: 0, zn: 0, e: '', et: 0, sh: checkpoints, f: r.aiFinished ? +r.aiElapsed.toFixed(1) : 0, trick:r.bike.stuntMode };
     r.recv = performance.now();
   });
 }
@@ -1311,8 +1584,9 @@ function updateRemotes(dt) {
     if (!vis) return;
     const zn = s.zn | 0, f = Math.sin(r.yaw), g = Math.cos(r.yaw);
     const gy = groundAt(zn, r.x, r.z), gF = groundAt(zn, r.x + f * 0.55, r.z + g * 0.55), gR = groundAt(zn, r.x - f * 0.55, r.z - g * 0.55);
-    const root = r.bike.root; root.position.set(r.x, gy, r.z);
+    const root = r.bike.root; root.position.set(r.x, gy + (r.ghost ? (s.y || 0) : 0), r.z);
     root.rotation.y = r.yaw; root.rotation.x = -Math.atan2(gF - gR, 1.1); root.rotation.z = -(s.l || 0);
+    r.bike.stuntMode = s.trick || 'ride';
     r.bike.pose(dt, s.v, s.s || 0, s.v > 0.3 ? s.v * 1.32 : 0);
     if (r.bike.bubbleT > 0) { r.bike.bubbleT -= dt; if (r.bike.bubbleT <= 0 && r.bike.bubble) { root.remove(r.bike.bubble); r.bike.bubble = null; } }
     if (vis) {
@@ -1340,6 +1614,7 @@ async function loadBoard() {
       vals.forEach(v => { if (v && typeof v.t === 'number') rows.push(v); });
     } catch (e) { }
   }
+  remotes.forEach(r => { if (r.ghost && r.aiFinished && r.state.f > 0) rows.push({ n: r.state.n + ' (AI)', t: r.state.f, s: 0 }); });
   if (finished && !rows.some(r => r.n === myName && Math.abs(r.t - finishTime) < 0.2)) rows.push({ n: myName, t: finishTime, s: Math.floor(score) });
   rows.sort((a, b) => a.t - b.t);
   return rows.slice(0, 8);
@@ -1351,17 +1626,22 @@ function renderBoard(el, rows) {
 function esc(s) { return String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c])); }
 
 function updateStatus() {
+  syncGhosts();
   const dot = $('sdot'), txt = $('sTxt');
-  if (Net.mode === 'live') {
-    let n = 1; remotes.forEach(r => { if (!r.ghost && r.live) n++; });
-    dot.className = 'dot live'; txt.textContent = n > 1 ? 'Live: ' + n + ' riders' : 'Live: just you';
-  } else if (Net.mode === 'solo') { dot.className = 'dot solo'; txt.textContent = 'Offline: solo ride'; }
-  else if (window.storage && window.storage.__rideKitlabLocal) { dot.className = 'dot solo'; txt.textContent = 'Solo mode'; }
-  else { dot.className = 'dot'; txt.textContent = 'Connecting'; }
+  const humans = Array.from(remotes.values()).filter(r => !r.ghost && r.live).length;
+  const bots = Array.from(remotes.values()).filter(r => r.ghost && r.live).length;
+  if (Net.mode === 'live' && humans > 0) {
+    const n = humans + 1;
+    dot.className = 'dot live'; txt.textContent = 'Live: ' + n + ' riders';
+  } else if (bots > 0) {
+    dot.className = 'dot solo'; txt.textContent = 'Racing ' + bots + ' AI riders';
+  } else if (Net.mode === 'solo' || (window.storage && window.storage.__rideKitlabLocal)) {
+    dot.className = 'dot solo'; txt.textContent = 'Offline: solo ride';
+  } else { dot.className = 'dot'; txt.textContent = 'Connecting'; }
 }
 function updateRoster() {
   const rows = [{ n: myName + ' (you)', sh: collectedCount, f: finishTime, col: RIDER_PAL[myColor], zn: zone }];
-  remotes.forEach(r => { if (r.live) rows.push({ n: r.state.n, sh: r.state.sh | 0, f: r.state.f, col: r.color, zn: r.state.zn | 0 }); });
+  remotes.forEach(r => { if (r.live) rows.push({ n: r.state.n + (r.ghost ? ' · AI' : ''), sh: r.state.sh | 0, f: r.state.f, col: r.color, zn: r.state.zn | 0 }); });
   rows.sort((a, b) => ((b.f ? 100 : 0) + b.sh) - ((a.f ? 100 : 0) + a.sh));
   $('roster').innerHTML = rows.map(r => '<div class="rw"><i class="sw" style="background:' + r.col + '"></i><span class="nm">' + esc(r.n) + '</span><span class="pr">' + (r.zn === 1 ? 'In Kitlab' : r.sh + '/5') + '</span></div>').join('');
 }
@@ -1417,6 +1697,9 @@ window.addEventListener('keydown', e => {
   if (paused) return;
   if (e.code === 'KeyB') ringBell();
   if (e.code === 'KeyC') toggleCam();
+  if (e.code === 'KeyQ') cycleTrick();
+  const stuntKeys = { Digit1:'wheelie', Numpad1:'wheelie', Digit2:'manual', Numpad2:'manual', Digit3:'endo', Numpad3:'endo', Digit4:'bunnyhop', Numpad4:'bunnyhop', Digit5:'barspin', Numpad5:'barspin', Digit6:'tailwhip', Numpad6:'tailwhip', Digit7:'tabletop', Numpad7:'tabletop', Digit8:'superman', Numpad8:'superman', Digit9:'nohander', Numpad9:'nohander', Digit0:'backflip', Numpad0:'backflip' };
+  if (stuntKeys[e.code]) activateTrick(stuntKeys[e.code]);
   if (e.code === 'KeyR') backToRoad();
 });
 window.addEventListener('keyup', e => { keys[e.code] = false; });
@@ -1444,6 +1727,7 @@ function controls() {
   }
   hold($('tBrake'), 'brake'); hold($('tBoost'), 'boost'); hold($('tJump'), 'jump');
   $('tBell').addEventListener('pointerdown', () => ringBell());
+  $('tTrick').addEventListener('pointerdown', cycleTrick);
 })();
 if (IS_TOUCH) document.body.classList.add('touch');
 
@@ -1479,6 +1763,7 @@ function flash(cb) {
 function finishRace() {
   if (finished) return;
   finished = true;
+  try { localStorage.setItem('ride-to-kitlab:mission-complete:' + ACTIVE_MISSION, '1'); } catch (e) { }
   finishTime = runTime;
   flash(() => {
     postScore();
@@ -1489,6 +1774,10 @@ function finishRace() {
 }
 async function showArrival() {
   const medal = finishTime < 210 ? '🥇 GOLD MEDAL' : finishTime < 300 ? '🥈 SILVER MEDAL' : '🥉 BRONZE MEDAL';
+  $('aCard').querySelector('h2').textContent = MISSION_TITLE + ' COMPLETE!';
+  const nextIndex = MISSION_IDS.indexOf(ACTIVE_MISSION) + 1;
+  $('aNext').classList.toggle('hide', nextIndex >= MISSION_IDS.length);
+  $('aNext').textContent = nextIndex < MISSION_IDS.length ? 'Next Mission →' : 'All Missions Complete';
   $('aSum').textContent = medal + ' · ' + fmtTime(finishTime) + ' · ' + Math.floor(score).toLocaleString() + ' points · ' + coinsGot + ' coins. Ride again to beat your time.';
   $('aOpen').classList.toggle('hide', !KITLAB_URL);
   $('aBoard').innerHTML = ''; $('arrive').classList.remove('hide'); modalOpen = true;
@@ -1503,6 +1792,7 @@ function resetRun() {
   }
   collectedCount = 0; finished = false; finishTime = 0; runTime = 0; setGateOpen(false); updatePips();
   resetTrack(); score = 0; combo = 1; coinsGot = 0; countdown = 3.2;
+  // Restart only the human rider. AI progress and finish times carry on uninterrupted.
   setZone(0); placeAtPath(0, 0); netSendNow();
 }
 
@@ -1511,14 +1801,18 @@ function startRide() {
   myName = ($('inName').value || 'Rider').replace(/[^\w \-.]/g, '').trim().slice(0, 14) || 'Rider';
   myRoom = ($('inRoom').value || 'kitlab').toLowerCase().replace(/[^a-z0-9_-]/g, '').slice(0, 16) || 'kitlab';
   myGender = $('inGender').value === 'female' ? 'female' : 'male';
+  aiOpponentCount = clamp(parseInt($('inAICount').value, 10) || 0, 0, 5);
+  try { localStorage.setItem('ride-to-kitlab:ai-count', String(aiOpponentCount)); } catch (e) { }
   try { localStorage.setItem('ride-to-kitlab:profile', JSON.stringify({ id: myId, name: myName, gender: myGender })); } catch (e) { }
   myColor = hashStr(myId) % RIDER_PAL.length;
   scene.remove(me.root);
   me = makeBike(RIDER_PAL[myColor], JERSEY_PAL[(myColor + 3) % JERSEY_PAL.length], RIDER_PAL[(myColor + 4) % RIDER_PAL.length], myGender);
   me.setName(myName); scene.add(me.root);
-  $('menu').classList.add('hide'); $('hud').classList.remove('hide');
+  $('menu').classList.add('hide'); $('hud').classList.remove('hide'); $('qmode').textContent = MISSION_TITLE;
   started = true; paused = false; $('pause').classList.add('hide'); $('bPause').textContent = 'Pause'; placeAtPath(0, 0); buildPips(); updatePips(); score = 0; combo = 1; coinsGot = 0; countdown = 3.2;
-  toast('NEON SPRINT: Ride through all 5 checkpoints, collect coins, then hit the finish line!', 4200);
+  activeTrick = 'ride'; trickTimer = 0; aiRaceStarted = false;
+  spawnGhosts(aiOpponentCount);
+  toast(MISSION_TITLE + ': Clear all 5 checkpoints, collect coins, then beat the AI riders to the finish!', 4200);
   netInit();
 }
 
@@ -1645,6 +1939,8 @@ function stepPlayer(dt) {
   me.root.position.set(P.x, P.y, P.z);
   me.root.rotation.set(-P.pitch, P.yaw, -P.lean);
   const thrNow = c.thr && canDrive;
+  if (trickTimer > 0) { trickTimer = Math.max(0, trickTimer - dt); if (trickTimer === 0) { activeTrick = 'ride'; if (me) me.stuntMode = 'ride'; if ($('tTrick')) $('tTrick').textContent = 'Trick'; netSendNow(); } }
+  me.stuntMode = activeTrick;
   me.pose(dt, P.v, P.steerAng, thrNow ? Math.max(P.v * 1.32, 2.5) : 0);
   $('vig').style.opacity = (boosting || padOn) ? 1 : clamp((P.v - 20) / 40, 0, 0.5);
 }
@@ -1747,7 +2043,7 @@ function tick(dt, tms) {
     pedestals.forEach((p, i) => { p.holo.rotation.y = t * 1.1 + i; p.holo.position.y = HUB.y + 3.4 + Math.sin(t * 1.6 + i) * 0.25; });
     if (hubMotes) hubMotes.rotation.y = t * 0.03;
   }
-  if (Net.mode === 'solo') updateGhosts(dt);
+  if (ghostsOn) updateGhosts(dt);
   updateRemotes(dt);
   if (me && me.bubbleT > 0) { me.bubbleT -= dt; if (me.bubbleT <= 0 && me.bubble) { me.root.remove(me.bubble); me.bubble = null; } }
   updateCamera(dt);
@@ -1780,6 +2076,27 @@ window.addEventListener('resize', resize); resize();
 /* ============================================================
    UI WIRING
    ============================================================ */
+const missionButtons = [...document.querySelectorAll('#missionPicker [data-mission]')];
+function showMissionSelect() {
+  $('landingActions').classList.add('hide');
+  $('setupPanel').classList.add('show');
+}
+function showTitleScreen() {
+  $('landingActions').classList.remove('hide');
+  $('setupPanel').classList.remove('show');
+}
+$('playBtn').addEventListener('click', showMissionSelect);
+$('backToTitle').addEventListener('click', showTitleScreen);
+missionButtons.forEach(button => {
+  const id = button.dataset.mission;
+  button.classList.toggle('active', ACTIVE_MISSION === id);
+  button.querySelector('span').textContent = ACTIVE_MISSION === id ? 'SELECTED' : 'AVAILABLE';
+  if (ACTIVE_MISSION === id) button.style.borderColor = 'rgba(25,211,234,.75)';
+  button.addEventListener('click', () => {
+    if (ACTIVE_MISSION !== id) window.location.href = window.location.pathname + '?mission=' + id + '&screen=missions';
+  });
+});
+if (new URLSearchParams(window.location.search).get('screen') === 'missions') showMissionSelect();
 $('go').addEventListener('click', () => { audioInit(); if (ready) startRide(); });
 // Mobile browsers can suspend Web Audio when switching apps, locking the screen, or after inactivity.
 document.addEventListener('visibilitychange', () => {
@@ -1801,12 +2118,16 @@ $('pauseSound').addEventListener('click', () => setMuted(!muted));
 $('status').addEventListener('click', () => { const r = $('roster'); r.classList.toggle('hide'); if (!r.classList.contains('hide')) updateRoster(); });
 $('aExplore').addEventListener('click', () => { $('arrive').classList.add('hide'); modalOpen = false; $('aExplore').textContent = 'Free ride'; });
 $('aOpen').addEventListener('click', () => { if (KITLAB_URL) window.open(KITLAB_URL, '_blank', 'noopener'); });
+$('aNext').addEventListener('click', () => {
+  const nextIndex = MISSION_IDS.indexOf(ACTIVE_MISSION) + 1;
+  if (nextIndex >= 0 && nextIndex < MISSION_IDS.length) window.location.href = window.location.pathname + '?mission=' + MISSION_IDS[nextIndex];
+});
 $('aAgain').addEventListener('click', () => { $('arrive').classList.add('hide'); modalOpen = false; $('aExplore').textContent = 'Free ride'; resetRun(); });
 window.addEventListener('pagehide', () => { try { if (Net.mode === 'live') window.storage.delete(Net.myKey, true); } catch (e) { } });
 
 $('help').textContent = IS_TOUCH
-  ? 'Slide your left thumb to steer. Jump over logs, dodge the rest, hold Boost to sprint. Your rider pedals on their own.'
-  : 'Your rider pedals automatically. A/D steers, Space jumps, S brakes (hold it to reverse), Shift boosts. B rings the bell, C changes view, R returns you to the road.';
+  ? 'Steer with your left thumb. Jump, boost, and tap Trick to cycle real bike stunts: wheelies, manuals, endos, bunny hops, barspins, tailwhips, tabletops, Superman, no-handers, backflips and 360s.'
+  : 'A/D steers, Space jumps, S brakes, Shift boosts. Press 1–9 and 0 for stunts; Q cycles through all 11. Build speed and jump for aerial tricks. B rings the bell, C changes view, R returns to the road.';
 
 /* ============================================================
    BOOT
@@ -1822,6 +2143,10 @@ $('help').textContent = IS_TOUCH
   try { localStorage.setItem('ride-to-kitlab:profile', JSON.stringify({ id: myId, name: savedName, gender: myGender })); } catch (e) { }
   $('inName').value = savedName;
   $('inGender').value = myGender;
+  try {
+    const savedAI = localStorage.getItem('ride-to-kitlab:ai-count');
+    if (savedAI !== null) $('inAICount').value = String(clamp(parseInt(savedAI, 10) || 0, 0, 5));
+  } catch (e) { }
   setTimeout(function () {
     buildTerrain(); buildScenery(); buildQuest(); buildTrack(); buildDust(); buildHub(); buildMini();
     setGateOpen(false);
