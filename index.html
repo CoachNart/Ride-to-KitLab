@@ -6,7 +6,22 @@
   <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover" />
   <meta name="description" content="Ride through a 3D Web3 learning world, dodge obstacles, grab boosts and tokens, and reach KitLab." />
   <title>Ride to KitLab</title>
-<style>#missionPicker .btn{min-width:0;min-height:92px;background:rgba(7,29,38,.78);color:#f1fbfd;border-radius:12px;cursor:pointer}#missionPicker .btn.active{background:rgba(13,80,91,.72);border-color:#19d3ea!important;box-shadow:inset 0 0 0 1px rgba(25,211,234,.28)}#missionPicker .btn:disabled{opacity:.58;cursor:not-allowed}@media(max-width:420px){#missionPicker{grid-template-columns:1fr!important}#missionPicker .btn{min-height:72px}}</style>
+<style>
+#menuCard{width:min(390px,100%);padding:16px 16px 14px}
+#menuCard h1{font-size:29px;margin-bottom:10px}
+#menuCard>p{display:none}
+#missionPicker{display:grid;grid-template-columns:1fr 1fr;gap:7px;margin:0 0 12px}
+#missionPicker .btn{min-width:0;min-height:58px;padding:10px 11px!important;text-align:left;background:rgba(7,29,38,.72);color:#f1fbfd;border:1px solid rgba(150,235,248,.22);border-radius:12px;cursor:pointer}
+#missionPicker .btn b{display:block;font-size:12px;letter-spacing:.035em;white-space:nowrap}
+#missionPicker .btn small{display:none!important}
+#missionPicker .btn span{display:block!important;font-size:10px!important;line-height:1.2;margin-top:5px!important;letter-spacing:.04em}
+#missionPicker .btn.active{background:rgba(13,80,91,.72);border-color:#19d3ea!important;box-shadow:inset 0 0 0 1px rgba(25,211,234,.2)}
+#missionPicker .btn:disabled{opacity:.58;cursor:not-allowed}
+#menuCard .fld{margin-bottom:8px}
+#menuCard .fld span{margin-bottom:3px}
+#menuCard input[type=text],#menuCard select#inGender{padding:9px 11px}
+@media(max-width:420px){#menuCard{padding:14px 13px 12px}#menuCard h1{font-size:26px}#missionPicker{grid-template-columns:1fr 1fr!important;gap:6px}#missionPicker .btn{min-height:54px;padding:8px!important}#missionPicker .btn b{font-size:11px}#menuCard .fld{font-size:12px;margin-bottom:7px}}
+</style>
 </head>
 <body>
 <canvas id="gl"></canvas>
@@ -50,10 +65,10 @@
 <div id="menu" class="ov">
   <div id="menuCard" class="panel">
     <h1>Ride to <span style="color:var(--portal)">Kitlab</span></h1>
-    <p>Pick your route. Each mission has its own road and landscape. Clear all five checkpoints, collect coins and race to the finish.</p>
-    <div id="missionPicker" style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:12px 0 16px">
-      <button type="button" id="pickNeon" class="btn active" style="text-align:left;padding:10px;border:1px solid rgba(25,211,234,.55)"><b>⚡ NEON SPRINT</b><small style="display:block;opacity:.72;margin-top:4px">Hills, dirt roads and forest trails</small><span id="neonState" style="display:block;font-size:11px;margin-top:7px;color:#7df0a6">AVAILABLE</span></button>
-      <button type="button" id="pickCoast" class="btn" style="text-align:left;padding:10px;border:1px solid rgba(79,200,220,.35)"><b>🌊 COASTLINE RUSH</b><small style="display:block;opacity:.72;margin-top:4px">Ocean views, beach bends and palms</small><span id="coastState" style="display:block;font-size:11px;margin-top:7px;color:#ffd27a">LOCKED · FINISH NEON SPRINT</span></button>
+    
+    <div id="missionPicker">
+      <button type="button" id="pickNeon" class="btn active"><b>⚡ NEON SPRINT</b><span id="neonState" style="color:#7df0a6">AVAILABLE</span></button>
+      <button type="button" id="pickCoast" class="btn"><b>🌊 COASTLINE RUSH</b><span id="coastState" style="color:#ffd27a">LOCKED</span></button>
     </div>
     <label class="fld"><span>Rider name</span><input id="inName" type="text" maxlength="14" autocomplete="off"></label>
     <label class="fld"><span>Rider style</span><select id="inGender" aria-label="Choose rider style"><option value="male">Male rider</option><option value="female">Female rider</option></select></label>
