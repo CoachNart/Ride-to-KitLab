@@ -1518,6 +1518,7 @@ function finishRace() {
 async function showArrival() {
   const medal = finishTime < 210 ? '🥇 GOLD MEDAL' : finishTime < 300 ? '🥈 SILVER MEDAL' : '🥉 BRONZE MEDAL';
   $('aCard').querySelector('h2').textContent = MISSION_TITLE + ' COMPLETE!';
+  $('aNext').classList.toggle('hide', ACTIVE_MISSION !== 'neon');
   $('aSum').textContent = medal + ' · ' + fmtTime(finishTime) + ' · ' + Math.floor(score).toLocaleString() + ' points · ' + coinsGot + ' coins. Ride again to beat your time.';
   $('aOpen').classList.toggle('hide', !KITLAB_URL);
   $('aBoard').innerHTML = ''; $('arrive').classList.remove('hide'); modalOpen = true;
@@ -1843,6 +1844,11 @@ $('pauseSound').addEventListener('click', () => setMuted(!muted));
 $('status').addEventListener('click', () => { const r = $('roster'); r.classList.toggle('hide'); if (!r.classList.contains('hide')) updateRoster(); });
 $('aExplore').addEventListener('click', () => { $('arrive').classList.add('hide'); modalOpen = false; $('aExplore').textContent = 'Free ride'; });
 $('aOpen').addEventListener('click', () => { if (KITLAB_URL) window.open(KITLAB_URL, '_blank', 'noopener'); });
+$('aNext').addEventListener('click', () => {
+  if (ACTIVE_MISSION === 'neon' && localStorage.getItem('ride-to-kitlab:neon-sprint-complete') === '1') {
+    window.location.href = window.location.pathname + '?mission=coastline';
+  }
+});
 $('aAgain').addEventListener('click', () => { $('arrive').classList.add('hide'); modalOpen = false; $('aExplore').textContent = 'Free ride'; resetRun(); });
 window.addEventListener('pagehide', () => { try { if (Net.mode === 'live') window.storage.delete(Net.myKey, true); } catch (e) { } });
 
