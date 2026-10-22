@@ -1232,8 +1232,10 @@ async function netPoll() {
       if (!it || !it.v) continue;
       const id = it.k.slice(Net.pre.length), s = it.v; present.add(id);
       const r = ensureRemote(id, s);
+      // Show a discovered shared player immediately instead of waiting for a
+      // second poll with a changed timestamp.
+      r.live = true;
       if (s.t !== r.lastT) {
-        if (r.lastT !== 0) r.live = true;
         r.lastT = s.t; r.seen = now; r.state = s; r.recv = now;
         if (s.et && s.et !== r.lastE && s.e) { r.lastE = s.et; if (r.live) r.bike.say(String(s.e).slice(0, 24)); }
       }
