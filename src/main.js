@@ -466,7 +466,7 @@ function makeWheel(rear) {
   return g;
 }
 
-function makeBike(frameHex, jerseyHex, helmetHex) {
+function makeBike(frameHex, jerseyHex, helmetHex, riderGender = 'male') {
   const hs = hashStr(String(frameHex) + String(jerseyHex)), S = shm();
   const M = (c, r, m) => new THREE.MeshStandardMaterial({ color: c, roughness: r, metalness: m || 0 });
   const mFrame = M(frameHex, 0.35, 0.5), mJersey = M(jerseyHex, 0.8), mHelmet = M(helmetHex, 0.4, 0.1),
@@ -565,6 +565,14 @@ function makeBike(frameHex, jerseyHex, helmetHex) {
   { const hm = new THREE.Mesh(G('SphereGeometry', 0.124, 16, 10, 0, Math.PI * 2, 0, Math.PI * 0.56), mHelmet); hm.material.side = THREE.DoubleSide; hm.scale.set(1, 0.92, 1.16); hm.position.set(0, 0.125, 0.0); hm.castShadow = true; headG.add(hm); }
   { const vz = box(0.17, 0.012, 0.08, mHelmet, 0, 0.15, 0.125, headG); vz.rotation.x = 0.2; }
   box(0.036, 0.008, 0.2, S.accent, 0, 0.243, 0.0, headG);
+  // Female rider option: a visible ponytail and hair tie make the silhouette
+  // distinct even at the game's normal follow-camera distance.
+  if (riderGender === 'female') {
+    ball(V3(0, 0.025, -0.115), 0.075, mHair, headG, 0.88, 1.05, 1.0, true);
+    tube(V3(0, 0.01, -0.15), V3(0.025, -0.11, -0.285), 0.052, 0.027, mHair, headG);
+    ball(V3(0.008, -0.025, -0.17), 0.031, mHelmet, headG, 1.0, 0.65, 1.0, false);
+    ball(V3(0.02, -0.105, -0.28), 0.035, mHair, headG, 0.9, 1.2, 0.9, true);
+  }
 
   const legs = [], arms = [];
   for (let k = 0; k < 2; k++) {
@@ -961,7 +969,7 @@ let ready = false, started = false, paused = false, modalOpen = false, modalIdx 
 let zone = 0, finished = false, finishTime = 0, runTime = 0;
 const collected = [false, false, false, false, false]; let collectedCount = 0;
 const P = { x: 0, z: 0, y: 0, yaw: 0, v: 0, steerAng: 0, lean: 0, vy: 0, grounded: true, pitch: 0, stamina: 1, pathIdx: 0, lastGy: 0, stun: 0, inv: 0, padT: 0, mud: 0, jumpCd: 0, stuck: 0 };
-let camYaw = 0, camMode = 0, shake = 0, menuAng = 0, myName = 'Rider', myColor = 0, myId = '', myRoom = 'kitlab', usedKeyboard = false, lastGateMsg = 0, wipeoutPending = false, lastSocialAt = 0;
+let camYaw = 0, camMode = 0, shake = 0, menuAng = 0, myName = 'Rider', myColor = 0, myGender = 'male', myId = '', myRoom = 'kitlab', usedKeyboard = false, lastGateMsg = 0, wipeoutPending = false, lastSocialAt = 0;
 let me = null;
 const keys = {}, touch = { steer: 0, brake: false, boost: false, jump: false };
 
@@ -1188,7 +1196,7 @@ const remotes = new Map();
 function storageOK() { return !!(window.storage && !window.storage.__rideKitlabLocal && typeof window.storage.set === 'function'); }
 
 function myState() {
-  return { n: myName, c: myColor, x: +P.x.toFixed(2), z: +P.z.toFixed(2), y: +P.y.toFixed(2), w: +P.yaw.toFixed(3), v: +P.v.toFixed(2), s: +P.steerAng.toFixed(3), l: +P.lean.toFixed(3), zn: zone, t: Date.now(), e: emote.text, et: emote.t, sh: collectedCount, f: finishTime ? +finishTime.toFixed(1) : 0 };
+  return { n: myName, c: myColor, g: myGender, x: +P.x.toFixed(2), z: +P.z.toFixed(2), y: +P.y.toFixed(2), w: +P.yaw.toFixed(3), v: +P.v.toFixed(2), s: +P.steerAng.toFixed(3), l: +P.lean.toFixed(3), zn: zone, t: Date.now(), e: emote.text, et: emote.t, sh: collectedCount, f: finishTime ? +finishTime.toFixed(1) : 0 };
 }
 async function netInit() {
   Net.pre = myRoom + ':p:'; Net.myKey = Net.pre + myId; Net.boardKey = myRoom + ':b:' + myId;
@@ -1211,7 +1219,7 @@ function ensureRemote(id, s) {
   let r = remotes.get(id);
   if (!r) {
     const c = (s.c | 0) % RIDER_PAL.length;
-    const bike = makeBike(RIDER_PAL[c], JERSEY_PAL[(c + 3) % JERSEY_PAL.length], RIDER_PAL[(c + 4) % RIDER_PAL.length]);
+    const bike = makeBike(RIDER_PAL[c], JERSEY_PAL[(c + 3) % JERSEY_PAL.length], RIDER_PAL[(c + 4) % RIDER_PAL.length], s.g === 'female' ? 'female' : 'male');
     bike.setName(String(s.n || 'Rider').slice(0, 14)); scene.add(bike.root); bike.root.visible = false;
     r = { id, bike, state: s, recv: performance.now(), lastT: 0, seen: performance.now(), live: false, init: false, x: s.x, z: s.z, yaw: s.w, lastE: s.et || 0, ghost: false, color: RIDER_PAL[c] };
     remotes.set(id, r);
@@ -1480,10 +1488,11 @@ function startRide() {
   try { const ctx = audioInit(); if (ctx) { const resume = ctx.resume(); Music.start(); if (resume && resume.then) resume.then(() => Music.start()).catch(() => {}); } } catch (e) { }
   myName = ($('inName').value || 'Rider').replace(/[^\w \-.]/g, '').trim().slice(0, 14) || 'Rider';
   myRoom = ($('inRoom').value || 'kitlab').toLowerCase().replace(/[^a-z0-9_-]/g, '').slice(0, 16) || 'kitlab';
-  try { localStorage.setItem('ride-to-kitlab:profile', JSON.stringify({ id: myId, name: myName })); } catch (e) { }
+  myGender = $('inGender').value === 'female' ? 'female' : 'male';
+  try { localStorage.setItem('ride-to-kitlab:profile', JSON.stringify({ id: myId, name: myName, gender: myGender })); } catch (e) { }
   myColor = hashStr(myId) % RIDER_PAL.length;
   scene.remove(me.root);
-  me = makeBike(RIDER_PAL[myColor], JERSEY_PAL[(myColor + 3) % JERSEY_PAL.length], RIDER_PAL[(myColor + 4) % RIDER_PAL.length]);
+  me = makeBike(RIDER_PAL[myColor], JERSEY_PAL[(myColor + 3) % JERSEY_PAL.length], RIDER_PAL[(myColor + 4) % RIDER_PAL.length], myGender);
   me.setName(myName); scene.add(me.root);
   $('menu').classList.add('hide'); $('hud').classList.remove('hide');
   started = true; paused = false; $('pause').classList.add('hide'); $('bPause').textContent = 'Pause'; placeAtPath(0, 0); buildPips(); updatePips(); score = 0; combo = 1; coinsGot = 0; countdown = 3.2;
@@ -1775,13 +1784,15 @@ $('help').textContent = IS_TOUCH
   try { const saved = localStorage.getItem('ride-to-kitlab:profile'); if (saved) prof = JSON.parse(saved); } catch (e) { }
   myId = (prof && prof.id) || (Math.random().toString(36).slice(2, 8) + Math.random().toString(36).slice(2, 6));
   const savedName = (prof && prof.name) || ('Rider' + (100 + Math.floor(Math.random() * 900)));
-  try { localStorage.setItem('ride-to-kitlab:profile', JSON.stringify({ id: myId, name: savedName })); } catch (e) { }
+  myGender = prof && prof.gender === 'female' ? 'female' : 'male';
+  try { localStorage.setItem('ride-to-kitlab:profile', JSON.stringify({ id: myId, name: savedName, gender: myGender })); } catch (e) { }
   $('inName').value = savedName;
+  $('inGender').value = myGender;
   setTimeout(function () {
     buildTerrain(); buildScenery(); buildQuest(); buildTrack(); buildDust(); buildHub(); buildMini();
     setGateOpen(true);
     myColor = hashStr(myId) % RIDER_PAL.length;
-    me = makeBike(RIDER_PAL[myColor], JERSEY_PAL[(myColor + 3) % JERSEY_PAL.length], RIDER_PAL[(myColor + 4) % RIDER_PAL.length]);
+    me = makeBike(RIDER_PAL[myColor], JERSEY_PAL[(myColor + 3) % JERSEY_PAL.length], RIDER_PAL[(myColor + 4) % RIDER_PAL.length], myGender);
     scene.add(me.root);
     placeAtPath(0, 0);
     ready = true;
