@@ -1219,7 +1219,7 @@ function coinSound() { if (!AC || muted) return; tone(1046, 0, 0.09, 0.035, 'sin
 function crashSound() { if (!AC || muted) return; tone(92, 0, 0.16, 0.08, 'triangle'); tone(58, 0.025, 0.22, 0.055, 'sine'); }
 function whoosh() { if (!AC || muted) return; tone(330, 0, 0.12, 0.018, 'triangle'); }
 
-/* ---------- YouTube KitLab soundtrack ---------- */
+/* ---------- YouTube KitRace soundtrack ---------- */
 const KITLAB_YOUTUBE_ID = 'nLXTUrooEu0';
 const Music = {
   player: null,
@@ -1285,7 +1285,7 @@ const Music = {
         },
         onError: event => {
           this.playing = false;
-          console.warn('KitLab YouTube soundtrack could not play. YouTube may restrict embedding for this video.', event.data);
+          console.warn('KitRace soundtrack could not play. YouTube may restrict embedding for this video.', event.data);
           if (started) toast('Soundtrack unavailable in the embedded player.', 3200);
         }
       }
@@ -1304,7 +1304,7 @@ const Music = {
       this.player.playVideo();
       this.pending = false;
     } catch (error) {
-      console.warn('Could not start KitLab soundtrack.', error);
+      console.warn('Could not start KitRace soundtrack.', error);
     }
   },
   stop() {
@@ -1641,7 +1641,7 @@ function updateRemotes(dt) {
       const near = Math.hypot(P.x - r.x, P.z - r.z), last = socialSeen.get(r.id) || 0;
       if (near < 7.5 && now - last > 12000 && now - lastSocialAt > 5000) {
         socialSeen.set(r.id, now); lastSocialAt = now;
-        const greetings = ['Yo, nice wheels! 👋', 'On your left! 😎', 'Clean ride!', 'Race you to KitLab 😂', 'Hey rider! Keep rolling ✨', 'Bro, save some road for us 😂'];
+        const greetings = ['Yo, nice wheels! 👋', 'On your left! 😎', 'Clean ride!', 'Race you to the finish 😂', 'Hey rider! Keep rolling ✨', 'Bro, save some road for us 😂'];
         autoBubble(greetings[Math.floor(Math.random() * greetings.length)]);
       }
     }
