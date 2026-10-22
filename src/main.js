@@ -592,7 +592,10 @@ function makeBike(frameHex, jerseyHex, helmetHex, riderGender = 'male', backpack
   const mFrame = M(frameHex, 0.35, 0.5), mJersey = M(jerseyHex, 0.8), mHelmet = M(helmetHex, 0.4, 0.1),
     mSkin = M(SKIN_PAL[hs % SKIN_PAL.length], 0.75), mHair = M(HAIR_PAL[(hs >> 3) % HAIR_PAL.length], 0.9), mPack = M(backpackHex || helmetHex || 0xd9692e, 0.8);
   const root = new THREE.Group(); root.rotation.order = 'YXZ';
-  const body = new THREE.Group(); root.add(body);
+  // Keep the stunt pivot at the bike's centre of mass. The geometry stays in its
+  // original local coordinates, offset down by one wheel radius inside the pivot.
+  const stuntPivot = new THREE.Group(); stuntPivot.position.y = WR; root.add(stuntPivot);
+  const body = new THREE.Group(); body.position.y = -WR; stuntPivot.add(body);
   const V3 = (x, y, z) => new THREE.Vector3(x, y, z);
   function mesh(geo, mat, parent, cast) { const m = new THREE.Mesh(geo, mat); if (cast) m.castShadow = true; (parent || body).add(m); return m; }
   function tube(a, b, rb, rt, mat, parent) { const t = mesh(G('CylinderGeometry', rt, rb, 1, 10), mat, parent, true); limb(t, a, b); return t; }
@@ -726,18 +729,22 @@ function makeBike(frameHex, jerseyHex, helmetHex, riderGender = 'male', backpack
     const phase = clamp(obj.stuntClock / 2.4, 0, 1);
     const wave = Math.sin(Math.PI * phase);
     const spin = Math.PI * 2 * phase;
-    // Rotate aerial tricks around the bicycle's centre of mass, not the ground-level model origin.
-    // Without this compensation, backflips/tabletops swing the wheels below the terrain.
-    body.rotation.set(0, 0, 0);
-    if (trick === 'wheelie') body.rotation.x = -0.48;
-    if (trick === 'manual') body.rotation.x = -0.24;
-    if (trick === 'endo') body.rotation.x = 0.38;
-    if (trick === 'tailwhip') body.rotation.y = Math.sin(Math.PI * phase) * Math.PI * 2;
-    if (trick === 'tabletop') { body.rotation.z = wave * 0.92; body.rotation.x = -wave * 0.12; }
-    if (trick === 'backflip') body.rotation.x = spin;
-    if (trick === '360') body.rotation.y = spin;
-    const pivotLift = WR * (1 - Math.cos(body.rotation.x) * Math.cos(body.rotation.z));
-    body.position.y = pivotLift + (trick === 'bunnyhop' ? wave * 0.72 : 0);
+    // Stunts rotate around a real centre-of-mass pivot, never around ground level.
+    stuntPivot.rotation.set(0, 0, 0);
+    if (trick === 'wheelie') stuntPivot.rotation.x = -0.48;
+    if (trick === 'manual') stuntPivot.rotation.x = -0.24;
+    if (trick === 'endo') stuntPivot.rotation.x = 0.38;
+    if (trick === 'tailwhip') stuntPivot.rotation.y = Math.sin(Math.PI * phase) * Math.PI * 2;
+    if (trick === 'tabletop') { stuntPivot.rotation.z = wave * 0.92; stuntPivot.rotation.x = -wave * 0.12; }
+    if (trick === 'backflip') stuntPivot.rotation.x = spin;
+    if (trick === '360') stuntPivot.rotation.y = spin;
+    // Aerial tricks now launch automatically. Keep enough clearance throughout the
+    // full rotation, including the first/last frames when the bike starts to tilt.
+    const airTrick = ['barspin', 'tailwhip', 'tabletop', 'superman', 'nohander', 'backflip', '360'].includes(trick);
+    const flipLift = trick === 'backflip' ? 1.45 * Math.sin(Math.PI * phase) : 0;
+    const airLift = airTrick ? Math.max(0.48 * Math.sin(Math.PI * phase), flipLift) : 0;
+    stuntPivot.position.y = WR + airLift + (trick === 'bunnyhop' ? wave * 0.72 : 0);
+    body.position.y = -WR;
     rider.position.set(0, trick === 'bunnyhop' ? wave * 0.08 : 0, trick === 'superman' ? 0.32 : 0);
     rider.rotation.set(
       trick === 'superman' ? -0.62 : trick === 'backflip' ? -Math.sin(spin) * 0.2 : 0,
@@ -1134,10 +1141,6 @@ const keys = {}, touch = { steer: 0, brake: false, boost: false, jump: false };
 function activateTrick(mode) {
   if (!started || paused || countdown > 0 || finished || modalOpen) return;
   const requested = TRICKS.find(t => t.id === mode);
-  if (requested && requested.kind === 'air' && P.grounded) {
-    toast('Jump first to perform ' + requested.label + '.', 1300);
-    return;
-  }
   activeTrick = mode || TRICKS[nextTrickIndex % TRICKS.length].id;
   nextTrickIndex = (TRICKS.findIndex(t => t.id === activeTrick) + 1 + TRICKS.length) % TRICKS.length;
   trickTimer = 2.4;
