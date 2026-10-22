@@ -1487,7 +1487,7 @@ function enterHub() {
   });
 }
 async function showArrival() {
-  const medal = finishTime < 90 ? '🥇 GOLD MEDAL' : finishTime < 150 ? '🥈 SILVER MEDAL' : '🥉 BRONZE MEDAL';
+  const medal = finishTime < 210 ? '🥇 GOLD MEDAL' : finishTime < 300 ? '🥈 SILVER MEDAL' : '🥉 BRONZE MEDAL';
   $('aSum').textContent = medal + ' · ' + fmtTime(finishTime) + ' · ' + Math.floor(score).toLocaleString() + ' points · ' + coinsGot + ' coins. Ride again to beat your time.';
   $('aOpen').classList.toggle('hide', !KITLAB_URL);
   $('aBoard').innerHTML = ''; $('arrive').classList.remove('hide'); modalOpen = true;
