@@ -1813,8 +1813,8 @@ window.addEventListener('resize', resize); resize();
 const coastUnlocked = (() => { try { return localStorage.getItem('ride-to-kitlab:neon-sprint-complete') === '1'; } catch (e) { return false; } })();
 $('pickNeon').classList.toggle('active', ACTIVE_MISSION === 'neon');
 $('pickCoast').classList.toggle('active', ACTIVE_MISSION === 'coastline');
-$('neonState').textContent = ACTIVE_MISSION === 'neon' ? 'SELECTED · AVAILABLE' : 'AVAILABLE';
-$('coastState').textContent = coastUnlocked ? (ACTIVE_MISSION === 'coastline' ? 'SELECTED · UNLOCKED' : 'UNLOCKED') : 'LOCKED · FINISH NEON SPRINT';
+$('neonState').textContent = ACTIVE_MISSION === 'neon' ? 'SELECTED' : 'AVAILABLE';
+$('coastState').textContent = !coastUnlocked ? 'LOCKED' : (ACTIVE_MISSION === 'coastline' ? 'SELECTED' : 'UNLOCKED');
 $('pickCoast').style.borderColor = coastUnlocked ? 'rgba(79,220,134,.6)' : 'rgba(79,200,220,.35)';
 $('pickNeon').addEventListener('click', () => {
   if (ACTIVE_MISSION !== 'neon') window.location.href = window.location.pathname;
