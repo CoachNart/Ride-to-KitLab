@@ -1,7 +1,7 @@
 import { initializeApp, getApps, getApp } from 'firebase/app';
 import { getAuth, signInAnonymously } from 'firebase/auth';
 import {
-  getDatabase, ref, set, get, remove, query, orderByKey, startAt, endAt
+  getDatabase, ref, set, get, remove, query, orderByKey
 } from 'firebase/database';
 
 // Ride to KitLab multiplayer backend. Public web config identifies the project;
@@ -45,37 +45,65 @@ function validKey(key) {
   return value;
 }
 
-// Keep the storage interface already used by the game, but back it with
-// Firebase so different devices can share the same room.
+// The game still uses legacy keys such as "kitlab:p:<riderId>".
+// Store them beneath each room so player discovery queries the room's own
+// players node instead of querying the entire database root.
+function pathForKey(key) {
+  const value = validKey(key);
+  const match = /^([a-z0-9_-]{1,16}):([pb]):(.+)$/.exec(value);
+  if (!match) return value;
+  const [, room, kind, id] = match;
+  if (!id || /[.#$\[\]\/]/.test(id)) throw new Error('Invalid multiplayer record id');
+  const bucket = kind === 'p' ? 'players' : 'board';
+  return `rooms/${room}/${bucket}/${id}`;
+}
+
+function listLocation(prefixKey) {
+  const prefix = validKey(prefixKey);
+  const match = /^([a-z0-9_-]{1,16}):([pb]):$/.exec(prefix);
+  if (!match) {
+    return { path: '', prefix, legacy: true };
+  }
+  const [, room, kind] = match;
+  return {
+    path: `rooms/${room}/${kind === 'p' ? 'players' : 'board'}`,
+    prefix,
+    legacy: false
+  };
+}
+
+// Keep the storage API expected by main.js. list() returns legacy-formatted
+// keys, so the game code does not need to know about the Firebase layout.
 window.storage = {
   __rideKitlabFirebase: true,
   async set(key, value) {
     await ensureAuthenticated();
     const text = String(value);
-    await set(ref(database, validKey(key)), text);
+    await set(ref(database, pathForKey(key)), text);
     return { value: text };
   },
   async get(key) {
     await ensureAuthenticated();
-    const snapshot = await get(ref(database, validKey(key)));
+    const snapshot = await get(ref(database, pathForKey(key)));
     return snapshot.exists() ? { value: snapshot.val() } : null;
   },
   async list(prefixKey) {
     await ensureAuthenticated();
-    const prefix = validKey(prefixKey);
-    const result = await get(query(
-      ref(database),
-      orderByKey(),
-      startAt(prefix),
-      endAt(prefix + '\uf8ff')
-    ));
+    const loc = listLocation(prefixKey);
+    const base = ref(database, loc.path || undefined);
+    const result = loc.legacy
+      ? await get(query(base, orderByKey()))
+      : await get(query(base, orderByKey()));
     const keys = [];
-    result.forEach((child) => keys.push(child.key));
+    result.forEach((child) => {
+      const key = loc.legacy ? child.key : loc.prefix + child.key;
+      if (key && key.startsWith(loc.prefix)) keys.push(key);
+    });
     return { keys };
   },
   async delete(key) {
     await ensureAuthenticated();
-    await remove(ref(database, validKey(key)));
+    await remove(ref(database, pathForKey(key)));
     return true;
   }
 };
