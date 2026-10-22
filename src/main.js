@@ -1375,24 +1375,53 @@ async function netPoll() {
   updateStatus();
 }
 
-/* ghost riders when storage is unavailable */
-const GHOSTS = ['Mira', 'Tobi', 'Juno', 'Axel'];
-let ghostsOn = false;
-function spawnGhosts() {
-  if (ghostsOn) return; ghostsOn = true;
-  GHOSTS.forEach((n, i) => {
-    const r = ensureRemote('ghost' + i, { n, c: i * 2 + 1, x: 0, z: 0, y: 0, w: 0, v: 7, s: 0, l: 0, zn: 0, t: 1, e: '', et: 0, sh: 0, f: 0 });
-    r.ghost = true; r.live = true; r.gs = (i * 0.07 + 0.02) * PATH_LEN; r.gsp = 14 + i * 2.4; r.goff = (i % 2 ? 1 : -1) * (0.9 + i * 0.3);
-  });
-}
-function updateGhosts(dt) {
+/* Optional AI race field: up to five computer riders, available without other people online. */
+const GHOSTS = ['Mira', 'Tobi', 'Juno', 'Axel', 'Zuri'];
+const AI_SPEEDS = [16.8, 18.2, 19.6, 21.1, 22.7];
+let ghostsOn = false, aiOpponentCount = 5;
+function syncGhosts() {
+  const humanOnline = Net.mode === 'live' && Array.from(remotes.values()).some(r => !r.ghost && r.live);
+  const showAI = aiOpponentCount > 0 && !humanOnline;
   remotes.forEach(r => {
     if (!r.ghost) return;
-    r.gs += r.gsp * dt; if (r.gs > PATH_LEN * 0.985) r.gs = 0;
+    const idx = Number(String(r.id).replace('ghost', ''));
+    r.live = showAI && Number.isInteger(idx) && idx >= 0 && idx < aiOpponentCount;
+    if (!r.live) r.bike.root.visible = false;
+  });
+}
+function spawnGhosts(count) {
+  aiOpponentCount = clamp(Number.isFinite(Number(count)) ? Math.floor(Number(count)) : 5, 0, 5);
+  ghostsOn = true;
+  GHOSTS.forEach((n, i) => {
+    const initial = { n, c: i * 2 + 1, x: px[0], z: pz[0], y: 0, w: Math.atan2(tx[0], tz[0]), v: AI_SPEEDS[i], s: 0, l: 0, zn: 0, t: 1, e: '', et: 0, sh: 0, f: 0 };
+    const r = ensureRemote('ghost' + i, initial);
+    r.ghost = true;
+    r.color = RIDER_PAL[(i * 2 + 1) % RIDER_PAL.length];
+    r.gs = (0.003 + i * 0.0025) * PATH_LEN;
+    r.gsp = AI_SPEEDS[i];
+    r.goff = (i % 2 ? 1 : -1) * (1.05 + Math.floor(i / 2) * 0.45);
+    r.aiElapsed = 0;
+    r.aiFinished = false;
+    r.init = false;
+    r.state = { ...initial };
+  });
+  syncGhosts();
+}
+function updateGhosts(dt) {
+  if (!started || paused || countdown > 0 || modalOpen || finished) return;
+  remotes.forEach(r => {
+    if (!r.ghost || !r.live) return;
+    if (!r.aiFinished) {
+      r.aiElapsed += dt;
+      r.gs = Math.min(PATH_LEN * 0.998, r.gs + r.gsp * dt);
+      if (r.gs >= PATH_LEN * 0.998) { r.aiFinished = true; r.gsp = 0; }
+    }
     const f = clamp(r.gs / PATH_LEN * PS, 0, PS - 1.001), i = Math.floor(f), k = f - i;
     const x = lerp(px[i], px[i + 1], k) - tz[i] * r.goff, z = lerp(pz[i], pz[i + 1], k) + tx[i] * r.goff;
     const w = Math.atan2(tx[i], tz[i]);
-    r.state = { n: r.state.n, c: r.state.c, x, z, y: 0, w, v: r.gsp, s: 0, l: 0, zn: 0, e: '', et: 0, sh: Math.min(5, Math.floor(r.gs / PATH_LEN * 6)), f: 0 };
+    const progress = r.gs / PATH_LEN;
+    const checkpoints = SHARD_T.filter(t => progress >= t).length;
+    r.state = { n: r.state.n, c: r.state.c, x, z, y: 0, w, v: r.gsp, s: 0, l: 0, zn: 0, e: '', et: 0, sh: checkpoints, f: r.aiFinished ? +r.aiElapsed.toFixed(1) : 0 };
     r.recv = performance.now();
   });
 }
@@ -1439,6 +1468,7 @@ async function loadBoard() {
       vals.forEach(v => { if (v && typeof v.t === 'number') rows.push(v); });
     } catch (e) { }
   }
+  remotes.forEach(r => { if (r.ghost && r.aiFinished && r.state.f > 0) rows.push({ n: r.state.n + ' (AI)', t: r.state.f, s: 0 }); });
   if (finished && !rows.some(r => r.n === myName && Math.abs(r.t - finishTime) < 0.2)) rows.push({ n: myName, t: finishTime, s: Math.floor(score) });
   rows.sort((a, b) => a.t - b.t);
   return rows.slice(0, 8);
@@ -1450,17 +1480,22 @@ function renderBoard(el, rows) {
 function esc(s) { return String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c])); }
 
 function updateStatus() {
+  syncGhosts();
   const dot = $('sdot'), txt = $('sTxt');
-  if (Net.mode === 'live') {
-    let n = 1; remotes.forEach(r => { if (!r.ghost && r.live) n++; });
-    dot.className = 'dot live'; txt.textContent = n > 1 ? 'Live: ' + n + ' riders' : 'Live: just you';
-  } else if (Net.mode === 'solo') { dot.className = 'dot solo'; txt.textContent = 'Offline: solo ride'; }
-  else if (window.storage && window.storage.__rideKitlabLocal) { dot.className = 'dot solo'; txt.textContent = 'Solo mode'; }
-  else { dot.className = 'dot'; txt.textContent = 'Connecting'; }
+  const humans = Array.from(remotes.values()).filter(r => !r.ghost && r.live).length;
+  const bots = Array.from(remotes.values()).filter(r => r.ghost && r.live).length;
+  if (Net.mode === 'live' && humans > 0) {
+    const n = humans + 1;
+    dot.className = 'dot live'; txt.textContent = 'Live: ' + n + ' riders';
+  } else if (bots > 0) {
+    dot.className = 'dot solo'; txt.textContent = 'Racing ' + bots + ' AI riders';
+  } else if (Net.mode === 'solo' || (window.storage && window.storage.__rideKitlabLocal)) {
+    dot.className = 'dot solo'; txt.textContent = 'Offline: solo ride';
+  } else { dot.className = 'dot'; txt.textContent = 'Connecting'; }
 }
 function updateRoster() {
   const rows = [{ n: myName + ' (you)', sh: collectedCount, f: finishTime, col: RIDER_PAL[myColor], zn: zone }];
-  remotes.forEach(r => { if (r.live) rows.push({ n: r.state.n, sh: r.state.sh | 0, f: r.state.f, col: r.color, zn: r.state.zn | 0 }); });
+  remotes.forEach(r => { if (r.live) rows.push({ n: r.state.n + (r.ghost ? ' · AI' : ''), sh: r.state.sh | 0, f: r.state.f, col: r.color, zn: r.state.zn | 0 }); });
   rows.sort((a, b) => ((b.f ? 100 : 0) + b.sh) - ((a.f ? 100 : 0) + a.sh));
   $('roster').innerHTML = rows.map(r => '<div class="rw"><i class="sw" style="background:' + r.col + '"></i><span class="nm">' + esc(r.n) + '</span><span class="pr">' + (r.zn === 1 ? 'In Kitlab' : r.sh + '/5') + '</span></div>').join('');
 }
@@ -1607,7 +1642,7 @@ function resetRun() {
   }
   collectedCount = 0; finished = false; finishTime = 0; runTime = 0; setGateOpen(false); updatePips();
   resetTrack(); score = 0; combo = 1; coinsGot = 0; countdown = 3.2;
-  setZone(0); placeAtPath(0, 0); netSendNow();
+  setZone(0); placeAtPath(0, 0); spawnGhosts(aiOpponentCount); netSendNow();
 }
 
 function startRide() {
@@ -1615,6 +1650,8 @@ function startRide() {
   myName = ($('inName').value || 'Rider').replace(/[^\w \-.]/g, '').trim().slice(0, 14) || 'Rider';
   myRoom = ($('inRoom').value || 'kitlab').toLowerCase().replace(/[^a-z0-9_-]/g, '').slice(0, 16) || 'kitlab';
   myGender = $('inGender').value === 'female' ? 'female' : 'male';
+  aiOpponentCount = clamp(parseInt($('inAICount').value, 10) || 0, 0, 5);
+  try { localStorage.setItem('ride-to-kitlab:ai-count', String(aiOpponentCount)); } catch (e) { }
   try { localStorage.setItem('ride-to-kitlab:profile', JSON.stringify({ id: myId, name: myName, gender: myGender })); } catch (e) { }
   myColor = hashStr(myId) % RIDER_PAL.length;
   scene.remove(me.root);
@@ -1622,7 +1659,8 @@ function startRide() {
   me.setName(myName); scene.add(me.root);
   $('menu').classList.add('hide'); $('hud').classList.remove('hide'); $('qmode').textContent = MISSION_TITLE;
   started = true; paused = false; $('pause').classList.add('hide'); $('bPause').textContent = 'Pause'; placeAtPath(0, 0); buildPips(); updatePips(); score = 0; combo = 1; coinsGot = 0; countdown = 3.2;
-  toast(MISSION_TITLE + ': Clear all 5 checkpoints, collect coins, then hit the finish line!', 4200);
+  spawnGhosts(aiOpponentCount);
+  toast(MISSION_TITLE + ': Clear all 5 checkpoints, collect coins, then beat the AI riders to the finish!', 4200);
   netInit();
 }
 
@@ -1851,7 +1889,7 @@ function tick(dt, tms) {
     pedestals.forEach((p, i) => { p.holo.rotation.y = t * 1.1 + i; p.holo.position.y = HUB.y + 3.4 + Math.sin(t * 1.6 + i) * 0.25; });
     if (hubMotes) hubMotes.rotation.y = t * 0.03;
   }
-  if (Net.mode === 'solo') updateGhosts(dt);
+  if (ghostsOn) updateGhosts(dt);
   updateRemotes(dt);
   if (me && me.bubbleT > 0) { me.bubbleT -= dt; if (me.bubbleT <= 0 && me.bubble) { me.root.remove(me.bubble); me.bubble = null; } }
   updateCamera(dt);
