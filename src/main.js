@@ -1989,6 +1989,10 @@ $('help').textContent = IS_TOUCH
   try { localStorage.setItem('ride-to-kitlab:profile', JSON.stringify({ id: myId, name: savedName, gender: myGender })); } catch (e) { }
   $('inName').value = savedName;
   $('inGender').value = myGender;
+  try {
+    const savedAI = localStorage.getItem('ride-to-kitlab:ai-count');
+    if (savedAI !== null) $('inAICount').value = String(clamp(parseInt(savedAI, 10) || 0, 0, 5));
+  } catch (e) { }
   setTimeout(function () {
     buildTerrain(); buildScenery(); buildQuest(); buildTrack(); buildDust(); buildHub(); buildMini();
     setGateOpen(false);
