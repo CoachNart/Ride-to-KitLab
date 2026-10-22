@@ -1219,57 +1219,105 @@ function coinSound() { if (!AC || muted) return; tone(1046, 0, 0.09, 0.035, 'sin
 function crashSound() { if (!AC || muted) return; tone(92, 0, 0.16, 0.08, 'triangle'); tone(58, 0.025, 0.22, 0.055, 'sine'); }
 function whoosh() { if (!AC || muted) return; tone(330, 0, 0.12, 0.018, 'triangle'); }
 
-/* ---------- KitLab soundtrack ---------- */
-/* The uploaded MP3 is served from public/audio once added to the repo.
-   Keep the existing track as a fallback so the game never goes silent
-   if the asset has not been uploaded yet or a request fails. */
-const KITLAB_MUSIC_SRC = '/audio/prettyjohn1-lofi-lofi-music-587176.mp3';
-const PREVIOUS_MUSIC_SRC = 'https://raw.githubusercontent.com/uncle-sheepsky/duru-ai-cc0-bgm/main/mp3/duru-roomscene-lofi.mp3';
+/* ---------- YouTube KitLab soundtrack ---------- */
+const KITLAB_YOUTUBE_ID = 'nLXTUrooEu0';
 const Music = {
-  audio: null,
+  player: null,
+  ready: false,
   playing: false,
   on: true,
-  usingFallback: false,
-  init() {
-    if (this.audio) return this.audio;
-    const audio = new Audio(KITLAB_MUSIC_SRC);
-    audio.preload = 'auto';
-    audio.loop = true;
-    audio.volume = 0.92;
-    audio.addEventListener('playing', () => { this.playing = true; });
-    audio.addEventListener('pause', () => { this.playing = false; });
-    audio.addEventListener('error', () => {
-      this.playing = false;
-      if (!this.usingFallback && this.on) {
-        this.usingFallback = true;
-        audio.src = PREVIOUS_MUSIC_SRC;
-        audio.load();
-        audio.play().catch(() => {});
-      } else {
-        console.warn('Music could not load; check the audio source/network.');
+  pending: false,
+  loading: false,
+  prepare() {
+    if (this.player) return;
+    if (window.YT && window.YT.Player) { this.createPlayer(); return; }
+    if (this.loading) return;
+    this.loading = true;
+    const priorReady = window.onYouTubeIframeAPIReady;
+    window.onYouTubeIframeAPIReady = () => {
+      if (typeof priorReady === 'function') priorReady();
+      this.createPlayer();
+    };
+    if (!document.querySelector('script[data-kitlab-youtube-api]')) {
+      const script = document.createElement('script');
+      script.src = 'https://www.youtube.com/iframe_api';
+      script.async = true;
+      script.dataset.kitlabYoutubeApi = 'true';
+      document.head.appendChild(script);
+    }
+  },
+  createPlayer() {
+    if (this.player || !(window.YT && window.YT.Player)) return;
+    let mount = document.getElementById('ytMusicPlayer');
+    if (!mount) {
+      mount = document.createElement('div');
+      mount.id = 'ytMusicPlayer';
+      mount.setAttribute('aria-hidden', 'true');
+      document.body.appendChild(mount);
+    }
+    this.player = new window.YT.Player(mount, {
+      width: '200',
+      height: '200',
+      videoId: KITLAB_YOUTUBE_ID,
+      playerVars: {
+        autoplay: 0,
+        controls: 0,
+        disablekb: 1,
+        fs: 0,
+        loop: 1,
+        playlist: KITLAB_YOUTUBE_ID,
+        playsinline: 1,
+        rel: 0,
+        iv_load_policy: 3,
+        origin: window.location.origin
+      },
+      events: {
+        onReady: () => {
+          this.ready = true;
+          if (this.pending && this.on) this.play();
+        },
+        onStateChange: event => {
+          this.playing = event.data === window.YT.PlayerState.PLAYING;
+          if (event.data === window.YT.PlayerState.ENDED && this.on && this.player) {
+            this.player.seekTo(0, true);
+            this.player.playVideo();
+          }
+        },
+        onError: event => {
+          this.playing = false;
+          console.warn('KitLab YouTube soundtrack could not play. YouTube may restrict embedding for this video.', event.data);
+          if (started) toast('Soundtrack unavailable in the embedded player.', 3200);
+        }
       }
     });
-    this.audio = audio;
-    return audio;
   },
   start() {
     if (!this.on) return;
-    const audio = this.init();
-    if (!audio.paused && !audio.ended) return;
-    const attempt = audio.play();
-    if (attempt && typeof attempt.catch === 'function') {
-      attempt.then(() => { this.playing = true; }).catch(err => {
-        this.playing = false;
-        console.warn('Music playback was blocked until the next user interaction.', err);
-      });
+    this.pending = true;
+    this.prepare();
+    if (this.ready) this.play();
+  },
+  play() {
+    if (!this.on || !this.ready || !this.player) return;
+    try {
+      this.player.setVolume(82);
+      this.player.playVideo();
+      this.pending = false;
+    } catch (error) {
+      console.warn('Could not start KitLab soundtrack.', error);
     }
   },
   stop() {
-    if (!this.audio) return;
-    this.audio.pause();
+    this.pending = false;
+    if (this.ready && this.player) {
+      try { this.player.pauseVideo(); } catch (error) { /* player may still be initializing */ }
+    }
     this.playing = false;
   }
 };
+/* Load the player before the rider presses Start so mobile browsers can start
+   playback from the explicit Start riding gesture. */
+Music.prepare();
 function syncSoundButton() {
   const label = muted ? 'Sound off' : 'Sound on';
   if ($('bSnd')) $('bSnd').textContent = label;
