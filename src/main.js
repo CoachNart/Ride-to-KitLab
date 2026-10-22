@@ -305,6 +305,8 @@ function mergeColored(parts) {
   const pos = [], col = [];
   for (const p of parts) {
     const g = p.geo.toNonIndexed(); g.translate(p.x || 0, p.y || 0, p.z || 0);
+    if (p.sx || p.sy || p.sz) g.scale(p.sx || 1, p.sy || 1, p.sz || 1);
+    if (p.rx) g.rotateX(p.rx); if (p.ry) g.rotateY(p.ry); if (p.rz) g.rotateZ(p.rz);
     const a = g.attributes.position.array, c = new THREE.Color(p.color);
     for (let i = 0; i < a.length; i++) pos.push(a[i]);
     for (let i = 0; i < g.attributes.position.count; i++) col.push(c.r, c.g, c.b);
@@ -327,9 +329,12 @@ function buildScenery() {
   }
   const pineGeo = ACTIVE_MISSION === 'coastline' ? mergeColored([
     { geo: new THREE.CylinderGeometry(0.18, 0.3, 5.4, 7), color: 0x8b5b35, y: 2.7 },
-    { geo: new THREE.SphereGeometry(1.15, 7, 5), color: 0x23834c, y: 5.25 },
-    { geo: new THREE.ConeGeometry(1.1, 2.8, 5), color: 0x329b55, y: 6.0 },
-    { geo: new THREE.ConeGeometry(0.8, 2.1, 5), color: 0x43b967, y: 6.5 }
+    { geo: new THREE.ConeGeometry(0.18, 3.8, 5), color: 0x23834c, y: 5.45, rz: 1.12, sx: 1.3 },
+    { geo: new THREE.ConeGeometry(0.18, 3.8, 5), color: 0x23834c, y: 5.45, rz: -1.12, sx: 1.3 },
+    { geo: new THREE.ConeGeometry(0.18, 3.5, 5), color: 0x329b55, y: 5.5, rz: 0.72, sx: 1.2 },
+    { geo: new THREE.ConeGeometry(0.18, 3.5, 5), color: 0x329b55, y: 5.5, rz: -0.72, sx: 1.2 },
+    { geo: new THREE.ConeGeometry(0.18, 3.2, 5), color: 0x43b967, y: 5.55, rx: 0.8, sx: 1.2 },
+    { geo: new THREE.ConeGeometry(0.18, 3.2, 5), color: 0x43b967, y: 5.55, rx: -0.8, sx: 1.2 }
   ]) : mergeColored([
     { geo: new THREE.CylinderGeometry(0.22, 0.3, 1.6, 6), color: 0x5b3d24, y: 0.8 },
     { geo: new THREE.ConeGeometry(2.0, 3.2, 7), color: 0x2f6b3a, y: 2.9 },
@@ -1803,6 +1808,19 @@ window.addEventListener('resize', resize); resize();
 /* ============================================================
    UI WIRING
    ============================================================ */
+const coastUnlocked = (() => { try { return localStorage.getItem('ride-to-kitlab:neon-sprint-complete') === '1'; } catch (e) { return false; } })();
+$('pickNeon').classList.toggle('active', ACTIVE_MISSION === 'neon');
+$('pickCoast').classList.toggle('active', ACTIVE_MISSION === 'coastline');
+$('neonState').textContent = ACTIVE_MISSION === 'neon' ? 'SELECTED · AVAILABLE' : 'AVAILABLE';
+$('coastState').textContent = coastUnlocked ? (ACTIVE_MISSION === 'coastline' ? 'SELECTED · UNLOCKED' : 'UNLOCKED') : 'LOCKED · FINISH NEON SPRINT';
+$('pickCoast').style.borderColor = coastUnlocked ? 'rgba(79,220,134,.6)' : 'rgba(79,200,220,.35)';
+$('pickNeon').addEventListener('click', () => {
+  if (ACTIVE_MISSION !== 'neon') window.location.href = window.location.pathname;
+});
+$('pickCoast').addEventListener('click', () => {
+  if (!coastUnlocked) { toast('Finish NEON SPRINT once to unlock Coastline Rush.', 3200); return; }
+  if (ACTIVE_MISSION !== 'coastline') window.location.href = window.location.pathname + '?mission=coastline';
+});
 $('go').addEventListener('click', () => { audioInit(); if (ready) startRide(); });
 // Mobile browsers can suspend Web Audio when switching apps, locking the screen, or after inactivity.
 document.addEventListener('visibilitychange', () => {
