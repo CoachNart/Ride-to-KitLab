@@ -383,7 +383,7 @@ function buildScenery() {
     skyMat.uniforms.stars.value = 0.55; hemi.color.setHex(0x7897b8); hemi.groundColor.setHex(0x17232b); hemi.intensity = 0.52; sun.color.setHex(0x66c9f0); sun.intensity = 0.52;
     const buildingMats = [0x182a38,0x263846,0x304451,0x26313f].map(color => new THREE.MeshStandardMaterial({ color, roughness: 0.82, metalness: 0.12 }));
     const windowMat = new THREE.MeshBasicMaterial({ color: 0x83e8f5 });
-    for (let i = 55; i < PS - 20; i += 17) {
+    for (let i = 65; i < PS - 20; i += 35) {
       for (const side of [-1, 1]) {
         const x = px[i] + -tz[i] * side * (13 + (i % 3) * 2), z = pz[i] + tx[i] * side * (13 + (i % 3) * 2);
         const h = 8 + rnd() * 27, w = 5 + rnd() * 5, depth = 5 + rnd() * 5;
@@ -404,6 +404,10 @@ function buildScenery() {
     { geo: new THREE.ConeGeometry(0.18, 3.5, 5), color: 0x329b55, y: 5.5, rz: -0.72, sx: 1.2 },
     { geo: new THREE.ConeGeometry(0.18, 3.2, 5), color: 0x43b967, y: 5.55, rx: 0.8, sx: 1.2 },
     { geo: new THREE.ConeGeometry(0.18, 3.2, 5), color: 0x43b967, y: 5.55, rx: -0.8, sx: 1.2 }
+  ]) : ACTIVE_MISSION === 'desert' ? mergeColored([
+    { geo: new THREE.CylinderGeometry(0.28, 0.38, 2.8, 7), color: 0x347044, y: 1.4 },
+    { geo: new THREE.CylinderGeometry(0.14, 0.18, 1.7, 6), color: 0x347044, y: 2.6, x: 0.42, rz: -0.42 },
+    { geo: new THREE.CylinderGeometry(0.14, 0.18, 1.3, 6), color: 0x347044, y: 1.9, x: -0.38, rz: 0.42 }
   ]) : mergeColored([
     { geo: new THREE.CylinderGeometry(0.22, 0.3, 1.6, 6), color: 0x5b3d24, y: 0.8 },
     { geo: new THREE.ConeGeometry(2.0, 3.2, 7), color: 0x2f6b3a, y: 2.9 },
