@@ -1710,7 +1710,7 @@ function updateHud() {
   $('qarrow').style.transform = 'rotate(' + (-ang * 180 / Math.PI).toFixed(0) + 'deg)';
   $('qsc').textContent = Math.floor(score).toLocaleString();
   $('qcombo').textContent = combo > 1 ? '\u00d7' + combo : '';
-  $('qcoin').textContent = coinsGot + ' tokens';
+  $('qcoin').textContent = coinsGot + ' coins';
   Music.mood = zone;
   if (Music.lp && AC) Music.lp.frequency.setTargetAtTime(modalOpen ? 1050 : 1850 + clamp(P.v, 0, 40) * 8, AC.currentTime, 0.25);
   drawMini();
@@ -1800,9 +1800,9 @@ $('bPause').addEventListener('click', () => paused ? resumeRide() : pauseRide())
 $('resumeRide').addEventListener('click', resumeRide);
 $('pauseSound').addEventListener('click', () => setMuted(!muted));
 $('status').addEventListener('click', () => { const r = $('roster'); r.classList.toggle('hide'); if (!r.classList.contains('hide')) updateRoster(); });
-$('aExplore').addEventListener('click', () => { $('arrive').classList.add('hide'); modalOpen = false; $('aExplore').textContent = 'Explore the hub'; });
+$('aExplore').addEventListener('click', () => { $('arrive').classList.add('hide'); modalOpen = false; $('aExplore').textContent = 'Free ride'; });
 $('aOpen').addEventListener('click', () => { if (KITLAB_URL) window.open(KITLAB_URL, '_blank', 'noopener'); });
-$('aAgain').addEventListener('click', () => { $('arrive').classList.add('hide'); modalOpen = false; $('aExplore').textContent = 'Explore the hub'; resetRun(); });
+$('aAgain').addEventListener('click', () => { $('arrive').classList.add('hide'); modalOpen = false; $('aExplore').textContent = 'Free ride'; resetRun(); });
 window.addEventListener('pagehide', () => { try { if (Net.mode === 'live') window.storage.delete(Net.myKey, true); } catch (e) { } });
 
 $('help').textContent = IS_TOUCH
