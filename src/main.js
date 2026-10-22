@@ -24,6 +24,8 @@ if (!window.storage) {
 const KITLAB_URL = '';
 
 const IS_TOUCH = (window.matchMedia && matchMedia('(pointer:coarse)').matches) || ('ontouchstart' in window);
+const ACTIVE_MISSION = new URLSearchParams(window.location.search).get('mission') === 'coastline' ? 'coastline' : 'neon';
+const MISSION_TITLE = ACTIVE_MISSION === 'coastline' ? 'COASTLINE RUSH' : 'NEON SPRINT';
 const SEED = 7731, HALF = 1350, N = 320, CELL = (HALF * 2) / N, WATER = -5.5, PS = 1100;
 const SHARD_T = [0.12, 0.29, 0.46, 0.63, 0.80];
 const SHARD_COL = ['#19d3ea', '#ffc14d', '#ff5a67', '#4fdc86', '#8fe9f7'];
@@ -135,7 +137,7 @@ const hubGroup = new THREE.Group(); hubGroup.visible = false; scene.add(hubGroup
 /* ============================================================
    WORLD: path, heightfield, terrain
    ============================================================ */
-const CTRL = [[0, 300], [50, 255], [135, 215], [175, 140], [120, 60], [10, 25], [-110, -10], [-185, -85], [-160, -175], [-70, -225], [40, -250], [120, -295], [200, -335], [285, -365], [350, -315], [385, -225], [330, -145], [245, -105], [180, -35]];
+const CTRL = ACTIVE_MISSION === 'coastline' ? [[-220,300],[-120,270],[10,285],[145,245],[210,170],[170,90],[70,55],[-10,5],[-5,-80],[100,-135],[205,-190],[225,-270],[140,-330],[20,-310],[-70,-240],[-165,-220],[-230,-145],[-180,-70],[-80,-25]] : [[0,300],[50,255],[135,215],[175,140],[120,60],[10,25],[-110,-10],[-185,-85],[-160,-175],[-70,-225],[40,-250],[120,-295],[200,-335],[285,-365],[350,-315],[385,-225],[330,-145],[245,-105],[180,-35]];
 const curve = new THREE.CatmullRomCurve3(CTRL.map(p => new THREE.Vector3(p[0] * 1.7, 0, p[1] * 1.7)), false, 'centripetal');
 const PATH_LEN = curve.getLength();
 const pp = curve.getSpacedPoints(PS);
@@ -148,6 +150,13 @@ for (let i = 0; i <= PS; i++) {
 }
 
 function baseH(x, z) {
+  if (ACTIVE_MISSION === 'coastline') {
+    const rolling = (fbm(x * 0.003 + 11.3, z * 0.003 + 7.1, 4) - 0.5) * 13;
+    const shore = (fbm(x * 0.0095 + 3.7, z * 0.0095 + 19.2, 3) - 0.5) * 5;
+    const detail = (fbm(x * 0.03 + 8.1, z * 0.03 + 2.4, 2) - 0.5) * 1.2;
+    const edge = smooth(0.68, 0.98, Math.max(Math.abs(x), Math.abs(z)) / HALF);
+    return rolling + shore + detail + edge * 5 - 5.5;
+  }
   const a = (fbm(x * 0.003 + 11.3, z * 0.003 + 7.1, 4) - 0.5) * 62;
   const b = (fbm(x * 0.0095 + 3.7, z * 0.0095 + 19.2, 3) - 0.5) * 20;
   const c = (fbm(x * 0.03 + 8.1, z * 0.03 + 2.4, 2) - 0.5) * 3;
@@ -216,8 +225,8 @@ function buildTerrain() {
   }
   // vertex data
   const pos = new Float32Array(V * 3), col = new Float32Array(V * 3), uv = new Float32Array(V * 2);
-  const cG1 = new THREE.Color(0x5e9a38), cG2 = new THREE.Color(0x88b24c), cDry = new THREE.Color(0xb7b05a), cDirt = new THREE.Color(0x9c7c52),
-    cRock = new THREE.Color(0x8c8984), cSand = new THREE.Color(0xdac790), cSnow = new THREE.Color(0xf2f4f7), c = new THREE.Color();
+  const cG1 = new THREE.Color(ACTIVE_MISSION === 'coastline' ? 0x4f9b62 : 0x5e9a38), cG2 = new THREE.Color(ACTIVE_MISSION === 'coastline' ? 0x78b86c : 0x88b24c), cDry = new THREE.Color(ACTIVE_MISSION === 'coastline' ? 0xb5b16a : 0xb7b05a), cDirt = new THREE.Color(ACTIVE_MISSION === 'coastline' ? 0xd6bc88 : 0x9c7c52),
+    cRock = new THREE.Color(ACTIVE_MISSION === 'coastline' ? 0xa69a83 : 0x8c8984), cSand = new THREE.Color(0xe4d09d), cSnow = new THREE.Color(0xf2f4f7), c = new THREE.Color();
   for (let iz = 0; iz <= N; iz++) {
     for (let ix = 0; ix <= N; ix++) {
       const i = iz * (N + 1) + ix, x = -HALF + ix * CELL, z = -HALF + iz * CELL, h = H[i];
@@ -263,10 +272,10 @@ function buildTerrain() {
 
   // road ribbon
   const rc = mkCanvas(128, 256), rx = rc.getContext('2d');
-  rx.fillStyle = '#b48e5c'; rx.fillRect(0, 0, 128, 256);
-  for (let i = 0; i < 1800; i++) { const v = 120 + Math.floor(rr() * 90); rx.fillStyle = 'rgba(' + v + ',' + (v - 28) + ',' + (v - 60) + ',0.35)'; rx.fillRect(rr() * 128, rr() * 256, 1 + rr() * 3, 1 + rr() * 4); }
-  rx.fillStyle = 'rgba(70,45,20,0.28)'; rx.fillRect(34, 0, 12, 256); rx.fillRect(82, 0, 12, 256);
-  rx.fillStyle = 'rgba(120,150,70,0.35)'; rx.fillRect(60, 0, 8, 256);
+  rx.fillStyle = ACTIVE_MISSION === 'coastline' ? '#505a60' : '#b48e5c'; rx.fillRect(0, 0, 128, 256);
+  for (let i = 0; i < 1800; i++) { const v = 120 + Math.floor(rr() * 90); rx.fillStyle = ACTIVE_MISSION === 'coastline' ? 'rgba(' + v + ',' + v + ',' + v + ',0.22)' : 'rgba(' + v + ',' + (v - 28) + ',' + (v - 60) + ',0.35)'; rx.fillRect(rr() * 128, rr() * 256, 1 + rr() * 3, 1 + rr() * 4); }
+  if (ACTIVE_MISSION === 'coastline') { rx.fillStyle = 'rgba(245,232,190,0.9)'; rx.fillRect(4, 0, 3, 256); rx.fillRect(121, 0, 3, 256); rx.fillStyle = 'rgba(230,238,228,0.72)'; rx.fillRect(62, 0, 4, 256); }
+  else { rx.fillStyle = 'rgba(70,45,20,0.28)'; rx.fillRect(34, 0, 12, 256); rx.fillRect(82, 0, 12, 256); rx.fillStyle = 'rgba(120,150,70,0.35)'; rx.fillRect(60, 0, 8, 256); }
   rx.globalCompositeOperation = 'destination-in';
   const gr = rx.createLinearGradient(0, 0, 128, 0);
   gr.addColorStop(0, 'rgba(0,0,0,0)'); gr.addColorStop(0.14, 'rgba(0,0,0,1)'); gr.addColorStop(0.86, 'rgba(0,0,0,1)'); gr.addColorStop(1, 'rgba(0,0,0,0)');
@@ -309,7 +318,19 @@ function mergeColored(parts) {
 
 function buildScenery() {
   const rnd = mulberry32(99), dummy = new THREE.Object3D(), tmpC = new THREE.Color();
-  const pineGeo = mergeColored([
+  if (ACTIVE_MISSION === 'coastline') {
+    const ocean = new THREE.Mesh(new THREE.PlaneGeometry(HALF * 2.35, HALF * 2.35), new THREE.MeshStandardMaterial({ color: 0x087fa5, emissive: 0x06364b, emissiveIntensity: 0.22, roughness: 0.24, metalness: 0.12 }));
+    ocean.rotation.x = -Math.PI / 2; ocean.position.y = WATER - 0.18; ocean.receiveShadow = true; ocean.renderOrder = -2; worldGroup.add(ocean);
+    scene.background.setHex(0x8dd9ed); scene.fog.color.setHex(0xa9e1e9); scene.fog.near = 85; scene.fog.far = 760;
+    skyMat.uniforms.top.value.setHex(0x197fb6); skyMat.uniforms.mid.value.setHex(0xa8e7ee); skyMat.uniforms.bot.value.setHex(0x68c4d7); skyMat.uniforms.sunCol.value.setHex(0xfff3cf);
+    hemi.color.setHex(0xd8f7ff); hemi.groundColor.setHex(0x4c8054); hemi.intensity = 0.92; sun.color.setHex(0xffedc5); sun.intensity = 1.05;
+  }
+  const pineGeo = ACTIVE_MISSION === 'coastline' ? mergeColored([
+    { geo: new THREE.CylinderGeometry(0.18, 0.3, 5.4, 7), color: 0x8b5b35, y: 2.7 },
+    { geo: new THREE.SphereGeometry(1.15, 7, 5), color: 0x23834c, y: 5.25 },
+    { geo: new THREE.ConeGeometry(1.1, 2.8, 5), color: 0x329b55, y: 6.0 },
+    { geo: new THREE.ConeGeometry(0.8, 2.1, 5), color: 0x43b967, y: 6.5 }
+  ]) : mergeColored([
     { geo: new THREE.CylinderGeometry(0.22, 0.3, 1.6, 6), color: 0x5b3d24, y: 0.8 },
     { geo: new THREE.ConeGeometry(2.0, 3.2, 7), color: 0x2f6b3a, y: 2.9 },
     { geo: new THREE.ConeGeometry(1.6, 2.8, 7), color: 0x37793f, y: 4.4 },
@@ -1479,6 +1500,7 @@ function flash(cb) {
 function finishRace() {
   if (finished) return;
   finished = true;
+  if (ACTIVE_MISSION === 'neon') { try { localStorage.setItem('ride-to-kitlab:neon-sprint-complete', '1'); } catch (e) { } }
   finishTime = runTime;
   flash(() => {
     postScore();
@@ -1489,6 +1511,7 @@ function finishRace() {
 }
 async function showArrival() {
   const medal = finishTime < 210 ? '🥇 GOLD MEDAL' : finishTime < 300 ? '🥈 SILVER MEDAL' : '🥉 BRONZE MEDAL';
+  $('aCard').querySelector('h2').textContent = MISSION_TITLE + ' COMPLETE!';
   $('aSum').textContent = medal + ' · ' + fmtTime(finishTime) + ' · ' + Math.floor(score).toLocaleString() + ' points · ' + coinsGot + ' coins. Ride again to beat your time.';
   $('aOpen').classList.toggle('hide', !KITLAB_URL);
   $('aBoard').innerHTML = ''; $('arrive').classList.remove('hide'); modalOpen = true;
@@ -1516,9 +1539,9 @@ function startRide() {
   scene.remove(me.root);
   me = makeBike(RIDER_PAL[myColor], JERSEY_PAL[(myColor + 3) % JERSEY_PAL.length], RIDER_PAL[(myColor + 4) % RIDER_PAL.length], myGender);
   me.setName(myName); scene.add(me.root);
-  $('menu').classList.add('hide'); $('hud').classList.remove('hide');
+  $('menu').classList.add('hide'); $('hud').classList.remove('hide'); $('qmode').textContent = MISSION_TITLE;
   started = true; paused = false; $('pause').classList.add('hide'); $('bPause').textContent = 'Pause'; placeAtPath(0, 0); buildPips(); updatePips(); score = 0; combo = 1; coinsGot = 0; countdown = 3.2;
-  toast('NEON SPRINT: Ride through all 5 checkpoints, collect coins, then hit the finish line!', 4200);
+  toast(MISSION_TITLE + ': Clear all 5 checkpoints, collect coins, then hit the finish line!', 4200);
   netInit();
 }
 
