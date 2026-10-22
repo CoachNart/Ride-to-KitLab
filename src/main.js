@@ -1441,7 +1441,7 @@ function startRide() {
   try { const ctx = audioInit(); if (ctx) { const resume = ctx.resume(); Music.start(); if (resume && resume.then) resume.then(() => Music.start()).catch(() => {}); } } catch (e) { }
   myName = ($('inName').value || 'Rider').replace(/[^\w \-.]/g, '').trim().slice(0, 14) || 'Rider';
   myRoom = ($('inRoom').value || 'kitlab').toLowerCase().replace(/[^a-z0-9_-]/g, '').slice(0, 16) || 'kitlab';
-  try { window.storage.set('profile', JSON.stringify({ id: myId, name: myName }), false).catch(() => { }); } catch (e) { }
+  try { localStorage.setItem('ride-to-kitlab:profile', JSON.stringify({ id: myId, name: myName })); } catch (e) { }
   myColor = hashStr(myId) % RIDER_PAL.length;
   scene.remove(me.root);
   me = makeBike(RIDER_PAL[myColor], JERSEY_PAL[(myColor + 3) % JERSEY_PAL.length], RIDER_PAL[(myColor + 4) % RIDER_PAL.length]);
@@ -1726,9 +1726,13 @@ $('help').textContent = IS_TOUCH
    ============================================================ */
 (async function boot() {
   let prof = null;
-  try { const r = await window.storage.get('profile', false); if (r && r.value) prof = JSON.parse(r.value); } catch (e) { }
-  myId = (prof && prof.id) || Math.random().toString(36).slice(2, 8);
-  $('inName').value = (prof && prof.name) || ('Rider' + (100 + Math.floor(Math.random() * 900)));
+  // Rider identity must be device-local. A shared Firebase "profile" key made
+  // every device reuse the same rider ID, causing each player to overwrite itself.
+  try { const saved = localStorage.getItem('ride-to-kitlab:profile'); if (saved) prof = JSON.parse(saved); } catch (e) { }
+  myId = (prof && prof.id) || (Math.random().toString(36).slice(2, 8) + Math.random().toString(36).slice(2, 6));
+  const savedName = (prof && prof.name) || ('Rider' + (100 + Math.floor(Math.random() * 900)));
+  try { localStorage.setItem('ride-to-kitlab:profile', JSON.stringify({ id: myId, name: savedName })); } catch (e) { }
+  $('inName').value = savedName;
   setTimeout(function () {
     buildTerrain(); buildScenery(); buildQuest(); buildTrack(); buildDust(); buildHub(); buildMini();
     setGateOpen(true);
