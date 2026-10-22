@@ -1894,7 +1894,6 @@ function showTitleScreen() {
   $('setupPanel').classList.remove('show');
 }
 $('playBtn').addEventListener('click', showMissionSelect);
-$('quickRideBtn').addEventListener('click', showMissionSelect);
 $('backToTitle').addEventListener('click', showTitleScreen);
 missionButtons.forEach(button => {
   const id = button.dataset.mission;
