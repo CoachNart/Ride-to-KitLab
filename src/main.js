@@ -565,13 +565,22 @@ function makeBike(frameHex, jerseyHex, helmetHex, riderGender = 'male') {
   { const hm = new THREE.Mesh(G('SphereGeometry', 0.124, 16, 10, 0, Math.PI * 2, 0, Math.PI * 0.56), mHelmet); hm.material.side = THREE.DoubleSide; hm.scale.set(1, 0.92, 1.16); hm.position.set(0, 0.125, 0.0); hm.castShadow = true; headG.add(hm); }
   { const vz = box(0.17, 0.012, 0.08, mHelmet, 0, 0.15, 0.125, headG); vz.rotation.x = 0.2; }
   box(0.036, 0.008, 0.2, S.accent, 0, 0.243, 0.0, headG);
-  // Female rider option: a visible ponytail and hair tie make the silhouette
-  // distinct even at the game's normal follow-camera distance.
+  // Female rider: make the hairstyle readable from the normal rear camera.
+  // The previous small ponytail sat almost entirely under the helmet.
   if (riderGender === 'female') {
-    ball(V3(0, 0.025, -0.115), 0.075, mHair, headG, 0.88, 1.05, 1.0, true);
-    tube(V3(0, 0.01, -0.15), V3(0.025, -0.11, -0.285), 0.052, 0.027, mHair, headG);
-    ball(V3(0.008, -0.025, -0.17), 0.031, mHelmet, headG, 1.0, 0.65, 1.0, false);
-    ball(V3(0.02, -0.105, -0.28), 0.035, mHair, headG, 0.9, 1.2, 0.9, true);
+    // Hair visible below both sides of the helmet, reaching toward the shoulders.
+    ball(V3(-0.092, 0.015, -0.015), 0.064, mHair, headG, 0.78, 1.2, 0.95, true);
+    ball(V3(0.092, 0.015, -0.015), 0.064, mHair, headG, 0.78, 1.2, 0.95, true);
+    tube(V3(-0.105, 0.005, -0.015), V3(-0.115, -0.22, -0.045), 0.043, 0.031, mHair, headG);
+    tube(V3(0.105, 0.005, -0.015), V3(0.115, -0.22, -0.045), 0.043, 0.031, mHair, headG);
+    ball(V3(-0.115, -0.22, -0.045), 0.038, mHair, headG, 0.9, 1.25, 0.95, true);
+    ball(V3(0.115, -0.22, -0.045), 0.038, mHair, headG, 0.9, 1.25, 0.95, true);
+    // A clearly visible low ponytail extends out from the back of the helmet.
+    ball(V3(0, 0.015, -0.12), 0.075, mHair, headG, 0.95, 1.0, 1.0, true);
+    tube(V3(0, 0.005, -0.16), V3(0.035, -0.13, -0.34), 0.06, 0.038, mHair, headG);
+    ball(V3(0.035, -0.13, -0.34), 0.045, mHair, headG, 0.9, 1.2, 0.9, true);
+    // Hair tie at the base of the ponytail.
+    ball(V3(0.006, -0.025, -0.19), 0.033, mHelmet, headG, 1.0, 0.7, 1.0, false);
   }
 
   const legs = [], arms = [];
