@@ -1919,7 +1919,7 @@ function stepPlayer(dt) {
   me.root.position.set(P.x, P.y, P.z);
   me.root.rotation.set(-P.pitch, P.yaw, -P.lean);
   const thrNow = c.thr && canDrive;
-  if (trickTimer > 0) { trickTimer = Math.max(0, trickTimer - dt); if (trickTimer === 0) { activeTrick = 'ride'; if (me) me.stuntMode = 'ride'; netSendNow(); } }
+  if (trickTimer > 0) { trickTimer = Math.max(0, trickTimer - dt); if (trickTimer === 0) { activeTrick = 'ride'; if (me) me.stuntMode = 'ride'; if ($('tTrick')) $('tTrick').textContent = 'Trick'; netSendNow(); } }
   me.stuntMode = activeTrick;
   me.pose(dt, P.v, P.steerAng, thrNow ? Math.max(P.v * 1.32, 2.5) : 0);
   $('vig').style.opacity = (boosting || padOn) ? 1 : clamp((P.v - 20) / 40, 0, 0.5);
