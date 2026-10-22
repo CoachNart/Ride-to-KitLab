@@ -1392,6 +1392,12 @@ function syncGhosts() {
 function spawnGhosts(count) {
   aiOpponentCount = clamp(Number.isFinite(Number(count)) ? Math.floor(Number(count)) : 5, 0, 5);
   ghostsOn = true;
+  // Cache each obstacle's route position so AI can choose a clear lane or jump.
+  hazards.forEach(h => {
+    const near = nearestPath(h.x, h.z, Math.round(PS * 0.5));
+    h.aiPath = near.i;
+    h.aiLane = (h.x - px[near.i]) * -tz[near.i] + (h.z - pz[near.i]) * tx[near.i];
+  });
   GHOSTS.forEach((n, i) => {
     const initial = { n, c: i * 2 + 1, x: px[0], z: pz[0], y: 0, w: Math.atan2(tx[0], tz[0]), v: AI_SPEEDS[i], s: 0, l: 0, zn: 0, t: 1, e: '', et: 0, sh: 0, f: 0 };
     const r = ensureRemote('ghost' + i, initial);
@@ -1408,7 +1414,8 @@ function spawnGhosts(count) {
   syncGhosts();
 }
 function updateGhosts(dt) {
-  if (!started || paused || countdown > 0 || modalOpen || finished) return;
+  // AI keeps racing through the player's wipeout countdown and finish screen.
+  if (!started || paused) return;
   remotes.forEach(r => {
     if (!r.ghost || !r.live) return;
     if (!r.aiFinished) {
@@ -1417,11 +1424,52 @@ function updateGhosts(dt) {
       if (r.gs >= PATH_LEN * 0.998) { r.aiFinished = true; r.gsp = 0; }
     }
     const f = clamp(r.gs / PATH_LEN * PS, 0, PS - 1.001), i = Math.floor(f), k = f - i;
-    const x = lerp(px[i], px[i + 1], k) - tz[i] * r.goff, z = lerp(pz[i], pz[i + 1], k) + tx[i] * r.goff;
+    const centerX = lerp(px[i], px[i + 1], k), centerZ = lerp(pz[i], pz[i + 1], k);
+    const laneOptions = [-3.0, -1.5, 0, 1.5, 3.0];
+    const pointAt = (pathIndex, lane) => ({
+      x: px[pathIndex] - tz[pathIndex] * lane,
+      z: pz[pathIndex] + tx[pathIndex] * lane
+    });
+    let bestLane = r.goff, bestCost = Infinity, anySafeLane = false;
+    const relevant = [];
+    for (const h of hazards) {
+      if (h.broken || h.type === 'puddle') continue;
+      const hp = Number.isFinite(h.aiPath) ? h.aiPath : nearestPath(h.x, h.z, i).i;
+      const ahead = (hp / PS) * PATH_LEN - r.gs;
+      if (ahead < -2 || ahead > 17) continue;
+      const p = pointAt(hp, 0);
+      const lateral = (h.x - p.x) * -tz[hp] + (h.z - p.z) * tx[hp];
+      const radius = Math.max(h.r || 0, h.half || 0, h.type === 'log' ? 2.2 : 0) + 1.05;
+      relevant.push({ h, hp, ahead, lateral, radius });
+    }
+    for (const lane of laneOptions) {
+      let safe = true;
+      for (const item of relevant) {
+        const p = pointAt(item.hp, lane);
+        if (Math.hypot(p.x - item.h.x, p.z - item.h.z) < item.radius) { safe = false; break; }
+      }
+      if (safe) {
+        anySafeLane = true;
+        const cost = Math.abs(lane - r.goff) + (Math.abs(lane) > 2.5 ? 0.35 : 0);
+        if (cost < bestCost) { bestCost = cost; bestLane = lane; }
+      }
+    }
+    // If the road is blocked across all lanes, launch a visible jump over the obstacle.
+    let jumpY = 0;
+    const blocked = relevant.find(item => item.ahead > 0.5 && item.ahead < 8 &&
+      Math.hypot(centerX - item.h.x, centerZ - item.h.z) < item.radius + 1.0);
+    if (!anySafeLane && blocked) {
+      const jumpT = clamp((8 - blocked.ahead) / 8, 0, 1);
+      jumpY = Math.sin(jumpT * Math.PI) * 3.0;
+      bestLane = r.goff;
+    }
+    // Smoothly steer between lanes instead of snapping sideways.
+    r.goff += (bestLane - r.goff) * Math.min(1, dt * 2.8);
+    const x = centerX - tz[i] * r.goff, z = centerZ + tx[i] * r.goff;
     const w = Math.atan2(tx[i], tz[i]);
     const progress = r.gs / PATH_LEN;
     const checkpoints = SHARD_T.filter(t => progress >= t).length;
-    r.state = { n: r.state.n, c: r.state.c, x, z, y: 0, w, v: r.gsp, s: 0, l: 0, zn: 0, e: '', et: 0, sh: checkpoints, f: r.aiFinished ? +r.aiElapsed.toFixed(1) : 0 };
+    r.state = { n: r.state.n, c: r.state.c, x, z, y: jumpY, w, v: r.gsp, s: 0, l: 0, zn: 0, e: '', et: 0, sh: checkpoints, f: r.aiFinished ? +r.aiElapsed.toFixed(1) : 0 };
     r.recv = performance.now();
   });
 }
@@ -1439,7 +1487,7 @@ function updateRemotes(dt) {
     if (!vis) return;
     const zn = s.zn | 0, f = Math.sin(r.yaw), g = Math.cos(r.yaw);
     const gy = groundAt(zn, r.x, r.z), gF = groundAt(zn, r.x + f * 0.55, r.z + g * 0.55), gR = groundAt(zn, r.x - f * 0.55, r.z - g * 0.55);
-    const root = r.bike.root; root.position.set(r.x, gy, r.z);
+    const root = r.bike.root; root.position.set(r.x, gy + (r.ghost ? (s.y || 0) : 0), r.z);
     root.rotation.y = r.yaw; root.rotation.x = -Math.atan2(gF - gR, 1.1); root.rotation.z = -(s.l || 0);
     r.bike.pose(dt, s.v, s.s || 0, s.v > 0.3 ? s.v * 1.32 : 0);
     if (r.bike.bubbleT > 0) { r.bike.bubbleT -= dt; if (r.bike.bubbleT <= 0 && r.bike.bubble) { root.remove(r.bike.bubble); r.bike.bubble = null; } }
@@ -1642,7 +1690,8 @@ function resetRun() {
   }
   collectedCount = 0; finished = false; finishTime = 0; runTime = 0; setGateOpen(false); updatePips();
   resetTrack(); score = 0; combo = 1; coinsGot = 0; countdown = 3.2;
-  setZone(0); placeAtPath(0, 0); spawnGhosts(aiOpponentCount); netSendNow();
+  // Restart only the human rider. AI progress and finish times carry on uninterrupted.
+  setZone(0); placeAtPath(0, 0); netSendNow();
 }
 
 function startRide() {
