@@ -541,3 +541,70 @@ button:active:not(:disabled){transform:translateY(1px) scale(.985)}
   #setupPanel > .fld:nth-of-type(3),
   #setupPanel > .fld:nth-of-type(4) { margin-bottom: 6px; }
 }
+
+
+/* Final mobile setup layout: real grid tracks prevent inline labels wrapping. */
+@media (max-width: 699px) {
+  #setupPanel .setup-fields {
+    display: grid !important;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    align-items: start;
+    gap: 8px 10px;
+    width: 100%;
+    margin: 0 0 8px;
+  }
+  #setupPanel .setup-fields > .fld {
+    display: block !important;
+    width: auto !important;
+    min-width: 0;
+    margin: 0 !important;
+    vertical-align: initial;
+  }
+  #setupPanel .setup-fields > .fld > span {
+    display: block;
+    min-height: 14px;
+    margin: 0 0 4px;
+  }
+  #setupPanel .setup-fields input,
+  #setupPanel .setup-fields select {
+    display: block;
+    width: 100% !important;
+    min-width: 0 !important;
+    box-sizing: border-box;
+  }
+  #setupPanel #go { display: block; width: 100%; }
+}
+
+/* Keep the stunt action in the right-hand control cluster instead of high above it. */
+body.touch #tTrick {
+  right: calc(max(18px, env(safe-area-inset-right)) + 20px);
+  bottom: calc(max(26px, env(safe-area-inset-bottom)) + 130px);
+}
+body.touch #tBell {
+  right: calc(max(18px, env(safe-area-inset-right)) + 100px);
+  bottom: calc(max(26px, env(safe-area-inset-bottom)) + 174px);
+}
+@media (orientation: landscape) and (max-height: 600px) {
+  body.touch #tTrick {
+    right: calc(max(10px, env(safe-area-inset-right)) + 8px);
+    bottom: calc(max(8px, env(safe-area-inset-bottom)) + 80px);
+  }
+  body.touch #tBell {
+    right: calc(max(10px, env(safe-area-inset-right)) + 72px);
+    bottom: calc(max(8px, env(safe-area-inset-bottom)) + 132px);
+  }
+}
+/* YouTube requires an embedded player surface; keep its minimum player size off
+   the riding controls while letting the IFrame API manage playback. */
+#ytMusicPlayer {
+  position: fixed !important;
+  width: 200px !important;
+  height: 200px !important;
+  left: -220px !important;
+  top: 0 !important;
+  overflow: hidden !important;
+  opacity: .01;
+  pointer-events: none;
+  z-index: -1;
+}
+#ytMusicPlayer iframe { width: 200px !important; height: 200px !important; }
