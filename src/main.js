@@ -171,12 +171,12 @@ function baseH(x, z) {
   if (ACTIVE_MISSION === 'desert') {
     const dunes = (fbm(x * 0.0025 + 37, z * 0.0025 + 12, 4) - 0.5) * 22;
     const ripples = (fbm(x * 0.012 + 7, z * 0.012 + 31, 3) - 0.5) * 4;
-    return dunes + ripples + smooth(0.68, 0.98, Math.max(Math.abs(x), Math.abs(z)) / HALF) * 18 + 4;
+    return dunes + ripples + smooth(0.68, 0.98, Math.max(Math.abs(x), Math.abs(z)) / HALF) * 18 + 15;
   }
   if (ACTIVE_MISSION === 'mountain') {
     const ridges = (fbm(x * 0.0024 + 81, z * 0.0024 + 5, 5) - 0.5) * 82;
     const rock = (fbm(x * 0.012 + 18, z * 0.012 + 43, 3) - 0.5) * 18;
-    return ridges + rock + smooth(0.65, 0.98, Math.max(Math.abs(x), Math.abs(z)) / HALF) * 55 + 18;
+    return ridges + rock + smooth(0.65, 0.98, Math.max(Math.abs(x), Math.abs(z)) / HALF) * 55 + 60;
   }
   if (ACTIVE_MISSION === 'city') {
     const subtle = (fbm(x * 0.004 + 11, z * 0.004 + 21, 3) - 0.5) * 3;
