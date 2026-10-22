@@ -640,23 +640,26 @@ const GATE = { x: 0, z: 0, y: 0, tx: 0, tz: 1, open: false };
 let portalMat, gateGroup, gateRing, gateBeam;
 
 function buildQuest() {
+  // Five race checkpoints replace the old floating-shard scavenger mission.
   for (let i = 0; i < 5; i++) {
-    const idx = Math.round(SHARD_T[i] * PS), off = (i % 2 ? 1 : -1) * 1.3;
-    const x = px[idx] - tz[idx] * off, z = pz[idx] + tx[idx] * off, gy = terrainH(x, z);
-    const col = new THREE.Color(SHARD_COL[i]), g = new THREE.Group(); g.position.set(x, gy, z);
-    const gem = new THREE.Mesh(new THREE.OctahedronGeometry(0.62, 0), new THREE.MeshStandardMaterial({ color: col, emissive: col, emissiveIntensity: 0.85, roughness: 0.25, flatShading: true }));
-    gem.position.y = 1.6; gem.castShadow = true; g.add(gem);
-    const ring = new THREE.Mesh(new THREE.TorusGeometry(1.0, 0.045, 8, 40), new THREE.MeshBasicMaterial({ color: col })); ring.rotation.x = Math.PI / 2; ring.position.y = 1.6; g.add(ring);
-    const beam = new THREE.Mesh(new THREE.CylinderGeometry(0.55, 0.55, 70, 16, 1, true), new THREE.MeshBasicMaterial({ color: col, transparent: true, opacity: 0.2, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide, fog: false }));
-    beam.position.y = 35; g.add(beam);
-    const pad = new THREE.Mesh(new THREE.CircleGeometry(2.2, 28), new THREE.MeshBasicMaterial({ color: col, transparent: true, opacity: 0.35, blending: THREE.AdditiveBlending, depthWrite: false }));
-    pad.rotation.x = -Math.PI / 2; pad.position.y = 0.14; g.add(pad);
-    g.visible = false;
-    shards.push({ g, gem, ring, beam, pad, x, z, armed: false, phase: i * 1.3 });
+    const idx = Math.round(SHARD_T[i] * PS), x = px[idx], z = pz[idx], gy = terrainH(x, z);
+    const col = new THREE.Color(SHARD_COL[i]), g = new THREE.Group();
+    g.position.set(x, gy, z); g.rotation.y = Math.atan2(tx[idx], tz[idx]);
+    const ringMat = new THREE.MeshStandardMaterial({ color: col, emissive: col, emissiveIntensity: 0.7, roughness: 0.25, metalness: 0.25 });
+    const gem = new THREE.Mesh(new THREE.TorusGeometry(2.05, 0.14, 10, 40), ringMat);
+    gem.position.y = 2.45; gem.castShadow = true; g.add(gem);
+    const ring = new THREE.Mesh(new THREE.TorusGeometry(1.58, 0.055, 8, 36), new THREE.MeshBasicMaterial({ color: col }));
+    ring.position.y = 2.45; g.add(ring);
+    const beam = new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.08, 4.5, 10), new THREE.MeshBasicMaterial({ color: col, transparent: true, opacity: 0.22, blending: THREE.AdditiveBlending, depthWrite: false }));
+    beam.position.y = 2.25; beam.visible = false; g.add(beam);
+    const pad = new THREE.Mesh(new THREE.CircleGeometry(2.5, 32), new THREE.MeshBasicMaterial({ color: col, transparent: true, opacity: 0.2, blending: THREE.AdditiveBlending, depthWrite: false }));
+    pad.rotation.x = -Math.PI / 2; pad.position.y = 0.12; g.add(pad);
+    worldGroup.add(g);
+    shards.push({ g, gem, ring, beam, pad, x, z, pathIndex: idx, armed: true, phase: i * 1.3 });
   }
   // gate
   const e = PS, gx = px[e], gz = pz[e], gy = terrainH(gx, gz);
-  GATE.x = gx; GATE.z = gz; GATE.y = gy; GATE.tx = tx[e]; GATE.tz = tz[e]; GATE.open = true;
+  GATE.x = gx; GATE.z = gz; GATE.y = gy; GATE.tx = tx[e]; GATE.tz = tz[e]; GATE.open = false;
   const g = new THREE.Group(); g.position.set(gx, gy, gz); g.rotation.y = Math.atan2(tx[e], tz[e]); worldGroup.add(g); gateGroup = g;
   const stone = new THREE.MeshStandardMaterial({ color: 0x3d3672, roughness: 0.85 });
   const trim = new THREE.MeshBasicMaterial({ color: 0x5ef0d0 });
@@ -689,8 +692,8 @@ function buildQuest() {
   sx.fillStyle = sg; sx.fillRect(0, 0, 1024, 256);
   sx.strokeStyle = '#19d3ea'; sx.lineWidth = 8; sx.strokeRect(10, 10, 1004, 236);
   sx.fillStyle = '#f1fbfd'; sx.textAlign = 'center'; sx.textBaseline = 'middle';
-  sx.font = '900 128px "Avenir Next","Trebuchet MS",system-ui,sans-serif'; sx.fillText('KITLAB', 512, 105);
-  sx.fillStyle = '#19d3ea'; sx.font = '700 40px "Avenir Next","Trebuchet MS",system-ui,sans-serif'; sx.fillText('a web3 learning world, built by T3kit', 512, 196);
+  sx.font = '900 128px "Avenir Next","Trebuchet MS",system-ui,sans-serif'; sx.fillText('FINISH', 512, 105);
+  sx.fillStyle = '#19d3ea'; sx.font = '700 40px "Avenir Next","Trebuchet MS",system-ui,sans-serif'; sx.fillText('NEON SPRINT', 512, 196);
   const sign = new THREE.Mesh(new THREE.PlaneGeometry(12.6, 3.15), new THREE.MeshBasicMaterial({ map: new THREE.CanvasTexture(sc) }));
   sign.position.set(0, 16.3, 0); sign.rotation.y = Math.PI; g.add(sign);
 }
@@ -1133,7 +1136,14 @@ function toast(msg, ms) {
 }
 function buildPips() { const p = $('pips'); if (p) p.innerHTML = ''; }
 function updatePips() {}
-function objective() { if (zone === 1) return { txt: 'Explore the hub', x: HUB.x, z: HUB.z }; return { txt: 'Ride to the Kitlab gate', x: GATE.x, z: GATE.z }; }
+function objective() {
+  if (zone === 1) return { txt: 'Explore the hub', x: HUB.x, z: HUB.z };
+  if (collectedCount < 5) {
+    const cp = shards[collectedCount];
+    return { txt: 'Checkpoint ' + (collectedCount + 1) + ' / 5', x: cp.x, z: cp.z };
+  }
+  return { txt: 'Finish line', x: GATE.x, z: GATE.z };
+}
 
 /* ---- lesson modal ---- */
 function openLesson(i, mode) {
@@ -1347,7 +1357,7 @@ function updateStatus() {
   if (Net.mode === 'live') {
     let n = 1; remotes.forEach(r => { if (!r.ghost && r.live) n++; });
     dot.className = 'dot live'; txt.textContent = n > 1 ? 'Live: ' + n + ' riders' : 'Live: just you';
-  } else if (Net.mode === 'solo') { dot.className = 'dot solo'; txt.textContent = 'Offline: ghost riders'; }
+  } else if (Net.mode === 'solo') { dot.className = 'dot solo'; txt.textContent = 'Offline: solo ride'; }
   else if (window.storage && window.storage.__rideKitlabLocal) { dot.className = 'dot solo'; txt.textContent = 'Solo mode'; }
   else { dot.className = 'dot'; txt.textContent = 'Connecting'; }
 }
@@ -1477,7 +1487,8 @@ function enterHub() {
   });
 }
 async function showArrival() {
-  $('aSum').textContent = 'Ride completed in ' + fmtTime(finishTime) + ', score ' + Math.floor(score).toLocaleString() + ', ' + coinsGot + ' tokens. Ride around the hub and stop at a pedestal to revisit its lesson.';
+  const medal = finishTime < 90 ? '🥇 GOLD MEDAL' : finishTime < 150 ? '🥈 SILVER MEDAL' : '🥉 BRONZE MEDAL';
+  $('aSum').textContent = medal + ' · ' + fmtTime(finishTime) + ' · ' + Math.floor(score).toLocaleString() + ' points · ' + coinsGot + ' coins. Ride again to beat your time.';
   $('aOpen').classList.toggle('hide', !KITLAB_URL);
   $('aBoard').innerHTML = ''; $('arrive').classList.remove('hide'); modalOpen = true;
   renderBoard($('aBoard'), await loadBoard());
@@ -1485,10 +1496,11 @@ async function showArrival() {
 function resetRun() {
   wipeoutPending = false; paused = false; $('pause').classList.add('hide'); $('bPause').textContent = 'Pause'; $('modal').classList.add('hide'); $('arrive').classList.add('hide'); modalOpen = false;
   for (let i = 0; i < 5; i++) {
-    collected[i] = false; const s = shards[i]; s.armed = true; s.gem.scale.setScalar(1); s.gem.material.color.set(SHARD_COL[i]); s.gem.material.emissive.set(SHARD_COL[i]); s.gem.material.emissiveIntensity = 0.85;
-    s.beam.visible = true; s.pad.visible = true; s.ring.visible = true;
+    collected[i] = false; const s = shards[i]; s.armed = true; s.gem.scale.setScalar(1);
+    s.gem.material.color.set(SHARD_COL[i]); s.gem.material.emissive.set(SHARD_COL[i]); s.gem.material.emissiveIntensity = 0.7;
+    s.ring.material.color.set(SHARD_COL[i]); s.beam.visible = false; s.pad.visible = true;
   }
-  collectedCount = 0; finished = false; finishTime = 0; runTime = 0; setGateOpen(true); updatePips();
+  collectedCount = 0; finished = false; finishTime = 0; runTime = 0; setGateOpen(false); updatePips();
   resetTrack(); score = 0; combo = 1; coinsGot = 0; countdown = 3.2;
   setZone(0); placeAtPath(0, 0); netSendNow();
 }
@@ -1505,7 +1517,7 @@ function startRide() {
   me.setName(myName); scene.add(me.root);
   $('menu').classList.add('hide'); $('hud').classList.remove('hide');
   started = true; paused = false; $('pause').classList.add('hide'); $('bPause').textContent = 'Pause'; placeAtPath(0, 0); buildPips(); updatePips(); score = 0; combo = 1; coinsGot = 0; countdown = 3.2;
-  toast('Follow the extended dirt road to Kitlab. Stop at a hub pedestal to revisit a lesson.', 4200);
+  toast('NEON SPRINT: Ride through all 5 checkpoints, collect coins, then hit the finish line!', 4200);
   netInit();
 }
 
@@ -1555,6 +1567,20 @@ function stepPlayer(dt) {
   if (zone === 0 && canDrive && P.v > 1) score += P.v * dt * 0.25 * combo;
 
   if (zone === 0) {
+    // Pass checkpoints in order; the finish stays sealed until all five are cleared.
+    if (collectedCount < 5) {
+      const cp = shards[collectedCount];
+      if (Math.hypot(P.x - cp.x, P.z - cp.z) < 5.8 && P.pathIdx >= cp.pathIndex - 3 && nearestPath(P.x, P.z, P.pathIdx).d < 6.5) {
+        const idx = collectedCount;
+        collected[idx] = true; collectedCount++;
+        cp.gem.material.color.setHex(0x4fdc86); cp.gem.material.emissive.setHex(0x4fdc86);
+        cp.ring.material.color.setHex(0x4fdc86); cp.pad.visible = false; cp.beam.visible = false;
+        score += 250; combo = Math.min(8, combo + 1);
+        pop('CHECKPOINT ' + collectedCount + '/5  +250', '#4fdc86'); chime();
+        if (collectedCount === 5) { setGateOpen(true); toast('All checkpoints cleared! Sprint to the finish line!', 3200); }
+        netSendNow();
+      }
+    }
     // trees and rocks in the scenery
     const cx = Math.floor(P.x / OBC), cz = Math.floor(P.z / OBC);
     for (let ax = -1; ax <= 1; ax++) for (let az = -1; az <= 1; az++) {
@@ -1713,8 +1739,8 @@ function tick(dt, tms) {
   }
   updateDust(dt);
   for (let i = 0; i < shards.length; i++) {
-    const s = shards[i]; if (collected[i]) continue;
-    s.gem.rotation.y = t * 1.4 + s.phase; s.gem.position.y = 1.6 + Math.sin(t * 2 + s.phase) * 0.18; s.ring.rotation.z = t * 0.8; s.ring.scale.setScalar(1 + Math.sin(t * 3 + s.phase) * 0.06);
+    const s = shards[i];
+    s.gem.rotation.z = Math.sin(t * 1.8 + s.phase) * 0.04; s.ring.rotation.z = Math.sin(t * 1.4 + s.phase) * 0.03; s.ring.scale.setScalar(1 + Math.sin(t * 3 + s.phase) * 0.045);
   }
   if (gateRing) gateRing.rotation.z = t * 0.3;
   if (zone === 1) {
@@ -1799,7 +1825,7 @@ $('help').textContent = IS_TOUCH
   $('inGender').value = myGender;
   setTimeout(function () {
     buildTerrain(); buildScenery(); buildQuest(); buildTrack(); buildDust(); buildHub(); buildMini();
-    setGateOpen(true);
+    setGateOpen(false);
     myColor = hashStr(myId) % RIDER_PAL.length;
     me = makeBike(RIDER_PAL[myColor], JERSEY_PAL[(myColor + 3) % JERSEY_PAL.length], RIDER_PAL[(myColor + 4) % RIDER_PAL.length], myGender);
     scene.add(me.root);
