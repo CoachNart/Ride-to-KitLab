@@ -83,7 +83,7 @@ body.touch #touch{display:block}
 .fld span{display:block;margin-bottom:4px;opacity:.85}
 .fld small{font-weight:500;opacity:.7}
 input[type=text]{width:100%;padding:11px 12px;border-radius:12px;border:1px solid var(--line);background:rgba(255,255,255,.1);color:var(--paper);font:inherit;font-size:16px;user-select:text;-webkit-user-select:text}
-select#inGender{width:100%;padding:11px 12px;border-radius:12px;border:1px solid var(--line);background:#0a3442;color:var(--paper);font:inherit;font-size:16px;outline-offset:2px}select#inGender option{background:#0a3442;color:var(--paper)}
+select#inGender,select#inAICount{width:100%;padding:11px 12px;border-radius:12px;border:1px solid var(--line);background:#0a3442;color:var(--paper);font:inherit;font-size:16px;outline-offset:2px}select#inGender option,select#inAICount option{background:#0a3442;color:var(--paper)}
 #help{font-size:12.5px;line-height:1.5;opacity:.8;margin-top:12px}
 #modal{background:rgba(2,16,22,.6);align-items:flex-end}
 #mCard{width:min(460px,100%);border-radius:22px;padding:18px 18px 16px;margin-bottom:max(0px,env(safe-area-inset-bottom));max-height:92vh;overflow:auto}
@@ -230,7 +230,7 @@ select#inGender{width:100%;padding:11px 12px;border-radius:12px;border:1px solid
 #missionPicker .btn:disabled{opacity:.58;cursor:not-allowed}
 #menuCard .fld{margin-bottom:10px;font-size:12px}
 #menuCard .fld span{margin-bottom:5px}
-#menuCard input[type=text],#menuCard select#inGender{padding:11px 12px;border-radius:11px}
+#menuCard input[type=text],#menuCard select#inGender,#menuCard select#inAICount{padding:11px 12px;border-radius:11px}
 #go{margin-top:5px;border-radius:13px;font-weight:900;letter-spacing:.1em;min-height:48px}
 @keyframes menuPanelIn{from{opacity:0;transform:translateY(7px)}to{opacity:1;transform:translateY(0)}}
 @media(max-width:699px){
