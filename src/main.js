@@ -1433,7 +1433,8 @@ function spawnGhosts(count) {
     h.aiLane = (h.x - px[near.i]) * -tz[near.i] + (h.z - pz[near.i]) * tx[near.i];
   });
   GHOSTS.forEach((n, i) => {
-    const initial = { n, c: i * 2 + 1, x: px[0], z: pz[0], y: 0, w: Math.atan2(tx[0], tz[0]), v: AI_SPEEDS[i], s: 0, l: 0, zn: 0, t: 1, e: '', et: 0, sh: 0, f: 0 };
+    const startLane = (i % 2 ? 1 : -1) * (1.05 + Math.floor(i / 2) * 0.45);
+    const initial = { n, c: i * 2 + 1, x: px[0] - tz[0] * startLane, z: pz[0] + tx[0] * startLane, y: 0, w: Math.atan2(tx[0], tz[0]), v: 0, s: 0, l: 0, zn: 0, t: 1, e: '', et: 0, sh: 0, f: 0, trick:'ride' };
     const r = ensureRemote('ghost' + i, initial);
     r.ghost = true;
     r.color = AI_LOOKS[i].frame;
