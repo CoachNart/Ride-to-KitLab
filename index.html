@@ -27,6 +27,7 @@
     <div id="btnrow">
       <button class="sbtn" id="bCam">View</button>
       <button class="sbtn" id="bSnd">Sound on</button>
+      <button class="sbtn" id="bPause">Pause</button>
       <button class="sbtn" id="bBack">Back to road</button>
     </div>
   </div>
@@ -77,6 +78,14 @@
       <button class="btn hide" id="aOpen">Open Kitlab</button>
       <button class="btn" id="aAgain">Ride again</button>
     </div>
+  </div>
+</div>
+<div id="pause" class="ov hide" role="dialog" aria-modal="true" aria-labelledby="pauseTitle">
+  <div id="pauseCard" class="panel">
+    <h2 id="pauseTitle">Ride paused</h2>
+    <p>Your ride is on hold. Take a breather, then jump back in.</p>
+    <button id="resumeRide" class="btn primary">Resume riding</button>
+    <button id="pauseSound" class="btn">Sound on</button>
   </div>
 </div>
 <div id="flash"></div>
