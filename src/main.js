@@ -24,8 +24,11 @@ if (!window.storage) {
 const KITLAB_URL = '';
 
 const IS_TOUCH = (window.matchMedia && matchMedia('(pointer:coarse)').matches) || ('ontouchstart' in window);
-const ACTIVE_MISSION = new URLSearchParams(window.location.search).get('mission') === 'coastline' ? 'coastline' : 'neon';
-const MISSION_TITLE = ACTIVE_MISSION === 'coastline' ? 'COASTLINE RUSH' : 'NEON SPRINT';
+const MISSION_IDS = ['neon', 'coastline', 'desert', 'mountain', 'city'];
+const requestedMission = new URLSearchParams(window.location.search).get('mission');
+const ACTIVE_MISSION = MISSION_IDS.includes(requestedMission) ? requestedMission : 'neon';
+const MISSION_TITLES = { neon: 'NEON SPRINT', coastline: 'COASTLINE RUSH', desert: 'DUST DEVIL', mountain: 'MOUNTAIN PASS', city: 'CITY LIGHTS' };
+const MISSION_TITLE = MISSION_TITLES[ACTIVE_MISSION];
 const SEED = 7731, HALF = 1350, N = 320, CELL = (HALF * 2) / N, WATER = -5.5, PS = 1100;
 const SHARD_T = [0.12, 0.29, 0.46, 0.63, 0.80];
 const SHARD_COL = ['#19d3ea', '#ffc14d', '#ff5a67', '#4fdc86', '#8fe9f7'];
@@ -137,7 +140,15 @@ const hubGroup = new THREE.Group(); hubGroup.visible = false; scene.add(hubGroup
 /* ============================================================
    WORLD: path, heightfield, terrain
    ============================================================ */
-const CTRL = ACTIVE_MISSION === 'coastline' ? [[-220,300],[-120,270],[10,285],[145,245],[210,170],[170,90],[70,55],[-10,5],[-5,-80],[100,-135],[205,-190],[225,-270],[140,-330],[20,-310],[-70,-240],[-165,-220],[-230,-145],[-180,-70],[-80,-25]] : [[0,300],[50,255],[135,215],[175,140],[120,60],[10,25],[-110,-10],[-185,-85],[-160,-175],[-70,-225],[40,-250],[120,-295],[200,-335],[285,-365],[350,-315],[385,-225],[330,-145],[245,-105],[180,-35]];
+const CTRL = ACTIVE_MISSION === 'coastline'
+  ? [[-220,300],[-120,270],[10,285],[145,245],[210,170],[170,90],[70,55],[-10,5],[-5,-80],[100,-135],[205,-190],[225,-270],[140,-330],[20,-310],[-70,-240],[-165,-220],[-230,-145],[-180,-70],[-80,-25]]
+  : ACTIVE_MISSION === 'desert'
+    ? [[-280,310],[-180,270],[-65,300],[45,250],[165,275],[255,205],[215,110],[100,70],[-25,95],[-135,35],[-205,-65],[-135,-160],[-10,-190],[120,-165],[235,-225],[260,-320],[135,-360],[10,-315],[-95,-260]]
+    : ACTIVE_MISSION === 'mountain'
+      ? [[-260,320],[-175,260],[-190,160],[-100,100],[10,145],[115,230],[195,190],[165,80],[65,20],[-10,-55],[45,-145],[150,-195],[225,-275],[135,-330],[15,-285],[-80,-205],[-175,-220],[-245,-125],[-160,-35]]
+      : ACTIVE_MISSION === 'city'
+        ? [[-230,310],[-100,310],[-100,205],[40,205],[40,300],[185,300],[185,165],[80,165],[80,55],[220,55],[220,-65],[90,-65],[90,-180],[-40,-180],[-40,-285],[-190,-285],[-190,-150],[-75,-150],[-75,-35],[-230,-35]]
+        : [[0,300],[50,255],[135,215],[175,140],[120,60],[10,25],[-110,-10],[-185,-85],[-160,-175],[-70,-225],[40,-250],[120,-295],[200,-335],[285,-365],[350,-315],[385,-225],[330,-145],[245,-105],[180,-35]];
 const curve = new THREE.CatmullRomCurve3(CTRL.map(p => new THREE.Vector3(p[0] * 1.7, 0, p[1] * 1.7)), false, 'centripetal');
 const PATH_LEN = curve.getLength();
 const pp = curve.getSpacedPoints(PS);
@@ -156,6 +167,20 @@ function baseH(x, z) {
     const detail = (fbm(x * 0.03 + 8.1, z * 0.03 + 2.4, 2) - 0.5) * 1.2;
     const edge = smooth(0.68, 0.98, Math.max(Math.abs(x), Math.abs(z)) / HALF);
     return rolling + shore + detail + edge * 5 - 5.5;
+  }
+  if (ACTIVE_MISSION === 'desert') {
+    const dunes = (fbm(x * 0.0025 + 37, z * 0.0025 + 12, 4) - 0.5) * 22;
+    const ripples = (fbm(x * 0.012 + 7, z * 0.012 + 31, 3) - 0.5) * 4;
+    return dunes + ripples + smooth(0.68, 0.98, Math.max(Math.abs(x), Math.abs(z)) / HALF) * 18 + 4;
+  }
+  if (ACTIVE_MISSION === 'mountain') {
+    const ridges = (fbm(x * 0.0024 + 81, z * 0.0024 + 5, 5) - 0.5) * 82;
+    const rock = (fbm(x * 0.012 + 18, z * 0.012 + 43, 3) - 0.5) * 18;
+    return ridges + rock + smooth(0.65, 0.98, Math.max(Math.abs(x), Math.abs(z)) / HALF) * 55 + 18;
+  }
+  if (ACTIVE_MISSION === 'city') {
+    const subtle = (fbm(x * 0.004 + 11, z * 0.004 + 21, 3) - 0.5) * 3;
+    return subtle + smooth(0.7, 0.98, Math.max(Math.abs(x), Math.abs(z)) / HALF) * 8 + 1;
   }
   const a = (fbm(x * 0.003 + 11.3, z * 0.003 + 7.1, 4) - 0.5) * 62;
   const b = (fbm(x * 0.0095 + 3.7, z * 0.0095 + 19.2, 3) - 0.5) * 20;
@@ -225,8 +250,14 @@ function buildTerrain() {
   }
   // vertex data
   const pos = new Float32Array(V * 3), col = new Float32Array(V * 3), uv = new Float32Array(V * 2);
-  const cG1 = new THREE.Color(ACTIVE_MISSION === 'coastline' ? 0x4f9b62 : 0x5e9a38), cG2 = new THREE.Color(ACTIVE_MISSION === 'coastline' ? 0x78b86c : 0x88b24c), cDry = new THREE.Color(ACTIVE_MISSION === 'coastline' ? 0xb5b16a : 0xb7b05a), cDirt = new THREE.Color(ACTIVE_MISSION === 'coastline' ? 0xd6bc88 : 0x9c7c52),
-    cRock = new THREE.Color(ACTIVE_MISSION === 'coastline' ? 0xa69a83 : 0x8c8984), cSand = new THREE.Color(0xe4d09d), cSnow = new THREE.Color(0xf2f4f7), c = new THREE.Color();
+  const palette = ({
+    neon: [0x5e9a38,0x88b24c,0xb7b05a,0x9c7c52,0x8c8984,0xe4d09d],
+    coastline: [0x4f9b62,0x78b86c,0xb5b16a,0xd6bc88,0xa69a83,0xe4d09d],
+    desert: [0xc99a4b,0xe0bd6b,0xd5a35e,0xe0bd6b,0x9e704b,0xf1d38e],
+    mountain: [0x526e65,0x779087,0x9a9a8b,0x777f86,0x777f86,0xd8d5c9],
+    city: [0x4b5557,0x667071,0x777a73,0x667071,0x424a50,0x8a8b80]
+  })[ACTIVE_MISSION] || [0x5e9a38,0x88b24c,0xb7b05a,0x9c7c52,0x8c8984,0xe4d09d];
+  const cG1 = new THREE.Color(palette[0]), cG2 = new THREE.Color(palette[1]), cDry = new THREE.Color(palette[2]), cDirt = new THREE.Color(palette[3]), cRock = new THREE.Color(palette[4]), cSand = new THREE.Color(palette[5]), cSnow = new THREE.Color(0xf2f4f7), c = new THREE.Color()
   for (let iz = 0; iz <= N; iz++) {
     for (let ix = 0; ix <= N; ix++) {
       const i = iz * (N + 1) + ix, x = -HALF + ix * CELL, z = -HALF + iz * CELL, h = H[i];
@@ -272,10 +303,21 @@ function buildTerrain() {
 
   // road ribbon
   const rc = mkCanvas(128, 256), rx = rc.getContext('2d');
-  rx.fillStyle = ACTIVE_MISSION === 'coastline' ? '#505a60' : '#b48e5c'; rx.fillRect(0, 0, 128, 256);
-  for (let i = 0; i < 1800; i++) { const v = 120 + Math.floor(rr() * 90); rx.fillStyle = ACTIVE_MISSION === 'coastline' ? 'rgba(' + v + ',' + v + ',' + v + ',0.22)' : 'rgba(' + v + ',' + (v - 28) + ',' + (v - 60) + ',0.35)'; rx.fillRect(rr() * 128, rr() * 256, 1 + rr() * 3, 1 + rr() * 4); }
-  if (ACTIVE_MISSION === 'coastline') { rx.fillStyle = 'rgba(245,232,190,0.9)'; rx.fillRect(4, 0, 3, 256); rx.fillRect(121, 0, 3, 256); rx.fillStyle = 'rgba(230,238,228,0.72)'; rx.fillRect(62, 0, 4, 256); }
-  else { rx.fillStyle = 'rgba(70,45,20,0.28)'; rx.fillRect(34, 0, 12, 256); rx.fillRect(82, 0, 12, 256); rx.fillStyle = 'rgba(120,150,70,0.35)'; rx.fillRect(60, 0, 8, 256); }
+  const roadStyles = {
+    neon: { base: '#b48e5c', edge: 'rgba(70,45,20,0.28)', center: 'rgba(120,150,70,0.35)' },
+    coastline: { base: '#505a60', edge: 'rgba(245,232,190,0.9)', center: 'rgba(230,238,228,0.72)' },
+    desert: { base: '#8c6744', edge: 'rgba(231,192,120,0.9)', center: 'rgba(62,43,28,0.34)' },
+    mountain: { base: '#454c52', edge: 'rgba(231,232,216,0.78)', center: 'rgba(250,250,240,0.55)' },
+    city: { base: '#252d33', edge: 'rgba(225,235,237,0.9)', center: 'rgba(255,203,82,0.95)' }
+  };
+  const rs = roadStyles[ACTIVE_MISSION] || roadStyles.neon;
+  rx.fillStyle = rs.base; rx.fillRect(0, 0, 128, 256);
+  for (let i = 0; i < 1800; i++) { const v = 120 + Math.floor(rr() * 90); rx.fillStyle = ACTIVE_MISSION === 'desert' ? 'rgba(48,32,20,0.22)' : ACTIVE_MISSION === 'city' ? 'rgba(185,205,215,0.12)' : 'rgba(' + v + ',' + v + ',' + v + ',0.22)'; rx.fillRect(rr() * 128, rr() * 256, 1 + rr() * 3, 1 + rr() * 4); }
+  if (ACTIVE_MISSION === 'coastline') { rx.fillStyle = rs.edge; rx.fillRect(4, 0, 3, 256); rx.fillRect(121, 0, 3, 256); rx.fillStyle = rs.center; rx.fillRect(62, 0, 4, 256); }
+  else if (ACTIVE_MISSION === 'city') { rx.fillStyle = rs.edge; rx.fillRect(5, 0, 3, 256); rx.fillRect(120, 0, 3, 256); rx.fillStyle = rs.center; for (let y = 0; y < 256; y += 38) rx.fillRect(62, y, 4, 19); }
+  else if (ACTIVE_MISSION === 'mountain') { rx.fillStyle = rs.edge; rx.fillRect(7, 0, 2, 256); rx.fillRect(119, 0, 2, 256); rx.fillStyle = rs.center; rx.fillRect(62, 0, 4, 256); }
+  else if (ACTIVE_MISSION === 'desert') { rx.fillStyle = rs.edge; rx.fillRect(5, 0, 3, 256); rx.fillRect(120, 0, 3, 256); rx.fillStyle = rs.center; rx.fillRect(61, 0, 6, 256); }
+  else { rx.fillStyle = rs.edge; rx.fillRect(34, 0, 12, 256); rx.fillRect(82, 0, 12, 256); rx.fillStyle = rs.center; rx.fillRect(60, 0, 8, 256); }
   rx.globalCompositeOperation = 'destination-in';
   const gr = rx.createLinearGradient(0, 0, 128, 0);
   gr.addColorStop(0, 'rgba(0,0,0,0)'); gr.addColorStop(0.14, 'rgba(0,0,0,1)'); gr.addColorStop(0.86, 'rgba(0,0,0,1)'); gr.addColorStop(1, 'rgba(0,0,0,0)');
@@ -327,6 +369,32 @@ function buildScenery() {
     scene.background.setHex(0x8dd9ed); scene.fog.color.setHex(0xa9e1e9); scene.fog.near = 85; scene.fog.far = 760;
     skyMat.uniforms.top.value.setHex(0x197fb6); skyMat.uniforms.mid.value.setHex(0xa8e7ee); skyMat.uniforms.bot.value.setHex(0x68c4d7); skyMat.uniforms.sunCol.value.setHex(0xfff3cf);
     hemi.color.setHex(0xd8f7ff); hemi.groundColor.setHex(0x4c8054); hemi.intensity = 0.92; sun.color.setHex(0xffedc5); sun.intensity = 1.05;
+  } else if (ACTIVE_MISSION === 'desert') {
+    scene.background.setHex(0xe9b875); scene.fog.color.setHex(0xe8c18b); scene.fog.near = 100; scene.fog.far = 850;
+    skyMat.uniforms.top.value.setHex(0x497eaa); skyMat.uniforms.mid.value.setHex(0xf1c58c); skyMat.uniforms.bot.value.setHex(0xe9ad70); skyMat.uniforms.sunCol.value.setHex(0xffdf9e);
+    hemi.color.setHex(0xffe4b5); hemi.groundColor.setHex(0x8c5b32); hemi.intensity = 0.82; sun.color.setHex(0xffd29a); sun.intensity = 1.18;
+  } else if (ACTIVE_MISSION === 'mountain') {
+    scene.background.setHex(0x9db6c7); scene.fog.color.setHex(0xaebfc8); scene.fog.near = 75; scene.fog.far = 700;
+    skyMat.uniforms.top.value.setHex(0x315b83); skyMat.uniforms.mid.value.setHex(0xc7d3d8); skyMat.uniforms.bot.value.setHex(0x8ea9b5); skyMat.uniforms.sunCol.value.setHex(0xf5f3e8);
+    hemi.color.setHex(0xd9e7f2); hemi.groundColor.setHex(0x4a6259); hemi.intensity = 0.8; sun.color.setHex(0xf2f1e8); sun.intensity = 0.98;
+  } else if (ACTIVE_MISSION === 'city') {
+    scene.background.setHex(0x081827); scene.fog.color.setHex(0x102a3a); scene.fog.near = 65; scene.fog.far = 520;
+    skyMat.uniforms.top.value.setHex(0x030914); skyMat.uniforms.mid.value.setHex(0x10283c); skyMat.uniforms.bot.value.setHex(0x081827); skyMat.uniforms.sunCol.value.setHex(0x3abfe5);
+    skyMat.uniforms.stars.value = 0.55; hemi.color.setHex(0x7897b8); hemi.groundColor.setHex(0x17232b); hemi.intensity = 0.52; sun.color.setHex(0x66c9f0); sun.intensity = 0.52;
+    const buildingMats = [0x182a38,0x263846,0x304451,0x26313f].map(color => new THREE.MeshStandardMaterial({ color, roughness: 0.82, metalness: 0.12 }));
+    const windowMat = new THREE.MeshBasicMaterial({ color: 0x83e8f5 });
+    for (let i = 55; i < PS - 20; i += 17) {
+      for (const side of [-1, 1]) {
+        const x = px[i] + -tz[i] * side * (13 + (i % 3) * 2), z = pz[i] + tx[i] * side * (13 + (i % 3) * 2);
+        const h = 8 + rnd() * 27, w = 5 + rnd() * 5, depth = 5 + rnd() * 5;
+        const b = new THREE.Mesh(new THREE.BoxGeometry(w,h,depth), buildingMats[Math.floor(rnd()*buildingMats.length)]);
+        b.position.set(x, terrainH(x,z) + h/2, z); b.castShadow = true; b.receiveShadow = true; worldGroup.add(b);
+        for (let floor = 2; floor < h - 2; floor += 4) {
+          const win = new THREE.Mesh(new THREE.BoxGeometry(w*0.62,0.7,0.08), windowMat);
+          win.position.set(x, terrainH(x,z) + floor, z + depth/2 + 0.05); worldGroup.add(win);
+        }
+      }
+    }
   }
   const pineGeo = ACTIVE_MISSION === 'coastline' ? mergeColored([
     { geo: new THREE.CylinderGeometry(0.18, 0.3, 5.4, 7), color: 0x8b5b35, y: 2.7 },
@@ -347,7 +415,7 @@ function buildScenery() {
     { geo: new THREE.IcosahedronGeometry(1.9, 0), color: 0x5c9a3a, y: 3.5 },
     { geo: new THREE.IcosahedronGeometry(1.3, 0), color: 0x6fae45, y: 4.7, x: 0.7 }
   ]);
-  const NP = 1700, NO = 700, NR = 380, NF = 2600;
+  const NP = ACTIVE_MISSION === 'city' ? 0 : ACTIVE_MISSION === 'desert' ? 900 : 1700, NO = ACTIVE_MISSION === 'city' ? 0 : ACTIVE_MISSION === 'desert' ? 420 : 700, NR = ACTIVE_MISSION === 'city' ? 520 : ACTIVE_MISSION === 'desert' ? 560 : 380, NF = ACTIVE_MISSION === 'city' || ACTIVE_MISSION === 'desert' ? 0 : 2600;
   const pines = new THREE.InstancedMesh(pineGeo, new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.95 }), NP);
   const oaks = new THREE.InstancedMesh(oakGeo, new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.95 }), NO);
   const rocks = new THREE.InstancedMesh(new THREE.IcosahedronGeometry(1, 0), new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 1, flatShading: true }), NR);
@@ -1506,7 +1574,7 @@ function flash(cb) {
 function finishRace() {
   if (finished) return;
   finished = true;
-  if (ACTIVE_MISSION === 'neon') { try { localStorage.setItem('ride-to-kitlab:neon-sprint-complete', '1'); } catch (e) { } }
+  try { localStorage.setItem('ride-to-kitlab:mission-complete:' + ACTIVE_MISSION, '1'); } catch (e) { }
   finishTime = runTime;
   flash(() => {
     postScore();
@@ -1518,7 +1586,9 @@ function finishRace() {
 async function showArrival() {
   const medal = finishTime < 210 ? '🥇 GOLD MEDAL' : finishTime < 300 ? '🥈 SILVER MEDAL' : '🥉 BRONZE MEDAL';
   $('aCard').querySelector('h2').textContent = MISSION_TITLE + ' COMPLETE!';
-  $('aNext').classList.toggle('hide', ACTIVE_MISSION !== 'neon');
+  const nextIndex = MISSION_IDS.indexOf(ACTIVE_MISSION) + 1;
+  $('aNext').classList.toggle('hide', nextIndex >= MISSION_IDS.length);
+  $('aNext').textContent = nextIndex < MISSION_IDS.length ? 'Next Mission →' : 'All Missions Complete';
   $('aSum').textContent = medal + ' · ' + fmtTime(finishTime) + ' · ' + Math.floor(score).toLocaleString() + ' points · ' + coinsGot + ' coins. Ride again to beat your time.';
   $('aOpen').classList.toggle('hide', !KITLAB_URL);
   $('aBoard').innerHTML = ''; $('arrive').classList.remove('hide'); modalOpen = true;
@@ -1810,18 +1880,15 @@ window.addEventListener('resize', resize); resize();
 /* ============================================================
    UI WIRING
    ============================================================ */
-const coastUnlocked = (() => { try { return localStorage.getItem('ride-to-kitlab:neon-sprint-complete') === '1'; } catch (e) { return false; } })();
-$('pickNeon').classList.toggle('active', ACTIVE_MISSION === 'neon');
-$('pickCoast').classList.toggle('active', ACTIVE_MISSION === 'coastline');
-$('neonState').textContent = ACTIVE_MISSION === 'neon' ? 'SELECTED' : 'AVAILABLE';
-$('coastState').textContent = !coastUnlocked ? 'LOCKED' : (ACTIVE_MISSION === 'coastline' ? 'SELECTED' : 'UNLOCKED');
-$('pickCoast').style.borderColor = coastUnlocked ? 'rgba(79,220,134,.6)' : 'rgba(79,200,220,.35)';
-$('pickNeon').addEventListener('click', () => {
-  if (ACTIVE_MISSION !== 'neon') window.location.href = window.location.pathname;
-});
-$('pickCoast').addEventListener('click', () => {
-  if (!coastUnlocked) { toast('Finish NEON SPRINT once to unlock Coastline Rush.', 3200); return; }
-  if (ACTIVE_MISSION !== 'coastline') window.location.href = window.location.pathname + '?mission=coastline';
+const missionButtons = [...document.querySelectorAll('#missionPicker [data-mission]')];
+missionButtons.forEach(button => {
+  const id = button.dataset.mission;
+  button.classList.toggle('active', ACTIVE_MISSION === id);
+  button.querySelector('span').textContent = ACTIVE_MISSION === id ? 'SELECTED' : 'AVAILABLE';
+  if (ACTIVE_MISSION === id) button.style.borderColor = 'rgba(25,211,234,.75)';
+  button.addEventListener('click', () => {
+    if (ACTIVE_MISSION !== id) window.location.href = window.location.pathname + (id === 'neon' ? '' : '?mission=' + id);
+  });
 });
 $('go').addEventListener('click', () => { audioInit(); if (ready) startRide(); });
 // Mobile browsers can suspend Web Audio when switching apps, locking the screen, or after inactivity.
@@ -1845,9 +1912,8 @@ $('status').addEventListener('click', () => { const r = $('roster'); r.classList
 $('aExplore').addEventListener('click', () => { $('arrive').classList.add('hide'); modalOpen = false; $('aExplore').textContent = 'Free ride'; });
 $('aOpen').addEventListener('click', () => { if (KITLAB_URL) window.open(KITLAB_URL, '_blank', 'noopener'); });
 $('aNext').addEventListener('click', () => {
-  if (ACTIVE_MISSION === 'neon' && localStorage.getItem('ride-to-kitlab:neon-sprint-complete') === '1') {
-    window.location.href = window.location.pathname + '?mission=coastline';
-  }
+  const nextIndex = MISSION_IDS.indexOf(ACTIVE_MISSION) + 1;
+  if (nextIndex >= 0 && nextIndex < MISSION_IDS.length) window.location.href = window.location.pathname + '?mission=' + MISSION_IDS[nextIndex];
 });
 $('aAgain').addEventListener('click', () => { $('arrive').classList.add('hide'); modalOpen = false; $('aExplore').textContent = 'Free ride'; resetRun(); });
 window.addEventListener('pagehide', () => { try { if (Net.mode === 'live') window.storage.delete(Net.myKey, true); } catch (e) { } });
