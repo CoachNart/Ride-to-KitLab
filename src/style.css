@@ -44,6 +44,7 @@ button{font:inherit;color:inherit;cursor:pointer}
 #hit{position:fixed;inset:0;pointer-events:none;background:radial-gradient(ellipse at center,rgba(255,60,80,0) 35%,rgba(255,40,70,.55) 100%);opacity:0;transition:opacity .35s}
 #hit.on{opacity:1;transition:opacity .05s}
 #tJump{width:62px;height:62px;right:calc(max(18px,env(safe-area-inset-right)) + 108px);bottom:calc(max(26px,env(safe-area-inset-bottom)) + 96px);font-size:12px}
+#tTrick{width:62px;height:62px;right:calc(max(18px,env(safe-area-inset-right)) + 20px);bottom:calc(max(26px,env(safe-area-inset-bottom)) + 220px);font-size:11px;border-color:rgba(25,211,234,.75);color:#c9fbff}
 #roster{position:absolute;right:max(10px,env(safe-area-inset-right));top:calc(max(10px,env(safe-area-inset-top)) + 40px);width:210px;border-radius:16px;padding:10px 12px;font-size:13px;max-height:50vh;overflow:auto}
 #roster .rw{display:flex;align-items:center;gap:8px;padding:4px 0}
 #roster .sw{width:10px;height:10px;border-radius:50%;flex:none}
@@ -140,6 +141,7 @@ select#inGender,select#inAICount{width:100%;padding:11px 12px;border-radius:12px
   #tBrake{width:54px;height:54px;right:calc(max(10px,env(safe-area-inset-right)) + 72px);bottom:calc(max(8px,env(safe-area-inset-bottom)) + 8px)}
   #tBell{width:42px;height:42px;right:calc(max(10px,env(safe-area-inset-right)) + 16px);bottom:calc(max(8px,env(safe-area-inset-bottom)) + 80px);font-size:10px}
   #tJump{width:48px;height:48px;right:calc(max(10px,env(safe-area-inset-right)) + 72px);bottom:calc(max(8px,env(safe-area-inset-bottom)) + 68px);font-size:10px}
+   #tTrick{width:48px;height:48px;right:calc(max(10px,env(safe-area-inset-right)) + 8px);bottom:calc(max(8px,env(safe-area-inset-bottom)) + 170px);font-size:9px}
 }
 @media (orientation:landscape) and (max-height:420px){
   #mini{width:76px;height:58px}
