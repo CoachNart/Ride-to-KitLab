@@ -657,53 +657,52 @@ function buildQuest() {
     worldGroup.add(g);
     shards.push({ g, gem, ring, beam, pad, x, z, pathIndex: idx, armed: true, phase: i * 1.3 });
   }
-  // gate
+  // Clean race finish banner. The old KitCity portal gate is removed.
+  // Keep the route-end trigger, but use a lightweight banner instead of the old portal/hub gateway.
   const e = PS, gx = px[e], gz = pz[e], gy = terrainH(gx, gz);
   GATE.x = gx; GATE.z = gz; GATE.y = gy; GATE.tx = tx[e]; GATE.tz = tz[e]; GATE.open = false;
-  const g = new THREE.Group(); g.position.set(gx, gy, gz); g.rotation.y = Math.atan2(tx[e], tz[e]); worldGroup.add(g); gateGroup = g;
-  const stone = new THREE.MeshStandardMaterial({ color: 0x3d3672, roughness: 0.85 });
-  const trim = new THREE.MeshBasicMaterial({ color: 0x5ef0d0 });
-  for (const s of [-1, 1]) {
-    const p = new THREE.Mesh(new THREE.BoxGeometry(1.9, 13, 1.9), stone); p.position.set(s * 5.6, 6.5, 0); p.castShadow = true; g.add(p);
-    const t = new THREE.Mesh(new THREE.BoxGeometry(0.25, 12, 0.25), trim); t.position.set(s * 4.6, 6.5, -0.98); g.add(t);
-    const cap = new THREE.Mesh(new THREE.OctahedronGeometry(0.9, 0), trim); cap.position.set(s * 5.6, 14, 0); g.add(cap);
+  const finish = new THREE.Group();
+  finish.position.set(gx, gy, gz);
+  finish.rotation.y = Math.atan2(tx[e], tz[e]);
+  worldGroup.add(finish);
+  const postMat = new THREE.MeshStandardMaterial({ color: 0x12343d, metalness: 0.55, roughness: 0.35 });
+  const accentMat = new THREE.MeshBasicMaterial({ color: 0x19d3ea });
+  for (const side of [-1, 1]) {
+    const post = new THREE.Mesh(new THREE.BoxGeometry(0.22, 4.2, 0.22), postMat);
+    post.position.set(side * 4.1, 2.1, 0);
+    finish.add(post);
+    const stripe = new THREE.Mesh(new THREE.BoxGeometry(0.28, 0.12, 0.24), accentMat);
+    stripe.position.set(side * 4.1, 3.6, 0);
+    finish.add(stripe);
   }
-  const lintel = new THREE.Mesh(new THREE.BoxGeometry(13.2, 1.6, 1.9), stone); lintel.position.set(0, 13, 0); lintel.castShadow = true; g.add(lintel);
-  gateRing = new THREE.Mesh(new THREE.TorusGeometry(4.6, 0.32, 14, 64), new THREE.MeshStandardMaterial({ color: 0xff6f6f, emissive: 0xff4a4a, emissiveIntensity: 0.9, roughness: 0.4 }));
-  gateRing.position.y = 5.2; g.add(gateRing);
-  portalMat = new THREE.ShaderMaterial({
-    transparent: true, depthWrite: false, side: THREE.DoubleSide, blending: THREE.AdditiveBlending,
-    uniforms: { time: { value: 0 }, c1: { value: new THREE.Color(0x5ef0d0) }, c2: { value: new THREE.Color(0x9b7bff) }, open: { value: 0 } },
-    vertexShader: 'varying vec2 vUv; void main(){ vUv=uv; gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.0); }',
-    fragmentShader: [
-      'varying vec2 vUv; uniform float time; uniform vec3 c1; uniform vec3 c2; uniform float open;',
-      'void main(){ vec2 p=vUv-0.5; float r=length(p)*2.0; float a=atan(p.y,p.x);',
-      ' float s=sin(a*6.0+time*2.0-r*10.0)*0.5+0.5; float s2=sin(a*3.0-time*1.5+r*14.0)*0.5+0.5;',
-      ' vec3 col=mix(c1,c2,s*s2); float alpha=smoothstep(1.0,0.85,r)*(0.35+0.5*(1.0-r))*mix(0.3,1.0,open);',
-      ' gl_FragColor=vec4(col*(0.6+0.8*(1.0-r)),alpha); }'
-    ].join('\n')
-  });
-  const disc = new THREE.Mesh(new THREE.CircleGeometry(4.5, 48), portalMat); disc.position.y = 5.2; g.add(disc);
-  gateBeam = new THREE.Mesh(new THREE.CylinderGeometry(1.2, 1.2, 140, 16, 1, true), new THREE.MeshBasicMaterial({ color: 0xff6f6f, transparent: true, opacity: 0.16, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide, fog: false }));
-  gateBeam.position.y = 70; g.add(gateBeam);
-  // sign
-  const sc = mkCanvas(1024, 256), sx = sc.getContext('2d');
-  const sg = sx.createLinearGradient(0, 0, 1024, 0); sg.addColorStop(0, '#06303d'); sg.addColorStop(1, '#0b4a5c');
-  sx.fillStyle = sg; sx.fillRect(0, 0, 1024, 256);
-  sx.strokeStyle = '#19d3ea'; sx.lineWidth = 8; sx.strokeRect(10, 10, 1004, 236);
-  sx.fillStyle = '#f1fbfd'; sx.textAlign = 'center'; sx.textBaseline = 'middle';
-  sx.font = '900 128px "Avenir Next","Trebuchet MS",system-ui,sans-serif'; sx.fillText('FINISH', 512, 105);
-  sx.fillStyle = '#19d3ea'; sx.font = '700 40px "Avenir Next","Trebuchet MS",system-ui,sans-serif'; sx.fillText('NEON SPRINT', 512, 196);
-  const sign = new THREE.Mesh(new THREE.PlaneGeometry(12.6, 3.15), new THREE.MeshBasicMaterial({ map: new THREE.CanvasTexture(sc) }));
-  sign.position.set(0, 16.3, 0); sign.rotation.y = Math.PI; g.add(sign);
+  const bannerCanvas = mkCanvas(1024, 220), bannerCtx = bannerCanvas.getContext('2d');
+  bannerCtx.fillStyle = '#071b22'; bannerCtx.fillRect(0, 0, 1024, 220);
+  const tile = 44;
+  for (let x = 0; x < 1024; x += tile) for (let y = 0; y < 44; y += 22) {
+    if (((x / tile) | 0) + ((y / 22) | 0) % 2 === 0) {
+      bannerCtx.fillStyle = '#f1fbfd'; bannerCtx.fillRect(x, y, tile, 22);
+    } else {
+      bannerCtx.fillStyle = '#19d3ea'; bannerCtx.fillRect(x, y, tile, 22);
+    }
+  }
+  bannerCtx.fillStyle = '#071b22'; bannerCtx.fillRect(0, 44, 1024, 176);
+  bannerCtx.strokeStyle = '#19d3ea'; bannerCtx.lineWidth = 8; bannerCtx.strokeRect(8, 48, 1008, 164);
+  bannerCtx.fillStyle = '#f1fbfd'; bannerCtx.textAlign = 'center'; bannerCtx.textBaseline = 'middle';
+  bannerCtx.font = '900 112px "Avenir Next","Trebuchet MS",system-ui,sans-serif';
+  bannerCtx.fillText('FINISH', 512, 118);
+  const banner = new THREE.Mesh(
+    new THREE.PlaneGeometry(8.3, 1.8),
+    new THREE.MeshBasicMaterial({ map: new THREE.CanvasTexture(bannerCanvas), side: THREE.DoubleSide })
+  );
+  banner.position.set(0, 4.0, 0);
+  finish.add(banner);
+
 }
 
 function setGateOpen(open) {
+  // This state controls the finish-line trigger; the legacy portal visuals are gone.
   GATE.open = open;
-  portalMat.uniforms.open.value = open ? 1 : 0;
-  const c = open ? 0x5ef0d0 : 0xff6f6f;
-  gateRing.material.color.setHex(c); gateRing.material.emissive.setHex(open ? 0x2ad8b4 : 0xff4a4a);
-  gateBeam.material.color.setHex(c); gateBeam.material.opacity = open ? 0.28 : 0.14;
+
 }
 
 /* ============================================================
@@ -1478,13 +1477,16 @@ function flash(cb) {
   const f = $('flash'); f.classList.add('on');
   setTimeout(() => { cb(); f.classList.remove('on'); }, 260);
 }
-function enterHub() {
-  if (zone === 1 || finished) return;
-  finished = true; finishTime = runTime;
+function finishRace() {
+  if (finished) return;
+  finished = true;
+  finishTime = runTime;
   flash(() => {
-    setZone(1); P.x = HUB.x; P.z = HUB.z + 32; P.y = HUB.y; P.lastGy = HUB.y; P.yaw = Math.PI; camYaw = Math.PI; P.v = 4; P.vy = 0;
-    postScore(); netSendNow(); showArrival();
+    postScore();
+    netSendNow();
+    showArrival();
   });
+
 }
 async function showArrival() {
   const medal = finishTime < 210 ? '🥇 GOLD MEDAL' : finishTime < 300 ? '🥈 SILVER MEDAL' : '🥉 BRONZE MEDAL';
@@ -1603,7 +1605,7 @@ function stepPlayer(dt) {
         P.x += GATE.tx * (-0.8 - du); P.z += GATE.tz * (-0.8 - du); P.v *= 0.3;
         const now = performance.now(); if (now - lastGateMsg > 3500) { lastGateMsg = now; toast('The gate is sealed. ' + (5 - collectedCount) + ' shard' + (5 - collectedCount === 1 ? '' : 's') + ' to find.'); }
       }
-    } else if (du > -0.3 && du < 3 && lat < 4.8 && P.y < GATE.y + 12 && P.pathIdx >= PS - 8 && nearestPath(P.x, P.z, P.pathIdx).d < 5.5) enterHub();
+    } else if (du > -0.3 && du < 3 && lat < 4.8 && P.y < GATE.y + 12 && P.pathIdx >= PS - 8 && nearestPath(P.x, P.z, P.pathIdx).d < 5.5) finishRace();
     updateHazards(dt); if (wipeoutPending) return; updatePickups(dt);
   } else {
     const dx = P.x - HUB.x, dz = P.z - HUB.z, d = Math.hypot(dx, dz), lim = HUB.R - 2;
@@ -1742,7 +1744,6 @@ function tick(dt, tms) {
     const s = shards[i];
     s.gem.rotation.z = Math.sin(t * 1.8 + s.phase) * 0.04; s.ring.rotation.z = Math.sin(t * 1.4 + s.phase) * 0.03; s.ring.scale.setScalar(1 + Math.sin(t * 3 + s.phase) * 0.045);
   }
-  if (gateRing) gateRing.rotation.z = t * 0.3;
   if (zone === 1) {
     if (hubKnot) { hubKnot.rotation.y = t * 0.6; hubKnot.rotation.x = t * 0.25; }
     pedestals.forEach((p, i) => { p.holo.rotation.y = t * 1.1 + i; p.holo.position.y = HUB.y + 3.4 + Math.sin(t * 1.6 + i) * 0.25; });
