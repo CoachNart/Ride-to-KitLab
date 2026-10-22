@@ -1885,15 +1885,27 @@ window.addEventListener('resize', resize); resize();
    UI WIRING
    ============================================================ */
 const missionButtons = [...document.querySelectorAll('#missionPicker [data-mission]')];
+function showMissionSelect() {
+  $('landingActions').classList.add('hide');
+  $('setupPanel').classList.add('show');
+}
+function showTitleScreen() {
+  $('landingActions').classList.remove('hide');
+  $('setupPanel').classList.remove('show');
+}
+$('playBtn').addEventListener('click', showMissionSelect);
+$('quickRideBtn').addEventListener('click', showMissionSelect);
+$('backToTitle').addEventListener('click', showTitleScreen);
 missionButtons.forEach(button => {
   const id = button.dataset.mission;
   button.classList.toggle('active', ACTIVE_MISSION === id);
   button.querySelector('span').textContent = ACTIVE_MISSION === id ? 'SELECTED' : 'AVAILABLE';
   if (ACTIVE_MISSION === id) button.style.borderColor = 'rgba(25,211,234,.75)';
   button.addEventListener('click', () => {
-    if (ACTIVE_MISSION !== id) window.location.href = window.location.pathname + (id === 'neon' ? '' : '?mission=' + id);
+    if (ACTIVE_MISSION !== id) window.location.href = window.location.pathname + '?mission=' + id + '&screen=missions';
   });
 });
+if (new URLSearchParams(window.location.search).get('screen') === 'missions') showMissionSelect();
 $('go').addEventListener('click', () => { audioInit(); if (ready) startRide(); });
 // Mobile browsers can suspend Web Audio when switching apps, locking the screen, or after inactivity.
 document.addEventListener('visibilitychange', () => {
