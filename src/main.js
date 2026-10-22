@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import './style.css';
+import './firebase-storage.js';
 
 (function(){
 'use strict';
