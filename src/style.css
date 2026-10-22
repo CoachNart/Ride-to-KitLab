@@ -21,6 +21,7 @@ button{font:inherit;color:inherit;cursor:pointer}
 #vig{position:fixed;inset:0;pointer-events:none;background:radial-gradient(ellipse at center,transparent 55%,rgba(25,211,234,.30) 100%);opacity:0;transition:opacity .25s}
 #quest{border-left:3px solid var(--portal);position:absolute;left:max(10px,env(safe-area-inset-left));top:max(10px,env(safe-area-inset-top));padding:9px 12px;border-radius:18px;min-width:158px}
 #qrow{display:flex;align-items:center;gap:6px}
+#qmode{font-size:11px;font-weight:900;letter-spacing:.12em;color:var(--portal);white-space:nowrap}
 .pip{width:12px;height:12px;border-radius:50%;border:2px solid rgba(255,255,255,.38)}
 .pip.on{border-color:transparent}
 #qtime{margin-left:auto;padding-left:6px;font-variant-numeric:tabular-nums;font-size:13px;opacity:.9}
