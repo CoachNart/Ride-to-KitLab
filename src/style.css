@@ -254,3 +254,6 @@ select#inGender{width:100%;padding:11px 12px;border-radius:12px;border:1px solid
   #menuCard .fld{margin-bottom:6px}
 }
 @media(prefers-reduced-motion:reduce){#setupPanel.show{animation:none}#landingActions .btn.primary,#missionPicker .btn{transition:none}}
+
+#landingActions .game-kicker{display:flex;align-items:center;gap:8px;margin-bottom:5px;color:rgba(206,242,247,.58);font-size:9px;font-weight:800;letter-spacing:.18em}
+#landingActions .game-kicker i{display:block;width:7px;height:7px;border-radius:2px;background:var(--portal);box-shadow:0 0 12px rgba(25,211,234,.55);transform:rotate(45deg)}
