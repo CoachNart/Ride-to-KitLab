@@ -304,9 +304,10 @@ function buildTerrain() {
 function mergeColored(parts) {
   const pos = [], col = [];
   for (const p of parts) {
-    const g = p.geo.toNonIndexed(); g.translate(p.x || 0, p.y || 0, p.z || 0);
+    const g = p.geo.toNonIndexed();
     if (p.sx || p.sy || p.sz) g.scale(p.sx || 1, p.sy || 1, p.sz || 1);
     if (p.rx) g.rotateX(p.rx); if (p.ry) g.rotateY(p.ry); if (p.rz) g.rotateZ(p.rz);
+    g.translate(p.x || 0, p.y || 0, p.z || 0);
     const a = g.attributes.position.array, c = new THREE.Color(p.color);
     for (let i = 0; i < a.length; i++) pos.push(a[i]);
     for (let i = 0; i < g.attributes.position.count; i++) col.push(c.r, c.g, c.b);
