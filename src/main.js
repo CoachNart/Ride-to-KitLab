@@ -1232,9 +1232,12 @@ async function netPoll() {
       if (!it || !it.v) continue;
       const id = it.k.slice(Net.pre.length), s = it.v; present.add(id);
       const r = ensureRemote(id, s);
+      // Any valid player record from the shared room means this rider exists.
+      // Make them visible immediately; don't wait for a second changed timestamp.
+      r.live = true;
+      r.seen = now;
       if (s.t !== r.lastT) {
-        if (r.lastT !== 0) r.live = true;
-        r.lastT = s.t; r.seen = now; r.state = s; r.recv = now;
+        r.lastT = s.t; r.state = s; r.recv = now;
         if (s.et && s.et !== r.lastE && s.e) { r.lastE = s.et; if (r.live) r.bike.say(String(s.e).slice(0, 24)); }
       }
       let st = Net.stale.get(id);
