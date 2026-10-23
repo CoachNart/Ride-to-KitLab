@@ -857,11 +857,11 @@ button { max-width:100%; }
   #tBoost { width:clamp(64px,19vw,74px); height:clamp(64px,19vw,74px); right:max(8px,env(safe-area-inset-right)); bottom:calc(max(9px,env(safe-area-inset-bottom)) + 6px); font-size:11px; }
   #tBrake { width:clamp(54px,16vw,62px); height:clamp(54px,16vw,62px); right:calc(max(8px,env(safe-area-inset-right)) + clamp(72px,21vw,84px)); bottom:calc(max(9px,env(safe-area-inset-bottom)) + 6px); font-size:10px; }
   #tJump { width:50px; height:50px; right:calc(max(8px,env(safe-area-inset-right)) + 58px); bottom:calc(max(9px,env(safe-area-inset-bottom)) + 80px); font-size:10px; }
-  body.touch #tTrick { width:46px; height:46px; right:calc(max(8px,env(safe-area-inset-right)) + 1px); bottom:calc(max(9px,env(safe-area-inset-bottom)) + 132px); font-size:9px; }
+  body.touch #tTrick { width:46px; height:46px; right:calc(max(8px,env(safe-area-inset-right)) + 1px); bottom:calc(max(9px,env(safe-area-inset-bottom)) + 120px); font-size:9px; }
 }
 @media (orientation:landscape) and (max-height:500px) {
   #tBoost { width:58px; height:58px; right:max(8px,env(safe-area-inset-right)); bottom:calc(max(6px,env(safe-area-inset-bottom)) + 3px); }
   #tBrake { width:50px; height:50px; right:calc(max(8px,env(safe-area-inset-right)) + 64px); bottom:calc(max(6px,env(safe-area-inset-bottom)) + 3px); }
   #tJump { width:44px; height:44px; right:calc(max(8px,env(safe-area-inset-right)) + 54px); bottom:calc(max(6px,env(safe-area-inset-bottom)) + 62px); }
-  body.touch #tTrick { width:40px; height:40px; right:calc(max(8px,env(safe-area-inset-right)) + 1px); bottom:calc(max(6px,env(safe-area-inset-bottom)) + 112px); }
+  body.touch #tTrick { width:40px; height:40px; right:calc(max(8px,env(safe-area-inset-right)) + 1px); bottom:calc(max(6px,env(safe-area-inset-bottom)) + 102px); }
 }
