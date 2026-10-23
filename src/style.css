@@ -72,12 +72,13 @@ button{font:inherit;color:inherit;cursor:pointer}
 #accountCopy{min-width:0;display:flex;flex-direction:column;gap:3px}
 #accountTitle{font:800 12px/1.3 'Oxanium',sans-serif;letter-spacing:.09em;text-transform:uppercase;color:#b9eef4}
 #accountHint{font-size:11px;line-height:1.35;opacity:.75}
-.google-btn{display:flex;align-items:center;justify-content:center;gap:8px;min-height:38px;padding:8px 11px;border:1px solid #ea4335;border-radius:11px;background:#ea4335;color:#fff;font-size:11px;font-weight:800;white-space:nowrap;transition:background .16s ease,border-color .16s ease,transform .16s ease}
-.google-btn:hover{background:#d93025;border-color:#d93025}
+.google-btn{display:flex;align-items:center;justify-content:center;gap:9px;min-height:40px;padding:8px 12px;border:1px solid #EA4335;border-radius:11px;background:#EA4335;color:#fff;font-size:11px;font-weight:800;white-space:nowrap;transition:background .16s ease,border-color .16s ease,transform .16s ease}
+.google-btn:hover{background:#D93025;border-color:#D93025}
 .google-btn:active{transform:translateY(1px)}
 .google-btn:focus-visible{outline:2px solid #ffb4ad;outline-offset:3px}
 .google-btn:disabled{opacity:.6;cursor:wait}
-.google-g{display:grid;place-items:center;width:18px;height:18px;border-radius:50%;background:#fff;color:#ea4335;font:900 14px/1 Arial,sans-serif}
+.gmail-logo{display:grid;place-items:center;flex:0 0 23px;width:23px;height:19px;padding:2px;border-radius:4px;background:#fff;box-sizing:border-box}
+.gmail-logo svg{display:block;width:19px;height:15px}
 #accountStatus{grid-column:1/-1;font-size:10.5px;line-height:1.3;opacity:.7}
 #accountStatus.error{color:#ff9aa5;opacity:1}
 #accountStatus.success{color:#7df0a6;opacity:1}
