@@ -2228,6 +2228,11 @@ resize();
     placeAtPath(0, 0);
     ready = true;
     window.__kitRaceBooted = true;
+    const brandLoader = document.getElementById('brandLoader');
+    if (brandLoader) {
+      brandLoader.classList.add('loaded');
+      window.setTimeout(() => brandLoader.remove(), 450);
+    }
     $('go').disabled = false; $('go').textContent = 'Start riding';
   }, 40);
   requestAnimationFrame(loop);
