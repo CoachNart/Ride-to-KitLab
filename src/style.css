@@ -123,13 +123,6 @@ select#inGender,select#inAICount{width:100%;padding:11px 12px;border-radius:12px
   #count{top:24%;font-size:64px}
   #speedo{bottom:max(5px,env(safe-area-inset-bottom));font-size:12px}
   #stam{width:70px;height:4px;margin-top:3px}
-  #pad{left:max(10px,env(safe-area-inset-left));bottom:calc(max(8px,env(safe-area-inset-bottom)) + 2px);width:126px;height:54px}
-  #knob{width:42px;height:42px}
-  #tBoost{width:64px;height:64px;right:max(10px,env(safe-area-inset-right));bottom:calc(max(8px,env(safe-area-inset-bottom)) + 8px)}
-  #tBrake{width:54px;height:54px;right:calc(max(10px,env(safe-area-inset-right)) + 72px);bottom:calc(max(8px,env(safe-area-inset-bottom)) + 8px)}
-  
-  #tJump{width:48px;height:48px;right:calc(max(10px,env(safe-area-inset-right)) + 72px);bottom:calc(max(8px,env(safe-area-inset-bottom)) + 68px);font-size:10px}
-   #tTrick{width:48px;height:48px;right:calc(max(10px,env(safe-area-inset-right)) + 8px);bottom:calc(max(8px,env(safe-area-inset-bottom)) + 170px);font-size:9px}
 }
 @media (orientation:landscape) and (max-height:420px){
   #mini{width:76px;height:58px}
@@ -643,14 +636,6 @@ input, select, button { max-width:100%; }
   #speedo { font-size:12px; bottom:max(7px,env(safe-area-inset-bottom)); }
   #stam { width:68px; height:5px; margin-top:3px; }
   #toast { top:calc(max(6px,env(safe-area-inset-top)) + 74px); padding:7px 9px; font-size:11px; }
-  #padZone { width:54%; height:52%; }
-  #pad { left:max(8px,env(safe-area-inset-left)); bottom:calc(max(10px,env(safe-area-inset-bottom)) + 4px); width:clamp(104px, 34vw, 142px); height:clamp(48px, 15vw, 60px); }
-  #knob { width:clamp(36px, 12vw, 46px); height:clamp(36px, 12vw, 46px); }
-  #tBoost { width:clamp(62px, 19vw, 76px); height:clamp(62px, 19vw, 76px); right:max(8px,env(safe-area-inset-right)); bottom:calc(max(10px,env(safe-area-inset-bottom)) + 8px); font-size:11px; }
-  #tBrake { width:clamp(52px, 16vw, 64px); height:clamp(52px, 16vw, 64px); right:calc(max(8px,env(safe-area-inset-right)) + clamp(68px, 21vw, 82px)); bottom:calc(max(10px,env(safe-area-inset-bottom)) + 8px); font-size:10px; }
-  
-  #tJump { width:48px; height:48px; right:calc(max(8px,env(safe-area-inset-right)) + 64px); bottom:calc(max(10px,env(safe-area-inset-bottom)) + 76px); font-size:10px; }
-  body.touch #tTrick { width:44px; height:44px; right:calc(max(8px,env(safe-area-inset-right)) + 4px); bottom:calc(max(10px,env(safe-area-inset-bottom)) + 138px); font-size:9px; }
   #mCard, #aCard { padding:14px; max-height:calc(100vh - 20px); max-height:calc(100dvh - 20px); border-radius:17px; }
   #mTitle { font-size:18px; }
   #mBody, #aCard p { font-size:13px; }
@@ -666,8 +651,6 @@ input, select, button { max-width:100%; }
   #tr { max-width:45vw; }
   #btnrow { max-width:190px; }
   #mini { width:clamp(64px, 8vw, 84px); height:clamp(88px, 12vw, 118px); }
-  #pad { width:clamp(130px, 19vw, 170px); }
-  #tBoost { width:clamp(68px, 8vw, 88px); height:clamp(68px, 8vw, 88px); }
 }
 
 /* Desktop and ultrawide: keep content readable and centered, not stretched. */
@@ -765,14 +748,6 @@ button { max-width:100%; }
   #btnrow .sbtn { min-height:25px; padding:4px 6px; font-size:9px; }
   #speedo { font-size:11px; bottom:max(5px,env(safe-area-inset-bottom)); }
   #stam { width:58px; height:4px; }
-  #padZone { width:50%; height:46%; }
-  #pad { left:max(6px,env(safe-area-inset-left)); bottom:calc(max(8px,env(safe-area-inset-bottom)) + 2px); width:clamp(92px,30vw,124px); height:clamp(44px,14vw,54px); }
-  #knob { width:clamp(32px,10vw,40px); height:clamp(32px,10vw,40px); }
-  #tBoost { width:clamp(54px,16vw,66px); height:clamp(54px,16vw,66px); right:max(6px,env(safe-area-inset-right)); bottom:calc(max(8px,env(safe-area-inset-bottom)) + 5px); font-size:9px; }
-  #tBrake { width:clamp(46px,13vw,56px); height:clamp(46px,13vw,56px); right:calc(max(6px,env(safe-area-inset-right)) + clamp(58px,17vw,70px)); bottom:calc(max(8px,env(safe-area-inset-bottom)) + 5px); font-size:9px; }
-  
-  #tJump { width:40px; height:40px; right:calc(max(6px,env(safe-area-inset-right)) + 54px); bottom:calc(max(8px,env(safe-area-inset-bottom)) + 66px); font-size:9px; }
-  body.touch #tTrick { width:38px; height:38px; right:calc(max(6px,env(safe-area-inset-right)) + 1px); bottom:calc(max(8px,env(safe-area-inset-bottom)) + 116px); font-size:8px; }
   #toast { top:calc(max(6px,env(safe-area-inset-top)) + 68px); padding:6px 8px; font-size:10px; }
   #mCard, #aCard { width:min(440px,calc(100vw - 20px)); padding:12px; max-height:calc(100dvh - 20px); overflow:auto; }
   #mTitle { font-size:17px; }
@@ -796,11 +771,6 @@ button { max-width:100%; }
   #mini { width:60px; height:48px; }
   #btnrow { flex-direction:row; flex-wrap:wrap; justify-content:flex-end; max-width:34vw; }
   #btnrow .sbtn { min-height:22px; padding:3px 5px; font-size:8px; }
-  #tBoost { width:52px; height:52px; bottom:calc(max(5px,env(safe-area-inset-bottom)) + 3px); }
-  #tBrake { width:44px; height:44px; right:calc(max(6px,env(safe-area-inset-right)) + 56px); bottom:calc(max(5px,env(safe-area-inset-bottom)) + 3px); }
-  
-  #tJump { width:36px; height:36px; right:calc(max(6px,env(safe-area-inset-right)) + 50px); bottom:calc(max(5px,env(safe-area-inset-bottom)) + 56px); }
-  body.touch #tTrick { width:34px; height:34px; bottom:calc(max(5px,env(safe-area-inset-bottom)) + 98px); }
 }
 
 /* Tablets and desktops use restrained fixed bounds rather than viewport-sized UI. */
@@ -818,13 +788,6 @@ button { max-width:100%; }
 
 /* KitRace final touch-control sizing: Bell removed; primary actions remain easy to hit. */
 @media (max-width: 600px) {
-  #padZone { width:50%; height:48%; }
-  #pad { left:max(7px,env(safe-area-inset-left)); bottom:calc(max(9px,env(safe-area-inset-bottom)) + 3px); width:clamp(100px,32vw,132px); height:clamp(48px,15vw,58px); }
-  #knob { width:clamp(36px,11vw,44px); height:clamp(36px,11vw,44px); }
-  #tBoost { width:clamp(64px,19vw,74px); height:clamp(64px,19vw,74px); right:max(8px,env(safe-area-inset-right)); bottom:calc(max(9px,env(safe-area-inset-bottom)) + 6px); font-size:11px; }
-  #tBrake { width:clamp(54px,16vw,62px); height:clamp(54px,16vw,62px); right:calc(max(8px,env(safe-area-inset-right)) + clamp(72px,21vw,84px)); bottom:calc(max(9px,env(safe-area-inset-bottom)) + 6px); font-size:10px; }
-  #tJump { width:50px; height:50px; right:calc(max(8px,env(safe-area-inset-right)) + 58px); bottom:calc(max(9px,env(safe-area-inset-bottom)) + 80px); font-size:10px; }
-  body.touch #tTrick { width:46px; height:46px; right:calc(max(8px,env(safe-area-inset-right)) + 1px); bottom:calc(max(9px,env(safe-area-inset-bottom)) + 96px); font-size:9px; }
 }
 @media (orientation:landscape) and (max-height:500px) {
 }
