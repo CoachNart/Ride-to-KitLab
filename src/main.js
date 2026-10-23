@@ -2242,10 +2242,20 @@ function loop(ms) {
 }
 
 function resize() {
-  const w = window.innerWidth, h = window.innerHeight;
-  renderer.setSize(w, h, false); camera.aspect = w / h; camera.updateProjectionMatrix();
+  // Read the live layout viewport so rotation, split-screen and mobile browser
+  // chrome changes update both the WebGL canvas and camera projection.
+  const w = Math.max(1, document.documentElement.clientWidth || window.innerWidth);
+  const h = Math.max(1, window.visualViewport?.height || document.documentElement.clientHeight || window.innerHeight);
+  renderer.setSize(w, h, false);
+  camera.aspect = w / h;
+  camera.updateProjectionMatrix();
 }
-window.addEventListener('resize', resize); resize();
+window.addEventListener('resize', resize, { passive: true });
+window.addEventListener('orientationchange', () => requestAnimationFrame(resize), { passive: true });
+if (window.visualViewport) {
+  window.visualViewport.addEventListener('resize', resize, { passive: true });
+}
+resize();
 
 /* ============================================================
    UI WIRING
