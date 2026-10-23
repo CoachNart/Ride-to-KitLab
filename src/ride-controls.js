@@ -65,7 +65,7 @@ export function bindRideControls({ touch, cycleTrick, clamp }) {
 
   function release(id) {
     const item = active.get(id) || mousePointers.get(id);
-    if (!item) return;
+    if (!item) return false;
     active.delete(id);
     mousePointers.delete(id);
     if (steeringId === id) {
@@ -74,6 +74,7 @@ export function bindRideControls({ touch, cycleTrick, clamp }) {
       knob.style.transform = '';
     }
     syncState();
+    return true;
   }
 
   function begin(id, x, y, fallback, isTouch) {
@@ -137,8 +138,13 @@ export function bindRideControls({ touch, cycleTrick, clamp }) {
   }
 
   function onTouchEnd(event) {
-    for (const point of event.changedTouches) release('t' + point.identifier);
-    if (event.cancelable) event.preventDefault();
+    // Only cancel the browser's synthetic click when ending a touch we own.
+    // Cancelling every touchend also cancels taps on menu buttons such as PLAY.
+    let handled = false;
+    for (const point of event.changedTouches) {
+      if (release('t' + point.identifier)) handled = true;
+    }
+    if (handled && event.cancelable) event.preventDefault();
   }
 
   function onMouseDown(event) {
