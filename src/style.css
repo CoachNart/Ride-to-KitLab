@@ -608,3 +608,137 @@ body.touch #tBell {
   z-index: -1;
 }
 #ytMusicPlayer iframe { width: 200px !important; height: 200px !important; }
+
+
+/* Cross-device responsive pass: phones, tablets, laptops and wide desktops. */
+:root {
+  --edge-x: max(10px, env(safe-area-inset-left));
+  --edge-right: max(10px, env(safe-area-inset-right));
+}
+html { width:100%; min-width:0; }
+body { width:100%; min-width:0; }
+#gl { width:100%; height:100%; height:100dvh; }
+.ov { padding:clamp(10px, 2.5vw, 28px); }
+#menuCard, #mCard, #aCard, #pauseCard { min-width:0; }
+#menuCard { max-width: min(460px, calc(100vw - 2 * clamp(10px, 2.5vw, 28px))); }
+#mCard, #aCard { max-width: min(520px, calc(100vw - 2 * clamp(10px, 2.5vw, 28px))); }
+#missionPicker .btn, #btnrow .sbtn, .tb, .btn { -webkit-user-select:none; user-select:none; }
+input, select, button { max-width:100%; }
+#roster { width:min(210px, calc(100vw - 20px)); }
+#toast { width:max-content; max-width:calc(100vw - 24px); overflow-wrap:anywhere; }
+#qobj, #qscore, #qrow { min-width:0; }
+#qtxt { min-width:0; overflow-wrap:anywhere; }
+#count { max-width:90vw; font-size:clamp(48px, 8vw, 96px); }
+#pop { max-width:90vw; white-space:normal; text-align:center; }
+#missionPicker .btn b { display:block; overflow-wrap:anywhere; }
+#missionPicker .btn span { display:block; }
+
+/* Compact phones, including 320px-wide screens. */
+@media (max-width: 480px) {
+  #menu {
+    justify-content:center;
+    align-items:center;
+    padding: max(10px, env(safe-area-inset-top)) max(10px, env(safe-area-inset-right)) max(10px, env(safe-area-inset-bottom)) max(10px, env(safe-area-inset-left));
+    background:linear-gradient(180deg,rgba(2,18,25,.42),rgba(2,18,25,.82));
+  }
+  #menuCard {
+    width:100%;
+    max-width:420px;
+    max-height:calc(100vh - 20px);
+    max-height:calc(100dvh - max(20px, env(safe-area-inset-top) + env(safe-area-inset-bottom)));
+    padding:clamp(14px, 4vw, 20px);
+    border-radius:18px;
+  }
+  #landingActions { gap:9px; }
+  #landingActions h1 { font-size:clamp(32px, 10vw, 42px); }
+  #menuCard .tagline { font-size:10px; letter-spacing:.07em; margin:5px 0 10px; }
+  #landingActions .btn { min-height:46px; }
+  #screenHeading { margin-bottom:11px; }
+  #screenHeading h2 { font-size:14px; }
+  #missionPicker { gap:6px; margin-bottom:12px; }
+  #missionPicker .btn { min-height:48px; padding:8px !important; font-size:11px; }
+  #missionPicker .btn b { font-size:10px; line-height:1.25; }
+  #missionPicker .btn span { font-size:9px; margin-top:3px; }
+  #setupPanel .setup-fields { gap:7px 8px; }
+  #setupPanel .setup-fields > .fld { font-size:11px; }
+  #setupPanel .setup-fields input,
+  #setupPanel .setup-fields select { height:40px; padding:7px 8px; font-size:16px; }
+  #setupPanel #go { min-height:44px; }
+  #quest { left:max(6px,env(safe-area-inset-left)); top:max(6px,env(safe-area-inset-top)); min-width:0; max-width:55vw; padding:7px 8px; border-radius:12px; }
+  #qmode { font-size:9px; letter-spacing:.07em; }
+  #qtime { font-size:11px; padding-left:3px; }
+  .pip { width:9px; height:9px; }
+  #qobj { font-size:10px; gap:4px; margin-top:5px; }
+  #qarrow { width:14px; height:14px; }
+  #qscore { gap:5px; margin-top:4px; font-size:10px; }
+  #qscore b { font-size:14px; }
+  #tr { right:max(6px,env(safe-area-inset-right)); top:max(6px,env(safe-area-inset-top)); gap:4px; max-width:42vw; }
+  #status { max-width:42vw; padding:5px 7px; font-size:10px; }
+  #mini { width:56px; height:78px; border-radius:10px; }
+  #btnrow { width:auto; max-width:42vw; gap:4px; }
+  #btnrow .sbtn { padding:5px 7px; font-size:10px; }
+  #speedo { font-size:12px; bottom:max(7px,env(safe-area-inset-bottom)); }
+  #stam { width:68px; height:5px; margin-top:3px; }
+  #toast { top:calc(max(6px,env(safe-area-inset-top)) + 74px); padding:7px 9px; font-size:11px; }
+  #padZone { width:54%; height:52%; }
+  #pad { left:max(8px,env(safe-area-inset-left)); bottom:calc(max(10px,env(safe-area-inset-bottom)) + 4px); width:clamp(104px, 34vw, 142px); height:clamp(48px, 15vw, 60px); }
+  #knob { width:clamp(36px, 12vw, 46px); height:clamp(36px, 12vw, 46px); }
+  #tBoost { width:clamp(62px, 19vw, 76px); height:clamp(62px, 19vw, 76px); right:max(8px,env(safe-area-inset-right)); bottom:calc(max(10px,env(safe-area-inset-bottom)) + 8px); font-size:11px; }
+  #tBrake { width:clamp(52px, 16vw, 64px); height:clamp(52px, 16vw, 64px); right:calc(max(8px,env(safe-area-inset-right)) + clamp(68px, 21vw, 82px)); bottom:calc(max(10px,env(safe-area-inset-bottom)) + 8px); font-size:10px; }
+  #tBell { width:42px; height:42px; right:calc(max(8px,env(safe-area-inset-right)) + 8px); bottom:calc(max(10px,env(safe-area-inset-bottom)) + 88px); font-size:10px; }
+  #tJump { width:48px; height:48px; right:calc(max(8px,env(safe-area-inset-right)) + 64px); bottom:calc(max(10px,env(safe-area-inset-bottom)) + 76px); font-size:10px; }
+  body.touch #tTrick { width:44px; height:44px; right:calc(max(8px,env(safe-area-inset-right)) + 4px); bottom:calc(max(10px,env(safe-area-inset-bottom)) + 138px); font-size:9px; }
+  #mCard, #aCard { padding:14px; max-height:calc(100vh - 20px); max-height:calc(100dvh - 20px); border-radius:17px; }
+  #mTitle { font-size:18px; }
+  #mBody, #aCard p { font-size:13px; }
+  #mBtns { flex-wrap:wrap; }
+  #mBtns .btn, #aBtns .btn { min-height:42px; }
+}
+
+/* Tablets and smaller laptop windows: use the extra width without oversized HUD. */
+@media (min-width: 481px) and (max-width: 1024px) {
+  #menu { padding:clamp(18px, 4vw, 42px); }
+  #menuCard { width:min(430px, 58vw); }
+  #quest { max-width:38vw; }
+  #tr { max-width:45vw; }
+  #btnrow { max-width:190px; }
+  #mini { width:clamp(64px, 8vw, 84px); height:clamp(88px, 12vw, 118px); }
+  #pad { width:clamp(130px, 19vw, 170px); }
+  #tBoost { width:clamp(68px, 8vw, 88px); height:clamp(68px, 8vw, 88px); }
+}
+
+/* Desktop and ultrawide: keep content readable and centered, not stretched. */
+@media (min-width: 1025px) {
+  #menu { padding:clamp(32px, 5vw, 88px); }
+  #menuCard { width:min(440px, 38vw); }
+  #quest { max-width:360px; }
+  #tr { max-width:300px; }
+  #roster { max-height:min(50vh, 420px); }
+  #modal, #arrive, #pause { padding:clamp(20px, 3vw, 48px); }
+  #mCard, #aCard { max-width:540px; }
+}
+
+/* Short screens and landscape phones: keep controls inside the visible safe area. */
+@media (max-height: 500px) {
+  #menu { align-items:center; padding-top:max(6px,env(safe-area-inset-top)); padding-bottom:max(6px,env(safe-area-inset-bottom)); }
+  #menuCard { max-height:calc(100vh - 12px); max-height:calc(100dvh - max(12px,env(safe-area-inset-top) + env(safe-area-inset-bottom))); padding:12px 14px; }
+  #landingActions { gap:7px; }
+  #landingActions h1 { font-size:clamp(28px, 6vh, 38px); }
+  #menuCard .tagline { margin:3px 0 6px; }
+  #landingActions .btn { min-height:40px; }
+  #screenHeading { margin-bottom:7px; }
+  #missionPicker { gap:5px; margin-bottom:8px; }
+  #missionPicker .btn { min-height:40px; padding:6px 8px !important; }
+  #setupPanel .setup-fields { gap:5px 8px; }
+  #setupPanel .setup-fields input,
+  #setupPanel .setup-fields select { height:34px; }
+  #setupPanel #go { min-height:38px; height:auto; }
+  #mCard, #aCard { max-height:calc(100vh - 12px); max-height:calc(100dvh - 12px); overflow:auto; }
+}
+@media (hover: none), (pointer: coarse) {
+  button, input, select { touch-action:manipulation; }
+  .btn, .sbtn, .tb { -webkit-tap-highlight-color:transparent; }
+}
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { scroll-behavior:auto !important; animation-duration:.01ms !important; animation-iteration-count:1 !important; transition-duration:.01ms !important; }
+}

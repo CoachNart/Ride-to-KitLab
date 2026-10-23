@@ -1793,7 +1793,10 @@ function controls() {
   if (IS_TOUCH) {
     document.addEventListener('touchstart', e => {
       for (const t of e.changedTouches) {
-        const target = t.target instanceof Element ? t.target : null;
+        // Touch targets can be retargeted in Android browsers during multi-touch.
+        // Resolve each finger by its current screen position instead.
+        const hit = document.elementFromPoint(t.clientX, t.clientY);
+        const target = hit instanceof Element ? hit : (t.target instanceof Element ? t.target : null);
         const button = target && target.closest('.tb');
         if (button) {
           const id = button.id;
@@ -1821,13 +1824,19 @@ function controls() {
     }, { capture: true, passive: false });
 
     document.addEventListener('touchmove', e => {
-      if (steerId === null) return;
-      const t = Array.from(e.touches).find(x => x.identifier === steerId);
-      if (!t) return;
-      const dx = t.clientX - steerStartX;
-      touch.steer = clamp(-dx / 55, -1, 1);
-      knob.style.transform = 'translateX(' + clamp(dx, -52, 52) + 'px)';
-      e.preventDefault();
+      // Suppress browser scrolling/gesture cancellation whenever any gameplay
+      // finger is active, not only while the steering pad is being moved.
+      if (steerId !== null) {
+        const t = Array.from(e.touches).find(x => x.identifier === steerId);
+        if (t) {
+          const dx = t.clientX - steerStartX;
+          touch.steer = clamp(-dx / 55, -1, 1);
+          knob.style.transform = 'translateX(' + clamp(dx, -52, 52) + 'px)';
+        }
+      }
+      if (steerId !== null || activeTouches.size > 0) {
+        if (e.cancelable) e.preventDefault();
+      }
     }, { capture: true, passive: false });
 
     const endTouches = e => {
@@ -2233,10 +2242,20 @@ function loop(ms) {
 }
 
 function resize() {
-  const w = window.innerWidth, h = window.innerHeight;
-  renderer.setSize(w, h, false); camera.aspect = w / h; camera.updateProjectionMatrix();
+  // Read the live layout viewport so rotation, split-screen and mobile browser
+  // chrome changes update both the WebGL canvas and camera projection.
+  const w = Math.max(1, document.documentElement.clientWidth || window.innerWidth);
+  const h = Math.max(1, window.visualViewport?.height || document.documentElement.clientHeight || window.innerHeight);
+  renderer.setSize(w, h, false);
+  camera.aspect = w / h;
+  camera.updateProjectionMatrix();
 }
-window.addEventListener('resize', resize); resize();
+window.addEventListener('resize', resize, { passive: true });
+window.addEventListener('orientationchange', () => requestAnimationFrame(resize), { passive: true });
+if (window.visualViewport) {
+  window.visualViewport.addEventListener('resize', resize, { passive: true });
+}
+resize();
 
 /* ============================================================
    UI WIRING
