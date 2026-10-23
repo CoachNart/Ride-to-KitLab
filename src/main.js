@@ -99,6 +99,8 @@ function fmtTime(s) { s = Math.max(0, s); const m = Math.floor(s / 60), r = Math
 
 window.__kitRaceBooted = false;
 function showStartupFailure(error) {
+  const startupLoader = document.getElementById('brandLoader');
+  if (startupLoader) { startupLoader.classList.add('loaded'); startupLoader.style.pointerEvents = 'none'; }
   let panel = document.getElementById('kitRaceStartupFailure');
   if (!panel) {
     panel = document.createElement('div');
