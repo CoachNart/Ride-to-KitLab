@@ -1787,18 +1787,20 @@ function controls() {
     document.querySelectorAll('.tb.down').forEach(el => el.classList.remove('down'));
   };
 
-  // One capture-phase touch router owns every finger. Do not split touch
-  // tracking across individual buttons: Android WebViews can retarget/cancel
-  // per-element handlers when a second finger lands.
+  // One capture-phase router owns gameplay fingers, but must not cancel
+  // ordinary UI taps: cancelling every touchstart/touchend suppresses click
+  // events on the menu and makes the whole app appear unresponsive.
   if (IS_TOUCH) {
+    const gameplayTouches = new Set();
     document.addEventListener('touchstart', e => {
+      let gameplayTouch = false;
       for (const t of e.changedTouches) {
-        // Touch targets can be retargeted in Android browsers during multi-touch.
-        // Resolve each finger by its current screen position instead.
         const hit = document.elementFromPoint(t.clientX, t.clientY);
         const target = hit instanceof Element ? hit : (t.target instanceof Element ? t.target : null);
         const button = target && target.closest('.tb');
         if (button) {
+          gameplayTouch = true;
+          gameplayTouches.add(t.identifier);
           const id = button.id;
           if (id === 'tBoost' || id === 'tBrake' || id === 'tJump') {
             const key = id === 'tBoost' ? 'boost' : id === 'tBrake' ? 'brake' : 'jump';
@@ -1811,21 +1813,19 @@ function controls() {
           continue;
         }
         if (target && (target === zonePad || target.closest('#pad'))) {
+          gameplayTouch = true;
+          gameplayTouches.add(t.identifier);
           if (steerId === null) {
             steerId = t.identifier;
             steerStartX = t.clientX;
           }
         }
       }
-      // Prevent browser gestures from cancelling gameplay touches. All input
-      // state is derived from identifiers, never from a single global boolean.
-      e.preventDefault();
+      if (gameplayTouch && e.cancelable) e.preventDefault();
       syncHeldButtons();
     }, { capture: true, passive: false });
 
     document.addEventListener('touchmove', e => {
-      // Suppress browser scrolling/gesture cancellation whenever any gameplay
-      // finger is active, not only while the steering pad is being moved.
       if (steerId !== null) {
         const t = Array.from(e.touches).find(x => x.identifier === steerId);
         if (t) {
@@ -1834,18 +1834,21 @@ function controls() {
           knob.style.transform = 'translateX(' + clamp(dx, -52, 52) + 'px)';
         }
       }
-      if (steerId !== null || activeTouches.size > 0) {
-        if (e.cancelable) e.preventDefault();
-      }
+      if ((steerId !== null || activeTouches.size > 0) && e.cancelable) e.preventDefault();
     }, { capture: true, passive: false });
 
     const endTouches = e => {
+      let wasGameplayTouch = false;
       for (const t of e.changedTouches) {
+        if (gameplayTouches.delete(t.identifier)) wasGameplayTouch = true;
         activeTouches.delete(t.identifier);
-        if (t.identifier === steerId) resetSteer();
+        if (t.identifier === steerId) {
+          wasGameplayTouch = true;
+          resetSteer();
+        }
       }
       syncHeldButtons();
-      if (e.cancelable) e.preventDefault();
+      if (wasGameplayTouch && e.cancelable) e.preventDefault();
     };
     document.addEventListener('touchend', endTouches, { capture: true, passive: false });
     document.addEventListener('touchcancel', endTouches, { capture: true, passive: false });
