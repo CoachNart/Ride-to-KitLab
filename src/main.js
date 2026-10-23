@@ -1997,7 +1997,7 @@ function updateRaceTracker() {
       id: String(remote.id), name: String(remote.state && remote.state.n || 'Rider') + (remote.ghost ? '' : ''),
       color: remote.color || RIDER_PAL[(Number(remote.state && remote.state.c) || 0) % RIDER_PAL.length],
       remote, ghost: !!remote.ghost,
-      finished: !!remoteFinish || (!!remote.ghost && !!remote.aiFinished),
+      finished: !!remoteFinish || ((Number(remote.state && remote.state.zn) | 0) === 1) || (!!remote.ghost && !!remote.aiFinished),
       finish: remoteFinish > 0 ? remoteFinish : (remote.aiFinished ? Number(remote.aiElapsed) || Infinity : Infinity),
       progress: 0
     });
