@@ -1,7 +1,7 @@
 import { initializeApp, getApps, getApp } from 'firebase/app';
 import {
   getAuth, signInAnonymously, GoogleAuthProvider, signInWithPopup,
-  linkWithPopup, signOut, setPersistence, browserLocalPersistence
+  linkWithPopup, signOut
 } from 'firebase/auth';
 import {
   getDatabase, ref, set, get, remove, query, orderByKey, startAt, endAt
@@ -23,11 +23,7 @@ const database = getDatabase(app, firebaseConfig.databaseURL);
 const googleProvider = new GoogleAuthProvider();
 googleProvider.setCustomParameters({ prompt: 'select_account' });
 
-try {
-  await setPersistence(auth, browserLocalPersistence);
-} catch (error) {
-  console.warn('[KitRace] Could not set persistent auth session.', error);
-}
+// Firebase Auth uses browser-local persistence by default on supported web browsers.
 
 let authPromise = auth.currentUser
   ? Promise.resolve(auth.currentUser)
