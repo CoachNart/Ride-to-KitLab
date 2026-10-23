@@ -1986,7 +1986,7 @@ let lastShownRacePosition = null;
 let racePositionToastTimer = 0;
 
 function updateRaceTracker() {
-  if (!started) return;
+  if (!started) { lastShownRacePosition = null; return; }
   const rows = [{
     id: 'you', isPlayer: true, finished: !!finishTime,
     finish: Number(finishTime) || Infinity, progress: 0
@@ -1996,7 +1996,7 @@ function updateRaceTracker() {
     const remoteFinish = Number(remote.state && remote.state.f) || 0;
     rows.push({
       id: String(remote.id),
-      remote,
+      remote, ghost: !!remote.ghost,
       finished: !!remoteFinish || ((Number(remote.state && remote.state.zn) | 0) === 1) || (!!remote.ghost && !!remote.aiFinished),
       finish: remoteFinish > 0 ? remoteFinish : (remote.aiFinished ? Number(remote.aiElapsed) || Infinity : Infinity),
       progress: 0
