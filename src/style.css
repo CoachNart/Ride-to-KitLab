@@ -57,7 +57,9 @@ button{font:inherit;color:inherit;cursor:pointer}
 #toast{position:absolute;left:50%;top:calc(max(10px,env(safe-area-inset-top)) + 78px);transform:translateX(-50%);padding:9px 15px;border-radius:14px;font-size:14px;font-weight:700;max-width:86vw;text-align:center;opacity:0;transition:opacity .25s;pointer-events:none!important}
 #toast.on{opacity:1}
 #touch{display:none}
-body.touch #touch{display:block}
+body.touch #touch{display:block;position:absolute;inset:0;pointer-events:none;touch-action:none}
+body.touch #padZone, body.touch .tb{pointer-events:auto;touch-action:none}
+body.touch #pad{pointer-events:none;touch-action:none}
 #padZone{position:absolute;left:0;bottom:0;width:50%;height:58%;pointer-events:auto;touch-action:none}
 #pad{position:absolute;left:max(18px,env(safe-area-inset-left));bottom:calc(max(26px,env(safe-area-inset-bottom)) + 8px);width:170px;height:70px;border-radius:999px;display:flex;align-items:center;justify-content:center;pointer-events:none}
 #knob{width:54px;height:54px;border-radius:50%;background:rgba(246,241,231,.82);box-shadow:0 2px 12px rgba(0,0,0,.4)}
@@ -580,13 +582,11 @@ body.touch #tTrick {
   right: calc(max(18px, env(safe-area-inset-right)) + 20px);
   bottom: calc(max(26px, env(safe-area-inset-bottom)) + 130px);
 }
-body.touch 
 @media (orientation: landscape) and (max-height: 600px) {
   body.touch #tTrick {
     right: calc(max(10px, env(safe-area-inset-right)) + 8px);
     bottom: calc(max(8px, env(safe-area-inset-bottom)) + 80px);
   }
-  body.touch 
 }
 /* YouTube requires an embedded player surface; keep its minimum player size off
    the riding controls while letting the IFrame API manage playback. */
