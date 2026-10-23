@@ -1841,10 +1841,7 @@ function controls() {
 (function bindTouch() {
   const zonePad = $('padZone');
   const knob = $('knob');
-  // Keep one independent record per finger. On touch devices use Touch Events
-  // directly; Android WebViews can cancel/retarget Pointer Events during
-  // simultaneous button + steering gestures.
-  const active = new Map();
+  const active = new Map(); // identifier -> { type, key?, startX? }
   let steerId = null;
   let steerStartX = 0;
 
@@ -1856,10 +1853,9 @@ function controls() {
 
   function syncHeldButtons() {
     for (const key of ['brake', 'boost', 'jump']) {
-      const held = Array.from(active.values()).some(p => p.type === 'button' && p.key === key);
+      const held = [...active.values()].some(p => p.type === 'button' && p.key === key);
       touch[key] = held;
-      const id = key === 'brake' ? 'tBrake' : key === 'boost' ? 'tBoost' : 'tJump';
-      const button = $(id);
+      const button = $(key === 'brake' ? 'tBrake' : key === 'boost' ? 'tBoost' : 'tJump');
       if (button) button.classList.toggle('down', held);
     }
   }
@@ -1871,40 +1867,58 @@ function controls() {
     document.querySelectorAll('.tb.down').forEach(el => el.classList.remove('down'));
   }
 
-  function startButtonTouch(e, key) {
-    e.preventDefault();
-    for (const finger of e.changedTouches) {
-      if (active.has(finger.identifier)) continue;
-      active.set(finger.identifier, { type: 'button', key });
+  function controlAt(target) {
+    if (!(target instanceof Element)) return null;
+    const button = target.closest('#tBrake, #tBoost, #tJump, #tTrick');
+    if (button) {
+      if (button.id === 'tBrake') return { type: 'button', key: 'brake' };
+      if (button.id === 'tBoost') return { type: 'button', key: 'boost' };
+      if (button.id === 'tJump') return { type: 'button', key: 'jump' };
+      return { type: 'action' };
     }
+    if (target.closest('#padZone')) return { type: 'steer' };
+    return null;
+  }
+
+  function onTouchStart(e) {
+    const changed = e.changedTouches;
+    let handled = false;
+    for (const finger of changed) {
+      if (active.has(finger.identifier)) continue;
+      const control = controlAt(document.elementFromPoint(finger.clientX, finger.clientY) || e.target);
+      if (!control) continue;
+      if (control.type === 'steer') {
+        if (steerId !== null) continue;
+        steerId = finger.identifier;
+        steerStartX = finger.clientX;
+      } else if (control.type === 'action') {
+        cycleTrick();
+      }
+      active.set(finger.identifier, control);
+      handled = true;
+    }
+    if (handled) e.preventDefault();
     syncHeldButtons();
   }
 
-  function startSteerTouch(e) {
-    e.preventDefault();
-    if (steerId !== null) return;
+  function onTouchMove(e) {
+    let handled = false;
     for (const finger of e.changedTouches) {
-      if (active.has(finger.identifier)) continue;
-      steerId = finger.identifier;
-      steerStartX = finger.clientX;
-      active.set(finger.identifier, { type: 'steer' });
-      break;
+      const record = active.get(finger.identifier);
+      if (!record) continue;
+      handled = true;
+      if (record.type === 'steer' && finger.identifier === steerId) {
+        const dx = finger.clientX - steerStartX;
+        touch.steer = clamp(-dx / 55, -1, 1);
+        knob.style.transform = 'translateX(' + clamp(dx, -52, 52) + 'px)';
+      }
     }
+    // Prevent browser pan/gesture handling for every tracked finger, not only
+    // when the steering finger happens to be in changedTouches.
+    if (handled) e.preventDefault();
   }
 
-  function moveTouches(e) {
-    if (steerId === null) return;
-    for (const finger of e.changedTouches) {
-      if (finger.identifier !== steerId) continue;
-      e.preventDefault();
-      const dx = finger.clientX - steerStartX;
-      touch.steer = clamp(-dx / 55, -1, 1);
-      knob.style.transform = 'translateX(' + clamp(dx, -52, 52) + 'px)';
-      break;
-    }
-  }
-
-  function endTouches(e) {
+  function onTouchEnd(e) {
     let changed = false;
     for (const finger of e.changedTouches) {
       if (!active.has(finger.identifier)) continue;
@@ -1916,21 +1930,11 @@ function controls() {
   }
 
   if (IS_TOUCH) {
-    zonePad.addEventListener('touchstart', startSteerTouch, { passive: false });
-    $('tBrake').addEventListener('touchstart', e => startButtonTouch(e, 'brake'), { passive: false });
-    $('tBoost').addEventListener('touchstart', e => startButtonTouch(e, 'boost'), { passive: false });
-    $('tJump').addEventListener('touchstart', e => startButtonTouch(e, 'jump'), { passive: false });
-    $('tTrick').addEventListener('touchstart', e => {
-      e.preventDefault();
-      for (const finger of e.changedTouches) {
-        if (active.has(finger.identifier)) continue;
-        active.set(finger.identifier, { type: 'action' });
-        cycleTrick();
-      }
-    }, { passive: false });
-    document.addEventListener('touchmove', moveTouches, { passive: false });
-    document.addEventListener('touchend', endTouches, { passive: false });
-    document.addEventListener('touchcancel', endTouches, { passive: false });
+    // Capture phase makes the control layer own the complete multitouch stream.
+    document.addEventListener('touchstart', onTouchStart, { capture: true, passive: false });
+    document.addEventListener('touchmove', onTouchMove, { capture: true, passive: false });
+    document.addEventListener('touchend', onTouchEnd, { capture: true, passive: false });
+    document.addEventListener('touchcancel', onTouchEnd, { capture: true, passive: false });
   } else {
     function isPrimaryPointer(e) {
       return !(e.pointerType === 'mouse' && e.button !== 0);
@@ -1941,6 +1945,7 @@ function controls() {
       steerId = e.pointerId;
       steerStartX = e.clientX;
       active.set(e.pointerId, { type: 'steer' });
+      try { zonePad.setPointerCapture(e.pointerId); } catch (_) {}
     }, { passive: false });
 
     for (const [id, key] of [['tBrake', 'brake'], ['tBoost', 'boost'], ['tJump', 'jump']]) {
@@ -1948,6 +1953,7 @@ function controls() {
         if (!isPrimaryPointer(e) || active.has(e.pointerId)) return;
         e.preventDefault();
         active.set(e.pointerId, { type: 'button', key });
+        try { $(id).setPointerCapture(e.pointerId); } catch (_) {}
         syncHeldButtons();
       }, { passive: false });
     }
@@ -1955,6 +1961,7 @@ function controls() {
       if (!isPrimaryPointer(e) || active.has(e.pointerId)) return;
       e.preventDefault();
       active.set(e.pointerId, { type: 'action' });
+      try { $('tTrick').setPointerCapture(e.pointerId); } catch (_) {}
       cycleTrick();
     }, { passive: false });
 
@@ -1973,6 +1980,7 @@ function controls() {
     }
     window.addEventListener('pointerup', releasePointer);
     window.addEventListener('pointercancel', releasePointer);
+    window.addEventListener('lostpointercapture', releasePointer);
   }
 
   window.addEventListener('blur', clearInputs);
