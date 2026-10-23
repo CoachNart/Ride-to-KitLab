@@ -16,9 +16,8 @@ const auth = getAuth(app);
 const database = getDatabase(app, firebaseConfig.databaseURL);
 const googleProvider = new GoogleAuthProvider();
 googleProvider.setCustomParameters({ prompt: 'select_account' });
-let authPromise = auth.currentUser ? Promise.resolve(auth.currentUser) : signInAnonymously(auth).then(c => c.user);
-
 try { await setPersistence(auth, browserLocalPersistence); } catch (error) { console.warn('[KitRace] Could not set persistent auth session.', error); }
+let authPromise = auth.currentUser ? Promise.resolve(auth.currentUser) : signInAnonymously(auth).then(c => c.user);
 
 async function ensureAuthenticated() {
   if (auth.currentUser) return auth.currentUser;
@@ -87,11 +86,38 @@ async function loadProfile() {
   const snapshot = await get(ref(database, `users/${user.uid}/profile`));
   return snapshot.exists() ? { ...publicUser(user), ...snapshot.val() } : publicUser(user);
 }
+async function saveRecord(mission, record) {
+  const user = await ensureAuthenticated();
+  if (user.isAnonymous) return false;
+  const recordRef = ref(database, `users/${user.uid}/records/${validKey(mission)}`);
+  const snapshot = await get(recordRef);
+  const prior = snapshot.exists() ? snapshot.val() : {};
+  const time = Math.max(0, Number(record.time) || 0);
+  const score = Math.max(0, Number(record.score) || 0);
+  await set(recordRef, {
+    mission,
+    name: String(record.name || user.displayName || 'KitRace Rider').slice(0, 40),
+    bestTime: prior.bestTime ? Math.min(Number(prior.bestTime), time) : time,
+    lastTime: time,
+    bestScore: Math.max(Number(prior.bestScore) || 0, score),
+    lastScore: score,
+    completions: (Number(prior.completions) || 0) + 1,
+    updatedAt: Date.now()
+  });
+  return true;
+}
+async function loadRecords() {
+  const user = await ensureAuthenticated();
+  if (user.isAnonymous) return [];
+  const snapshot = await get(ref(database, `users/${user.uid}/records`));
+  if (!snapshot.exists()) return [];
+  return Object.values(snapshot.val() || {});
+}
 async function currentUser() {
   return publicUser(await ensureAuthenticated());
 }
 
-window.kitRaceAuth = { signInWithGoogle, saveProfile, saveProgress, loadProgress, loadProfile, currentUser, signOut: () => signOut(auth) };
+window.kitRaceAuth = { signInWithGoogle, saveProfile, saveProgress, loadProgress, loadProfile, saveRecord, loadRecords, currentUser, signOut: () => signOut(auth) };
 window.storage = {
   __rideKitlabFirebase: true,
   async set(key, value) {
