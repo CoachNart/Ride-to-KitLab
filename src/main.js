@@ -96,6 +96,81 @@ function mulberry32(a) { return function () { a |= 0; a = a + 0x6D2B79F5 | 0; le
 function hashStr(s) { let h = 2166136261; for (let i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = Math.imul(h, 16777619); } return h >>> 0; }
 function fmtTime(s) { s = Math.max(0, s); const m = Math.floor(s / 60), r = Math.floor(s % 60); return m + ':' + (r < 10 ? '0' : '') + r; }
 
+window.__kitRaceBooted = false;
+function showStartupFailure(error) {
+  let panel = document.getElementById('kitRaceStartupFailure');
+  if (!panel) {
+    panel = document.createElement('div');
+    panel.id = 'kitRaceStartupFailure';
+    panel.style.cssText = 'position:fixed;z-index:2147483647;inset:12px 12px auto;padding:16px;border:1px solid #ff5a67;border-radius:14px;background:#071d26;color:#f1fbfd;font:14px/1.5 system-ui,sans-serif;box-shadow:0 8px 30px #0008;pointer-events:auto';
+    panel.innerHTML = '<strong style="display:block;font-size:16px;margin-bottom:5px">KitRace could not finish starting</strong><span id="kitRaceStartupMessage">Please reload the page. The error has been recorded for debugging.</span><button type="button" id="kitRaceStartupReload" style="display:block;margin-top:12px;padding:9px 14px;border:0;border-radius:9px;background:#19d3ea;color:#02222a;font-weight:800">Reload game</button>';
+    document.body.appendChild(panel);
+    panel.querySelector('#kitRaceStartupReload').addEventListener('click', () => window.location.reload());
+  }
+  const message = panel.querySelector('#kitRaceStartupMessage');
+  if (message) message.textContent = (error && (error.message || error.reason && error.reason.message)) ? String(error.message || error.reason.message).slice(0, 220) : 'Please reload the page. The startup error has been recorded for debugging.';
+  console.error('[KitRace startup failure]', error);
+}
+window.addEventListener('error', event => {
+  if (!window.__kitRaceBooted) showStartupFailure(event.error || new Error(event.message || 'Unknown startup error'));
+});
+
+/* UI WIRING — registered before renderer/world setup so startup failures cannot silently kill the menu. */
+const missionButtons = [...document.querySelectorAll('#missionPicker [data-mission]')];
+function showMissionSelect() {
+  $('landingActions').classList.add('hide');
+  $('setupPanel').classList.add('show');
+}
+function showTitleScreen() {
+  $('landingActions').classList.remove('hide');
+  $('setupPanel').classList.remove('show');
+}
+$('playBtn').addEventListener('click', showMissionSelect);
+$('backToTitle').addEventListener('click', showTitleScreen);
+missionButtons.forEach(button => {
+  const id = button.dataset.mission;
+  button.classList.toggle('active', ACTIVE_MISSION === id);
+  button.querySelector('span').textContent = ACTIVE_MISSION === id ? 'SELECTED' : 'AVAILABLE';
+  if (ACTIVE_MISSION === id) button.style.borderColor = 'rgba(25,211,234,.75)';
+  button.addEventListener('click', () => {
+    if (ACTIVE_MISSION !== id) window.location.href = window.location.pathname + '?mission=' + id + '&screen=missions';
+  });
+});
+if (new URLSearchParams(window.location.search).get('screen') === 'missions') showMissionSelect();
+$('go').addEventListener('click', () => { try { audioInit(); if (ready) startRide(); else showStartupFailure(new Error('The game world has not finished initializing.')); } catch (error) { showStartupFailure(error); } });
+// Mobile browsers can suspend Web Audio when switching apps, locking the screen, or after inactivity.
+document.addEventListener('visibilitychange', () => {
+  if (!document.hidden && AC && AC.state === 'suspended') {
+    AC.resume().then(() => { if (Music.playing) Music.next = AC.currentTime + 0.08; }).catch(() => {});
+  }
+});
+window.addEventListener('pageshow', () => {
+  if (AC && AC.state === 'suspended') AC.resume().then(() => { if (Music.playing) Music.next = AC.currentTime + 0.08; }).catch(() => {});
+});
+$('mLater').addEventListener('click', () => closeModal(false));
+$('mTake').addEventListener('click', () => closeModal(true));
+$('bCam').addEventListener('click', toggleCam);
+$('bBack').addEventListener('click', backToRoad);
+$('bSnd').addEventListener('click', () => setMuted(!muted));
+$('bPause').addEventListener('click', () => paused ? resumeRide() : pauseRide());
+$('resumeRide').addEventListener('click', resumeRide);
+$('pauseSound').addEventListener('click', () => setMuted(!muted));
+$('status').addEventListener('click', () => { const r = $('roster'); r.classList.toggle('hide'); if (!r.classList.contains('hide')) updateRoster(); });
+$('aExplore').addEventListener('click', () => { $('arrive').classList.add('hide'); modalOpen = false; $('aExplore').textContent = 'Free ride'; });
+$('aOpen').addEventListener('click', () => { if (KITLAB_URL) window.open(KITLAB_URL, '_blank', 'noopener'); });
+$('aNext').addEventListener('click', () => {
+  const nextIndex = MISSION_IDS.indexOf(ACTIVE_MISSION) + 1;
+  if (nextIndex >= 0 && nextIndex < MISSION_IDS.length) window.location.href = window.location.pathname + '?mission=' + MISSION_IDS[nextIndex];
+});
+$('aAgain').addEventListener('click', () => { $('arrive').classList.add('hide'); modalOpen = false; $('aExplore').textContent = 'Free ride'; resetRun(); });
+window.addEventListener('pagehide', () => { try { if (Net.mode === 'live') window.storage.delete(Net.myKey, true); } catch (e) { } });
+
+$('help').textContent = IS_TOUCH
+  ? 'Steer with your left thumb. Jump, boost, and tap Trick to cycle real bike stunts: wheelies, manuals, endos, bunny hops, barspins, tailwhips, tabletops, Superman, no-handers, backflips and 360s.'
+  : 'A/D steers, Space jumps, S brakes, Shift boosts. Press 1–9 and 0 for stunts; Q cycles through all 11. Build speed and jump for aerial tricks. B rings the bell, C changes view, R returns to the road.';
+
+
+
 const perm = (function () { const r = mulberry32(SEED), p = []; for (let i = 0; i < 256; i++) p.push(i); for (let i = 255; i > 0; i--) { const j = Math.floor(r() * (i + 1)); const t = p[i]; p[i] = p[j]; p[j] = t; } return p.concat(p); })();
 function hash2(ix, iz) { return perm[perm[ix & 255] + (iz & 255)] / 255; }
 function vnoise(x, z) {
@@ -2261,62 +2336,6 @@ if (window.visualViewport) {
 resize();
 
 /* ============================================================
-   UI WIRING
-   ============================================================ */
-const missionButtons = [...document.querySelectorAll('#missionPicker [data-mission]')];
-function showMissionSelect() {
-  $('landingActions').classList.add('hide');
-  $('setupPanel').classList.add('show');
-}
-function showTitleScreen() {
-  $('landingActions').classList.remove('hide');
-  $('setupPanel').classList.remove('show');
-}
-$('playBtn').addEventListener('click', showMissionSelect);
-$('backToTitle').addEventListener('click', showTitleScreen);
-missionButtons.forEach(button => {
-  const id = button.dataset.mission;
-  button.classList.toggle('active', ACTIVE_MISSION === id);
-  button.querySelector('span').textContent = ACTIVE_MISSION === id ? 'SELECTED' : 'AVAILABLE';
-  if (ACTIVE_MISSION === id) button.style.borderColor = 'rgba(25,211,234,.75)';
-  button.addEventListener('click', () => {
-    if (ACTIVE_MISSION !== id) window.location.href = window.location.pathname + '?mission=' + id + '&screen=missions';
-  });
-});
-if (new URLSearchParams(window.location.search).get('screen') === 'missions') showMissionSelect();
-$('go').addEventListener('click', () => { audioInit(); if (ready) startRide(); });
-// Mobile browsers can suspend Web Audio when switching apps, locking the screen, or after inactivity.
-document.addEventListener('visibilitychange', () => {
-  if (!document.hidden && AC && AC.state === 'suspended') {
-    AC.resume().then(() => { if (Music.playing) Music.next = AC.currentTime + 0.08; }).catch(() => {});
-  }
-});
-window.addEventListener('pageshow', () => {
-  if (AC && AC.state === 'suspended') AC.resume().then(() => { if (Music.playing) Music.next = AC.currentTime + 0.08; }).catch(() => {});
-});
-$('mLater').addEventListener('click', () => closeModal(false));
-$('mTake').addEventListener('click', () => closeModal(true));
-$('bCam').addEventListener('click', toggleCam);
-$('bBack').addEventListener('click', backToRoad);
-$('bSnd').addEventListener('click', () => setMuted(!muted));
-$('bPause').addEventListener('click', () => paused ? resumeRide() : pauseRide());
-$('resumeRide').addEventListener('click', resumeRide);
-$('pauseSound').addEventListener('click', () => setMuted(!muted));
-$('status').addEventListener('click', () => { const r = $('roster'); r.classList.toggle('hide'); if (!r.classList.contains('hide')) updateRoster(); });
-$('aExplore').addEventListener('click', () => { $('arrive').classList.add('hide'); modalOpen = false; $('aExplore').textContent = 'Free ride'; });
-$('aOpen').addEventListener('click', () => { if (KITLAB_URL) window.open(KITLAB_URL, '_blank', 'noopener'); });
-$('aNext').addEventListener('click', () => {
-  const nextIndex = MISSION_IDS.indexOf(ACTIVE_MISSION) + 1;
-  if (nextIndex >= 0 && nextIndex < MISSION_IDS.length) window.location.href = window.location.pathname + '?mission=' + MISSION_IDS[nextIndex];
-});
-$('aAgain').addEventListener('click', () => { $('arrive').classList.add('hide'); modalOpen = false; $('aExplore').textContent = 'Free ride'; resetRun(); });
-window.addEventListener('pagehide', () => { try { if (Net.mode === 'live') window.storage.delete(Net.myKey, true); } catch (e) { } });
-
-$('help').textContent = IS_TOUCH
-  ? 'Steer with your left thumb. Jump, boost, and tap Trick to cycle real bike stunts: wheelies, manuals, endos, bunny hops, barspins, tailwhips, tabletops, Superman, no-handers, backflips and 360s.'
-  : 'A/D steers, Space jumps, S brakes, Shift boosts. Press 1–9 and 0 for stunts; Q cycles through all 11. Build speed and jump for aerial tricks. B rings the bell, C changes view, R returns to the road.';
-
-/* ============================================================
    BOOT
    ============================================================ */
 (async function boot() {
@@ -2342,6 +2361,7 @@ $('help').textContent = IS_TOUCH
     scene.add(me.root);
     placeAtPath(0, 0);
     ready = true;
+    window.__kitRaceBooted = true;
     $('go').disabled = false; $('go').textContent = 'Start riding';
   }, 40);
   requestAnimationFrame(loop);
