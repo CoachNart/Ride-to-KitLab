@@ -186,6 +186,8 @@
     }, true);
     window.addEventListener('error', function (event) {
       if (window.__kitRaceBooted) return;
+      var startupLoader = document.getElementById('brandLoader');
+      if (startupLoader) { startupLoader.classList.add('loaded'); startupLoader.style.pointerEvents = 'none'; }
       var panel = document.getElementById('kitRaceStartupFailure');
       if (!panel) {
         panel = document.createElement('div');
