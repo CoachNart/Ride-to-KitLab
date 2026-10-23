@@ -1859,6 +1859,8 @@ function controls() {
   const clearInputs = () => {
     resetSteer();
     activeTouches.clear();
+    if (typeof heldPointers !== 'undefined') heldPointers.clear();
+    if (typeof handledPointers !== 'undefined') handledPointers.clear();
     syncHeldButtons();
     document.querySelectorAll('.tb.down').forEach(el => el.classList.remove('down'));
   };
