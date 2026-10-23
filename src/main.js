@@ -1085,29 +1085,53 @@ function updateDust(dt) {
 
 function wipeout(reason) {
   if (wipeoutPending || !started) return;
-  wipeoutPending = true; combo = 1; shake = 0.85; hitFlash();
-  lives = Math.max(0, lives - 1); updateLifeHud();
-  autoBubble(lives > 0 ? 'Wipeout! I have ' + lives + ' lives left.' : 'Last life gone. New run!');
+  wipeoutPending = true;
+  combo = 1; shake = 0.85; hitFlash();
+  // Each collision costs exactly one heart. The rider gets two recoveries before the run ends.
+  lives = Math.max(0, lives - 1);
+  updateLifeHud();
+  autoBubble(lives > 0 ? 'Wipeout! Get back in the ride.' : 'All lives used. Restart your ride.');
   crashSound();
-  if (lives > 0) toast((reason || 'Wipeout') + ' — 1 life lost · ' + lives + ' left', 2200);
-  else toast('No lives left — this run will restart.', 2200);
+  if (lives > 0) toast((reason || 'Wipeout') + ' — keep riding!', 1800);
+  else toast('Ride over — restart to try again.', 2200);
   flash(() => {});
   setTimeout(() => {
     if (!started) { wipeoutPending = false; return; }
-    $('modal').classList.add('hide'); $('arrive').classList.add('hide'); modalOpen = false;
+    $('modal').classList.add('hide');
+    $('arrive').classList.add('hide');
+    modalOpen = false;
+
     if (lives > 0) {
-      // Preserve checkpoints, score, coins and elapsed time after the first two wipeouts.
-      hazards.forEach(h => { h.broken = false; h.near = false; h.over = false; h.crashed = false; h.skipNear = false; h.mesh.visible = true; });
-      const checkpoint = collectedCount > 0 ? shards[collectedCount - 1].pathIndex + 8 : 0;
-      setZone(0); placeAtPath(clamp(checkpoint, 0, PS - 1), 0);
-      P.stamina = 1; P.stuck = 0; P.inv = 1.8; countdown = 2.2;
-      toast('Back at checkpoint ' + collectedCount + '/5. Keep going!', 2400);
+      // Recover close to where the hit happened; do not send the rider to the start/checkpoint.
+      hazards.forEach(h => {
+        h.broken = false; h.near = false; h.over = false;
+        h.crashed = false; h.skipNear = false; h.mesh.visible = true;
+      });
+      const recoveryPath = clamp((Number(P.pathIdx) || 0) + 4, 0, PS - 1);
+      setZone(0);
+      placeAtPath(recoveryPath, 0);
+      P.stamina = 1;
+      P.stuck = 0;
+      P.v = 0;
+      P.vy = 0;
+      P.inv = 2.5;
+      countdown = 0;
       saveProgressState();
+      toast('Back on the track — keep going!', 2000);
     } else {
-      // Third wipeout ends the attempt. Saved profile and records remain untouched.
-      resetRun(); lives = 3; updateLifeHud(); P.stamina = 1; P.stuck = 0;
-      toast('New run started. You have 3 fresh lives.', 2500);
+      // The third wipeout ends this attempt and returns to the start screen.
+      finished = true;
       saveProgressState();
+      started = false;
+      paused = false;
+      Music.stop();
+      $('pause').classList.add('hide');
+      $('hud').classList.add('hide');
+      $('menu').classList.remove('hide');
+      $('setupPanel').classList.add('show');
+      $('landingActions').classList.add('hide');
+      if ($('go')) $('go').textContent = 'Restart ride';
+      if ($('accountStatus')) $('accountStatus').textContent = 'Ride ended. Your profile and records are saved — start again when ready.';
     }
     wipeoutPending = false;
   }, 750);
@@ -1958,10 +1982,16 @@ async function showArrival() {
   renderBoard($('aBoard'), await loadBoard());
 }
 function updateLifeHud() {
-  const count = $('lifeCount');
-  if (count) count.textContent = lives + ' / 3';
   const icons = $('lifeIcons');
-  if (icons) [...icons.children].forEach((node, i) => node.classList.toggle('off', i >= lives));
+  if (icons) {
+    [...icons.children].forEach((node, i) => {
+      const active = i < lives;
+      node.classList.toggle('off', !active);
+      node.setAttribute('aria-hidden', active ? 'false' : 'true');
+    });
+  }
+  const hud = $('lifeHud');
+  if (hud) hud.setAttribute('aria-label', lives + (lives === 1 ? ' life remaining' : ' lives remaining'));
 }
 function hasResumableProgress() {
   return !!(savedProgress && savedProgress.mission === ACTIVE_MISSION && !savedProgress.finished);
