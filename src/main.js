@@ -27,7 +27,12 @@ const KITLAB_URL = '';
 const IS_TOUCH = ('ontouchstart' in window) || navigator.maxTouchPoints > 0 || (window.matchMedia && matchMedia('(pointer:coarse)').matches);
 const MISSION_IDS = ['neon', 'coastline', 'desert', 'mountain', 'city'];
 const requestedMission = new URLSearchParams(window.location.search).get('mission');
-const ACTIVE_MISSION = MISSION_IDS.includes(requestedMission) ? requestedMission : 'neon';
+let lastSavedMission = 'neon';
+try {
+  const last = localStorage.getItem('ride-to-kitlab:last-mission');
+  if (MISSION_IDS.includes(last)) lastSavedMission = last;
+} catch (e) { }
+const ACTIVE_MISSION = MISSION_IDS.includes(requestedMission) ? requestedMission : lastSavedMission;
 const MISSION_TITLES = { neon: 'NEON SPRINT', coastline: 'COASTLINE RUSH', desert: 'DUST DEVIL', mountain: 'MOUNTAIN PASS', city: 'CITY LIGHTS' };
 const MISSION_TITLE = MISSION_TITLES[ACTIVE_MISSION];
 const SEED = 7731, HALF = 1350, N = 320, CELL = (HALF * 2) / N, WATER = -5.5, PS = 1100;
@@ -2082,6 +2087,7 @@ function startRide() {
   myGender = $('inGender').value === 'female' ? 'female' : 'male';
   aiOpponentCount = clamp(parseInt($('inAICount').value, 10) || 0, 0, 5);
   try { localStorage.setItem('ride-to-kitlab:ai-count', String(aiOpponentCount)); } catch (e) { }
+  try { localStorage.setItem('ride-to-kitlab:last-mission', ACTIVE_MISSION); } catch (e) { }
   try { localStorage.setItem('ride-to-kitlab:profile', JSON.stringify({ id: myId, name: myName, gender: myGender })); } catch (e) { }
   myColor = hashStr(myId) % RIDER_PAL.length;
   scene.remove(me.root);
