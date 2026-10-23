@@ -132,7 +132,7 @@ window.storage = {
   async list(prefixKey) {
     await ensureAuthenticated();
     const prefix = validKey(prefixKey), keys = new Set();
-    const root = await get(query(ref(database), orderByKey(), startAt(prefix), endAt(prefix + '\\uf8ff')));
+    const root = await get(query(ref(database), orderByKey(), startAt(prefix), endAt(prefix + '\uf8ff')));
     root.forEach(child => { if (child.key && child.key.startsWith(prefix)) keys.add(child.key); });
     const loc = nestedListLocation(prefix);
     if (loc) {
