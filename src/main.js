@@ -119,7 +119,6 @@ window.addEventListener('error', event => {
 });
 
 /* UI WIRING — registered before renderer/world setup so startup failures cannot silently kill the menu. */
-window.__kitRaceUiWired = true;
 const missionButtons = [...document.querySelectorAll('#missionPicker [data-mission]')];
 function showMissionSelect() {
   $('landingActions').classList.add('hide');
@@ -141,6 +140,8 @@ missionButtons.forEach(button => {
   });
 });
 if (new URLSearchParams(window.location.search).get('screen') === 'missions') showMissionSelect();
+// Only disable the inline fallback after the primary Play/back/mission handlers are actually attached.
+window.__kitRaceUiWired = true;
 $('go').addEventListener('click', () => { try { audioInit(); if (ready) startRide(); else showStartupFailure(new Error('The game world has not finished initializing.')); } catch (error) { showStartupFailure(error); } });
 // Mobile browsers can suspend Web Audio when switching apps, locking the screen, or after inactivity.
 document.addEventListener('visibilitychange', () => {
