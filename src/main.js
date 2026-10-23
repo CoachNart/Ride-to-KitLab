@@ -1080,15 +1080,30 @@ function updateDust(dt) {
 function wipeout(reason) {
   if (wipeoutPending || !started) return;
   wipeoutPending = true; combo = 1; shake = 0.85; hitFlash();
-  const lines = ['Oof! Back to the start 😵', 'The road won that round 😂', 'That was a committed tumble.', 'Resetting. We go again!'];
-  autoBubble(lines[Math.floor(Math.random() * lines.length)]);
-  crashSound(); toast((reason || 'Wipeout') + ' — starting over!', 1800);
+  lives = Math.max(0, lives - 1); updateLifeHud();
+  autoBubble(lives > 0 ? 'Wipeout! I have ' + lives + ' lives left.' : 'Last life gone. New run!');
+  crashSound();
+  if (lives > 0) toast((reason || 'Wipeout') + ' — 1 life lost · ' + lives + ' left', 2200);
+  else toast('No lives left — this run will restart.', 2200);
   flash(() => {});
   setTimeout(() => {
     if (!started) { wipeoutPending = false; return; }
     $('modal').classList.add('hide'); $('arrive').classList.add('hide'); modalOpen = false;
-    resetRun(); P.stamina = 1; P.stuck = 0; wipeoutPending = false;
-    toast('Back at the start. One more try!', 2200);
+    if (lives > 0) {
+      // Preserve checkpoints, score, coins and elapsed time after the first two wipeouts.
+      hazards.forEach(h => { h.broken = false; h.near = false; h.over = false; h.crashed = false; h.skipNear = false; h.mesh.visible = true; });
+      const checkpoint = collectedCount > 0 ? shards[collectedCount - 1].pathIndex + 8 : 0;
+      setZone(0); placeAtPath(clamp(checkpoint, 0, PS - 1), 0);
+      P.stamina = 1; P.stuck = 0; P.inv = 1.8; countdown = 2.2;
+      toast('Back at checkpoint ' + collectedCount + '/5. Keep going!', 2400);
+      saveProgressState();
+    } else {
+      // Third wipeout ends the attempt. Saved profile and records remain untouched.
+      resetRun(); lives = 3; updateLifeHud(); P.stamina = 1; P.stuck = 0;
+      toast('New run started. You have 3 fresh lives.', 2500);
+      saveProgressState();
+    }
+    wipeoutPending = false;
   }, 750);
 }
 function crash(h, dx, dz) {
@@ -1222,6 +1237,7 @@ let zone = 0, finished = false, finishTime = 0, runTime = 0;
 const collected = [false, false, false, false, false]; let collectedCount = 0;
 const P = { x: 0, z: 0, y: 0, yaw: 0, v: 0, steerAng: 0, lean: 0, vy: 0, grounded: true, pitch: 0, stamina: 1, pathIdx: 0, lastGy: 0, stun: 0, inv: 0, padT: 0, mud: 0, jumpCd: 0, stuck: 0 };
 let camYaw = 0, camMode = 0, shake = 0, menuAng = 0, myName = 'Rider', myColor = 0, myGender = 'male', myId = '', myRoom = 'kitlab', usedKeyboard = false, lastGateMsg = 0, wipeoutPending = false, lastSocialAt = 0;
+let lives = 3, savedProgress = null, lastProgressSave = 0, accountUser = null;
 let me = null;
 const keys = {}, touch = { steer: 0, brake: false, boost: false, jump: false };
 function activateTrick(mode) {
@@ -1920,6 +1936,7 @@ async function showArrival() {
 }
 function resetRun() {
   window.__clearRideControls?.();
+  lives = 3; updateLifeHud();
   wipeoutPending = false; paused = false; $('pause').classList.add('hide'); $('bPause').textContent = 'Pause'; $('modal').classList.add('hide'); $('arrive').classList.add('hide'); modalOpen = false;
   for (let i = 0; i < 5; i++) {
     collected[i] = false; const s = shards[i]; s.armed = true; s.gem.scale.setScalar(1);
