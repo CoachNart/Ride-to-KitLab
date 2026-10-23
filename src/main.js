@@ -1841,9 +1841,10 @@ function controls() {
 (function bindTouch() {
   const zonePad = $('padZone');
   const knob = $('knob');
-  // Keep each active finger independent. Do not capture pointers on individual
-  // buttons: global pointer tracking avoids one control stealing another.
-  const pointers = new Map();
+  // Keep one independent record per finger. On touch devices use Touch Events
+  // directly; Android WebViews can cancel/retarget Pointer Events during
+  // simultaneous button + steering gestures.
+  const active = new Map();
   let steerId = null;
   let steerStartX = 0;
 
@@ -1855,70 +1856,125 @@ function controls() {
 
   function syncHeldButtons() {
     for (const key of ['brake', 'boost', 'jump']) {
-      const held = Array.from(pointers.values()).some(p => p.type === 'button' && p.key === key);
+      const held = Array.from(active.values()).some(p => p.type === 'button' && p.key === key);
       touch[key] = held;
-      const button = key === 'brake' ? $('tBrake') : key === 'boost' ? $('tBoost') : $('tJump');
+      const id = key === 'brake' ? 'tBrake' : key === 'boost' ? 'tBoost' : 'tJump';
+      const button = $(id);
       if (button) button.classList.toggle('down', held);
     }
   }
 
   function clearInputs() {
-    pointers.clear();
+    active.clear();
     resetSteer();
-    touch.brake = false;
-    touch.boost = false;
-    touch.jump = false;
+    touch.brake = touch.boost = touch.jump = false;
     document.querySelectorAll('.tb.down').forEach(el => el.classList.remove('down'));
   }
 
-  function isPrimaryPointer(e) {
-    return !(e.pointerType === 'mouse' && e.button !== 0);
-  }
-
-  zonePad.addEventListener('pointerdown', e => {
-    if (!isPrimaryPointer(e) || steerId !== null || pointers.has(e.pointerId)) return;
+  function startButtonTouch(e, key) {
     e.preventDefault();
-    e.stopPropagation();
-    steerId = e.pointerId;
-    steerStartX = e.clientX;
-    pointers.set(e.pointerId, { type: 'steer' });
-  }, { passive: false });
-
-  for (const [id, key] of [['tBrake', 'brake'], ['tBoost', 'boost'], ['tJump', 'jump']]) {
-    const button = $(id);
-    button.addEventListener('pointerdown', e => {
-      if (!isPrimaryPointer(e) || pointers.has(e.pointerId)) return;
-      e.preventDefault();
-      e.stopPropagation();
-      pointers.set(e.pointerId, { type: 'button', key });
-      syncHeldButtons();
-    }, { passive: false });
-  }
-
-  const trick = $('tTrick');
-  trick.addEventListener('pointerdown', e => {
-    if (!isPrimaryPointer(e) || pointers.has(e.pointerId)) return;
-    e.preventDefault();
-    e.stopPropagation();
-    pointers.set(e.pointerId, { type: 'action' });
-    cycleTrick();
-  }, { passive: false });
-
-  window.addEventListener('pointermove', e => {
-    if (e.pointerId !== steerId) return;
-    const dx = e.clientX - steerStartX;
-    touch.steer = clamp(-dx / 55, -1, 1);
-    knob.style.transform = 'translateX(' + clamp(dx, -52, 52) + 'px)';
-  }, { passive: false });
-
-  function releasePointer(e) {
-    if (!pointers.has(e.pointerId)) return;
-    pointers.delete(e.pointerId);
-    if (e.pointerId === steerId) resetSteer();
+    for (const finger of e.changedTouches) {
+      if (active.has(finger.identifier)) continue;
+      active.set(finger.identifier, { type: 'button', key });
+    }
     syncHeldButtons();
   }
-  window.addEventListener('pointerup', releasePointer);
-  window.addEventListener('pointercancel', releasePointer);
+
+  function startSteerTouch(e) {
+    e.preventDefault();
+    if (steerId !== null) return;
+    for (const finger of e.changedTouches) {
+      if (active.has(finger.identifier)) continue;
+      steerId = finger.identifier;
+      steerStartX = finger.clientX;
+      active.set(finger.identifier, { type: 'steer' });
+      break;
+    }
+  }
+
+  function moveTouches(e) {
+    if (steerId === null) return;
+    for (const finger of e.changedTouches) {
+      if (finger.identifier !== steerId) continue;
+      e.preventDefault();
+      const dx = finger.clientX - steerStartX;
+      touch.steer = clamp(-dx / 55, -1, 1);
+      knob.style.transform = 'translateX(' + clamp(dx, -52, 52) + 'px)';
+      break;
+    }
+  }
+
+  function endTouches(e) {
+    let changed = false;
+    for (const finger of e.changedTouches) {
+      if (!active.has(finger.identifier)) continue;
+      active.delete(finger.identifier);
+      if (finger.identifier === steerId) resetSteer();
+      changed = true;
+    }
+    if (changed) syncHeldButtons();
+  }
+
+  if (IS_TOUCH) {
+    zonePad.addEventListener('touchstart', startSteerTouch, { passive: false });
+    $('tBrake').addEventListener('touchstart', e => startButtonTouch(e, 'brake'), { passive: false });
+    $('tBoost').addEventListener('touchstart', e => startButtonTouch(e, 'boost'), { passive: false });
+    $('tJump').addEventListener('touchstart', e => startButtonTouch(e, 'jump'), { passive: false });
+    $('tTrick').addEventListener('touchstart', e => {
+      e.preventDefault();
+      for (const finger of e.changedTouches) {
+        if (active.has(finger.identifier)) continue;
+        active.set(finger.identifier, { type: 'action' });
+        cycleTrick();
+      }
+    }, { passive: false });
+    document.addEventListener('touchmove', moveTouches, { passive: false });
+    document.addEventListener('touchend', endTouches, { passive: false });
+    document.addEventListener('touchcancel', endTouches, { passive: false });
+  } else {
+    function isPrimaryPointer(e) {
+      return !(e.pointerType === 'mouse' && e.button !== 0);
+    }
+    zonePad.addEventListener('pointerdown', e => {
+      if (!isPrimaryPointer(e) || steerId !== null || active.has(e.pointerId)) return;
+      e.preventDefault();
+      steerId = e.pointerId;
+      steerStartX = e.clientX;
+      active.set(e.pointerId, { type: 'steer' });
+    }, { passive: false });
+
+    for (const [id, key] of [['tBrake', 'brake'], ['tBoost', 'boost'], ['tJump', 'jump']]) {
+      $(id).addEventListener('pointerdown', e => {
+        if (!isPrimaryPointer(e) || active.has(e.pointerId)) return;
+        e.preventDefault();
+        active.set(e.pointerId, { type: 'button', key });
+        syncHeldButtons();
+      }, { passive: false });
+    }
+    $('tTrick').addEventListener('pointerdown', e => {
+      if (!isPrimaryPointer(e) || active.has(e.pointerId)) return;
+      e.preventDefault();
+      active.set(e.pointerId, { type: 'action' });
+      cycleTrick();
+    }, { passive: false });
+
+    window.addEventListener('pointermove', e => {
+      if (e.pointerId !== steerId) return;
+      const dx = e.clientX - steerStartX;
+      touch.steer = clamp(-dx / 55, -1, 1);
+      knob.style.transform = 'translateX(' + clamp(dx, -52, 52) + 'px)';
+    }, { passive: false });
+
+    function releasePointer(e) {
+      if (!active.has(e.pointerId)) return;
+      active.delete(e.pointerId);
+      if (e.pointerId === steerId) resetSteer();
+      syncHeldButtons();
+    }
+    window.addEventListener('pointerup', releasePointer);
+    window.addEventListener('pointercancel', releasePointer);
+  }
+
   window.addEventListener('blur', clearInputs);
   document.addEventListener('visibilitychange', () => {
     if (document.hidden) clearInputs();
