@@ -106,6 +106,7 @@ export function bindRideControls({ touch, cycleTrick, clamp }) {
   });
 
   window.__clearRideControls = clearControls;
+  window.__kitRaceTouch = touch;
 }
 
 
