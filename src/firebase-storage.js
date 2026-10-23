@@ -1,7 +1,7 @@
 import { initializeApp, getApps, getApp } from 'firebase/app';
 import {
   getAuth, signInAnonymously, GoogleAuthProvider, signInWithPopup,
-  linkWithPopup, signOut
+  linkWithPopup, signOut, setPersistence, browserLocalPersistence, onAuthStateChanged
 } from 'firebase/auth';
 import {
   getDatabase, ref, set, get, remove, query, orderByKey, startAt, endAt
@@ -21,23 +21,32 @@ const app = getApps().length ? getApp() : initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const database = getDatabase(app, firebaseConfig.databaseURL);
 const googleProvider = new GoogleAuthProvider();
-googleProvider.setCustomParameters({ prompt: 'select_account' });
 
-// Firebase Auth uses browser-local persistence by default on supported web browsers.
+// Explicitly persist the session in this browser and wait for Firebase to restore it
+// before creating a guest session. Calling signInAnonymously before Firebase finishes
+// restoring auth state can replace a returning Google session and cause repeat sign-ins.
+const authReadyPromise = setPersistence(auth, browserLocalPersistence).then(() =>
+  new Promise(resolve => {
+    let unsubscribe;
+    unsubscribe = onAuthStateChanged(auth, user => {
+      if (unsubscribe) unsubscribe();
+      resolve(user || null);
+    });
+  })
+);
 
-let authPromise = auth.currentUser
-  ? Promise.resolve(auth.currentUser)
-  : signInAnonymously(auth).then(result => result.user);
+let authPromise = null;
 
 async function ensureAuthenticated() {
+  await authReadyPromise;
   if (auth.currentUser) return auth.currentUser;
-  if (!authPromise) authPromise = signInAnonymously(auth).then(result => result.user);
-  try {
-    return await authPromise;
-  } catch (error) {
-    authPromise = null;
-    throw error;
+  if (!authPromise) {
+    authPromise = signInAnonymously(auth).then(result => result.user).catch(error => {
+      authPromise = null;
+      throw error;
+    });
   }
+  return authPromise;
 }
 
 function hasInvalidKeyChars(value) {
