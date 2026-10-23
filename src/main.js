@@ -1934,6 +1934,122 @@ async function showArrival() {
   $('aBoard').innerHTML = ''; $('arrive').classList.remove('hide'); modalOpen = true;
   renderBoard($('aBoard'), await loadBoard());
 }
+function updateLifeHud() {
+  const count = $('lifeCount');
+  if (count) count.textContent = lives + ' / 3';
+  const icons = $('lifeIcons');
+  if (icons) [...icons.children].forEach((node, i) => node.classList.toggle('off', i >= lives));
+}
+function hasResumableProgress() {
+  return !!(savedProgress && savedProgress.mission === ACTIVE_MISSION && !savedProgress.finished);
+}
+function saveProgressState() {
+  if (!started || !ready) return;
+  const snapshot = {
+    mission: ACTIVE_MISSION, x: P.x, z: P.z, yaw: P.yaw, pathIdx: P.pathIdx, zone,
+    collected: collected.slice(), score, combo, coinsGot, runTime, lives,
+    coinAlive: coins.map(item => !!item.alive),
+    brokenHazards: hazards.map(item => !!item.broken),
+    finished: !!finished, finishTime: finishTime || 0, updatedAt: Date.now()
+  };
+  savedProgress = snapshot;
+  try { localStorage.setItem('ride-to-kitlab:progress:' + ACTIVE_MISSION, JSON.stringify(snapshot)); } catch (error) { }
+  if (window.kitRaceAuth && accountUser && !accountUser.isAnonymous) {
+    window.kitRaceAuth.saveProgress(ACTIVE_MISSION, snapshot).catch(error => {
+      console.warn('[KitRace] Cloud progress save failed; local progress is still saved.', error);
+    });
+  }
+}
+function restoreProgressState(snapshot) {
+  if (!snapshot || snapshot.mission !== ACTIVE_MISSION || snapshot.finished) return false;
+  resetRun();
+  const savedCollected = Array.isArray(snapshot.collected) ? snapshot.collected : [];
+  collectedCount = 0;
+  for (let i = 0; i < collected.length; i++) {
+    collected[i] = !!savedCollected[i];
+    const shard = shards[i];
+    if (collected[i]) {
+      collectedCount++;
+      shard.armed = false; shard.gem.scale.setScalar(0.45);
+      shard.gem.material.color.setHex(0x4fdc86); shard.gem.material.emissive.setHex(0x4fdc86);
+      shard.ring.material.color.setHex(0x4fdc86); shard.pad.visible = false; shard.beam.visible = false;
+    }
+  }
+  score = Math.max(0, Number(snapshot.score) || 0);
+  combo = clamp(Number(snapshot.combo) || 1, 1, 8);
+  coinsGot = Math.max(0, Number(snapshot.coinsGot) || 0);
+  runTime = Math.max(0, Number(snapshot.runTime) || 0);
+  lives = clamp(Number(snapshot.lives) || 3, 1, 3);
+  setGateOpen(collectedCount >= 5);
+  resetTrack();
+  if (Array.isArray(snapshot.coinAlive)) coins.forEach((item, i) => {
+    item.alive = snapshot.coinAlive[i] !== false;
+    setCoin(i, item.alive);
+  });
+  if (Array.isArray(snapshot.brokenHazards)) hazards.forEach((item, i) => {
+    item.broken = !!snapshot.brokenHazards[i]; item.mesh.visible = !item.broken;
+  });
+  zone = snapshot.zone === 1 ? 1 : 0;
+  setZone(zone);
+  const x = Number(snapshot.x), z = Number(snapshot.z);
+  if (Number.isFinite(x) && Number.isFinite(z)) {
+    P.x = x; P.z = z; P.yaw = Number(snapshot.yaw) || 0;
+    P.pathIdx = clamp(Math.round(Number(snapshot.pathIdx) || 0), 0, PS);
+    P.y = groundAt(zone, P.x, P.z); P.lastGy = P.y;
+    P.v = 0; P.vy = 0; P.grounded = true; P.steerAng = 0; P.lean = 0; P.stamina = 1; P.inv = 1.6;
+  } else placeAtPath(0, 0);
+  finished = false; finishTime = 0; countdown = 3.2; updateLifeHud(); updatePips();
+  savedProgress = { ...snapshot, finished: false };
+  toast('Saved ride restored · ' + collectedCount + '/5 checkpoints', 2800);
+  return true;
+}
+async function handleGoogleSignIn() {
+  const button = $('googleSignInBtn'), label = $('googleSignInLabel'), status = $('accountStatus');
+  if (!window.kitRaceAuth) {
+    status.textContent = 'Account service is still loading. Please try again.';
+    status.className = 'error'; return;
+  }
+  button.disabled = true; label.textContent = 'Connecting…';
+  status.className = ''; status.textContent = 'Opening secure Google sign-in…';
+  try {
+    accountUser = await window.kitRaceAuth.signInWithGoogle();
+    const inputName = $('inName');
+    if (accountUser.displayName && (!inputName.value || /^Rider\\d+$/i.test(inputName.value))) {
+      inputName.value = accountUser.displayName.replace(/[^\\w \\.\\-]/g, '').trim().slice(0, 14) || 'Rider';
+    }
+    myName = inputName.value || accountUser.displayName || 'Rider';
+    await window.kitRaceAuth.saveProfile({ id: myId, name: myName, gender: myGender });
+    let cloud = null;
+    try { cloud = await window.kitRaceAuth.loadProgress(ACTIVE_MISSION); } catch (error) {
+      console.warn('[KitRace] Could not load cloud progress.', error);
+    }
+    let local = null;
+    try { local = JSON.parse(localStorage.getItem('ride-to-kitlab:progress:' + ACTIVE_MISSION) || 'null'); } catch (error) { }
+    if (cloud && (!local || (Number(cloud.updatedAt) || 0) >= (Number(local.updatedAt) || 0))) {
+      savedProgress = cloud;
+      try { localStorage.setItem('ride-to-kitlab:progress:' + ACTIVE_MISSION, JSON.stringify(cloud)); } catch (error) { }
+    } else if (local) {
+      savedProgress = local;
+      await window.kitRaceAuth.saveProgress(ACTIVE_MISSION, local);
+    }
+    $('accountTitle').textContent = 'Rider profile connected';
+    $('accountHint').textContent = accountUser.displayName || accountUser.email || 'Your KitRace profile is ready.';
+    label.textContent = 'Google connected ✓';
+    status.className = 'success';
+    status.textContent = hasResumableProgress() ? 'Profile synced · your saved ride is ready to resume.' : 'Profile synced · records and future progress will be saved.';
+    $('go').textContent = hasResumableProgress() ? 'Resume saved ride' : 'Start riding';
+  } catch (error) {
+    console.error('[KitRace] Google sign-in failed.', error);
+    label.textContent = 'Continue with Google';
+    status.className = 'error';
+    status.textContent = error && error.code === 'auth/unauthorized-domain'
+      ? 'Google sign-in needs this site enabled in Firebase Authentication → Settings → Authorized domains.'
+      : error && (error.code === 'auth/operation-not-allowed' || error.code === 'auth/popup-blocked')
+        ? 'Google sign-in is not enabled for this Firebase project yet. Enable the Google provider and retry.'
+        : 'Could not sign in. Please try again.';
+  } finally { button.disabled = false; }
+}
+
 function resetRun() {
   window.__clearRideControls?.();
   lives = 3; updateLifeHud();
