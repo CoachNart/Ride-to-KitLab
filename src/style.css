@@ -1360,3 +1360,40 @@ body.touch #padZone, body.touch .tb { pointer-events:auto; touch-action:none; }
   filter: brightness(1.05);
   box-shadow: 0 9px 26px rgba(25,211,234,.3) !important;
 }
+
+
+/* Google account button: official Google sign-in treatment (white surface + multicolour G). */
+#googleSignInBtn.google-btn {
+  border: 1px solid #dadce0 !important;
+  background: #fff !important;
+  color: #3c4043 !important;
+  box-shadow: 0 2px 7px rgba(0,0,0,.16), inset 0 1px 0 rgba(255,255,255,.8) !important;
+}
+#googleSignInBtn.google-btn:hover:not(:disabled) {
+  background: #f8faff !important;
+  border-color: #c6dafc !important;
+  box-shadow: 0 3px 10px rgba(0,0,0,.2) !important;
+  filter: none !important;
+}
+#googleSignInBtn .gmail-logo {
+  background: #fff !important;
+  border-radius: 0 !important;
+  padding: 0 !important;
+}
+/* Never substitute a user's name initial for their Google account photo. */
+#profileAvatarInitial,
+#profileButtonAvatarInitial { display: none !important; }
+#profileAvatarWrap {
+  background-color: rgba(25,211,234,.1) !important;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%237ceaf5'%3E%3Cpath d='M12 12a4.2 4.2 0 1 0 0-8.4 4.2 4.2 0 0 0 0 8.4Zm0 2c-4.1 0-7.5 2.1-7.5 4.7V21h15v-2.3c0-2.6-3.4-4.7-7.5-4.7Z'/%3E%3C/svg%3E") !important;
+  background-repeat: no-repeat !important;
+  background-position: center !important;
+  background-size: 28px !important;
+}
+#profileButtonAvatar {
+  background-color: rgba(25,211,234,.1) !important;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%237ceaf5'%3E%3Cpath d='M12 12a4.2 4.2 0 1 0 0-8.4 4.2 4.2 0 0 0 0 8.4Zm0 2c-4.1 0-7.5 2.1-7.5 4.7V21h15v-2.3c0-2.6-3.4-4.7-7.5-4.7Z'/%3E%3C/svg%3E") !important;
+  background-repeat: no-repeat !important;
+  background-position: center !important;
+  background-size: 22px !important;
+}

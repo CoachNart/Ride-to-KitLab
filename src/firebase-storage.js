@@ -1,7 +1,7 @@
 import { initializeApp, getApps, getApp } from 'firebase/app';
 import {
   getAuth, signInAnonymously, GoogleAuthProvider, signInWithPopup,
-  linkWithPopup, signOut, setPersistence, browserLocalPersistence, onAuthStateChanged
+  linkWithPopup, signOut, setPersistence, browserLocalPersistence, onAuthStateChanged, updateProfile
 } from 'firebase/auth';
 import {
   getDatabase, ref, set, get, remove, query, orderByKey, startAt, endAt
@@ -75,11 +75,12 @@ function nestedListLocation(prefix) {
 }
 
 function publicUser(user) {
+  const googleProviderData = (user.providerData || []).find(provider => provider.providerId === 'google.com');
   return {
     uid: user.uid,
-    displayName: user.displayName || 'KitRace Rider',
-    email: user.email || '',
-    photoURL: user.photoURL || '',
+    displayName: user.displayName || googleProviderData?.displayName || 'KitRace Rider',
+    email: user.email || googleProviderData?.email || '',
+    photoURL: user.photoURL || googleProviderData?.photoURL || '',
     isAnonymous: !!user.isAnonymous
   };
 }
@@ -91,12 +92,20 @@ async function signInWithGoogle() {
     const result = current.isAnonymous
       ? await linkWithPopup(current, googleProvider)
       : await signInWithPopup(auth, googleProvider);
+    const googleProfile = result.additionalUserInfo?.profile;
+    const photoURL = result.user.photoURL || googleProfile?.picture || (result.user.providerData || []).find(provider => provider.providerId === 'google.com')?.photoURL || '';
+    if (photoURL && result.user.photoURL !== photoURL) {
+      await updateProfile(result.user, { photoURL });
+    }
     authPromise = Promise.resolve(result.user);
     return publicUser(result.user);
   } catch (error) {
     // If the Google account already exists, sign in to that account instead.
     if (error.code === 'auth/credential-already-in-use' || error.code === 'auth/email-already-in-use') {
       const result = await signInWithPopup(auth, googleProvider);
+      const googleProfile = result.additionalUserInfo?.profile;
+      const photoURL = result.user.photoURL || googleProfile?.picture || (result.user.providerData || []).find(provider => provider.providerId === 'google.com')?.photoURL || '';
+      if (photoURL && result.user.photoURL !== photoURL) await updateProfile(result.user, { photoURL });
       authPromise = Promise.resolve(result.user);
       return publicUser(result.user);
     }
