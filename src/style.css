@@ -384,6 +384,8 @@ button:active:not(:disabled){transform:translateY(1px) scale(.985)}
 .brow{font-family:var(--font);border-color:rgba(151,224,235,.14)}
 #pauseCard{width:min(390px,100%);padding:28px}
 #pauseCard button{min-width:145px}
+.pauseActions{display:flex;align-items:center;justify-content:center;gap:8px;flex-wrap:wrap}
+.pauseActions .btn{flex:1 1 140px}
 @media(max-width:699px){
   #menu{align-items:flex-end;justify-content:center;padding:10px 10px max(10px,env(safe-area-inset-bottom));background:linear-gradient(0deg,rgba(1,12,18,.96) 0%,rgba(2,17,23,.76) 48%,rgba(2,17,23,.18) 100%)}
   #menuCard{width:min(440px,100%);padding:20px 16px 16px;max-height:calc(100dvh - 20px)}
