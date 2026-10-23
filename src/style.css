@@ -1302,3 +1302,61 @@ body.touch #padZone, body.touch .tb { pointer-events:auto; touch-action:none; }
   filter: brightness(1.06);
   box-shadow: 0 9px 26px rgba(155,120,61,.24) !important;
 }
+
+
+/* KitRace colour correction — restore cyan accents across profile and account UI. */
+:root {
+  --kr-cyan: #19d3ea;
+  --kr-cyan-bright: #35e0ef;
+  --kr-cyan-deep: #0aa4bd;
+  --kr-cyan-glow: rgba(25,211,234,.2);
+}
+/* Keep the premium graphite card, with the original cyan identity restored. */
+#openProfileBtn:hover {
+  border-color: rgba(25,211,234,.75) !important;
+  background: linear-gradient(120deg,rgba(9,58,70,.94),rgba(15,23,26,.98)) !important;
+}
+.profile-button-arrow { color: var(--kr-cyan-bright) !important; }
+#profileCard { border-color: rgba(25,211,234,.36) !important; }
+.profile-eyebrow,
+#profileConnectionStatus { color: var(--kr-cyan-bright) !important; }
+#profileAvatarWrap {
+  border-color: rgba(25,211,234,.58) !important;
+  background: rgba(25,211,234,.11) !important;
+  color: var(--kr-cyan-bright) !important;
+}
+#missionPicker .btn.active,
+#missionPicker .btn[aria-pressed="true"] {
+  border-color: rgba(25,211,234,.88) !important;
+  background: linear-gradient(145deg,rgba(13,80,91,.52),#222326) !important;
+  box-shadow: inset 3px 0 0 var(--kr-cyan), 0 7px 18px rgba(0,0,0,.17) !important;
+}
+#missionPicker .btn.active span,
+#missionPicker .btn[aria-pressed="true"] span { color: #7ceaf5 !important; }
+#setupPanel .setup-fields input:focus,
+#setupPanel .setup-fields select:focus {
+  border-color: rgba(25,211,234,.78) !important;
+  box-shadow: 0 0 0 3px rgba(25,211,234,.13) !important;
+}
+/* Connect Google Account follows the KitRace cyan UI, not the gold/red accent pass. */
+#googleSignInBtn.google-btn {
+  border: 1px solid rgba(160,246,255,.82) !important;
+  background: linear-gradient(135deg,#35e0ef 0%,#13bcd2 62%,#0aa4bd 100%) !important;
+  color: #03202a !important;
+  box-shadow: 0 7px 20px rgba(25,211,234,.22), inset 0 1px 0 rgba(255,255,255,.42) !important;
+}
+#googleSignInBtn.google-btn:hover:not(:disabled) {
+  border-color: #b8fbff !important;
+  filter: brightness(1.05);
+  box-shadow: 0 9px 26px rgba(25,211,234,.3), inset 0 1px 0 rgba(255,255,255,.45) !important;
+}
+.profile-modal-actions .btn.primary {
+  border: 1px solid rgba(160,246,255,.82) !important;
+  background: linear-gradient(135deg,#35e0ef 0%,#13bcd2 62%,#0aa4bd 100%) !important;
+  color: #03202a !important;
+  box-shadow: 0 7px 20px rgba(25,211,234,.22), inset 0 1px 0 rgba(255,255,255,.42) !important;
+}
+.profile-modal-actions .btn.primary:hover {
+  filter: brightness(1.05);
+  box-shadow: 0 9px 26px rgba(25,211,234,.3) !important;
+}
