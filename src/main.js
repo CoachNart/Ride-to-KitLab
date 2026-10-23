@@ -143,6 +143,7 @@ if (new URLSearchParams(window.location.search).get('screen') === 'missions') sh
 // Only disable the inline fallback after the primary Play/back/mission handlers are actually attached.
 window.__kitRaceUiWired = true;
 $('go').addEventListener('click', () => { try { audioInit(); if (ready) startRide(); else showStartupFailure(new Error('The game world has not finished initializing.')); } catch (error) { showStartupFailure(error); } });
+$('googleSignInBtn')?.addEventListener('click', handleGoogleSignIn);
 // Mobile browsers can suspend Web Audio when switching apps, locking the screen, or after inactivity.
 document.addEventListener('visibilitychange', () => {
   if (!document.hidden && AC && AC.state === 'suspended') {
@@ -1916,6 +1917,7 @@ function finishRace() {
   finished = true;
   try { localStorage.setItem('ride-to-kitlab:mission-complete:' + ACTIVE_MISSION, '1'); } catch (e) { }
   finishTime = runTime;
+  saveProgressState();
   flash(() => {
     postScore();
     netSendNow();
@@ -2078,7 +2080,9 @@ function startRide() {
   me = makeBike(RIDER_PAL[myColor], JERSEY_PAL[(myColor + 3) % JERSEY_PAL.length], RIDER_PAL[(myColor + 4) % RIDER_PAL.length], myGender);
   me.setName(myName); scene.add(me.root);
   $('menu').classList.add('hide'); $('hud').classList.remove('hide'); $('qmode').textContent = MISSION_TITLE;
-  started = true; paused = false; $('pause').classList.add('hide'); $('bPause').textContent = 'Pause'; placeAtPath(0, 0); buildPips(); updatePips(); score = 0; combo = 1; coinsGot = 0; countdown = 3.2;
+  started = true; paused = false; $('pause').classList.add('hide'); $('bPause').textContent = 'Pause'; buildPips(); updatePips();
+  if (hasResumableProgress()) restoreProgressState(savedProgress);
+  else { resetRun(); placeAtPath(0, 0); score = 0; combo = 1; coinsGot = 0; countdown = 3.2; lives = 3; updateLifeHud(); }
   activeTrick = 'ride'; trickTimer = 0; aiRaceStarted = false;
   spawnGhosts(aiOpponentCount);
   toast(MISSION_TITLE + ': Clear all 5 checkpoints, collect coins, then beat the AI riders to the finish!', 4200);
@@ -2142,7 +2146,7 @@ function stepPlayer(dt) {
         score += 250; combo = Math.min(8, combo + 1);
         pop('CHECKPOINT ' + collectedCount + '/5  +250', '#4fdc86'); chime();
         if (collectedCount === 5) { setGateOpen(true); toast('All checkpoints cleared! Sprint to the finish line!', 3200); }
-        netSendNow();
+        netSendNow(); saveProgressState();
       }
     }
     // trees and rocks in the scenery
@@ -2326,6 +2330,7 @@ function tick(dt, tms) {
   if (cloudGroup) { cloudGroup.position.set(camera.position.x, 0, camera.position.z); cloudGroup.rotation.y += dt * 0.0025; }
   if (started) {
     const now = performance.now();
+    if (now - lastProgressSave > 5000) { lastProgressSave = now; saveProgressState(); }
     if (Net.mode === 'live') {
       if (now - Net.last > 800) { Net.last = now; netSendNow(); }
       if (now - Net.lastPoll > 1300) { Net.lastPoll = now; netPoll(); }
@@ -2350,6 +2355,7 @@ function resize() {
   camera.aspect = w / h;
   camera.updateProjectionMatrix();
 }
+window.addEventListener('pagehide', () => saveProgressState());
 window.addEventListener('resize', resize, { passive: true });
 window.addEventListener('orientationchange', () => requestAnimationFrame(resize), { passive: true });
 if (window.visualViewport) {
@@ -2369,6 +2375,13 @@ resize();
   const savedName = (prof && prof.name) || ('Rider' + (100 + Math.floor(Math.random() * 900)));
   myGender = prof && prof.gender === 'female' ? 'female' : 'male';
   try { localStorage.setItem('ride-to-kitlab:profile', JSON.stringify({ id: myId, name: savedName, gender: myGender })); } catch (e) { }
+  try {
+    const rawProgress = localStorage.getItem('ride-to-kitlab:progress:' + ACTIVE_MISSION);
+    if (rawProgress) {
+      const parsed = JSON.parse(rawProgress);
+      if (parsed && parsed.mission === ACTIVE_MISSION) savedProgress = parsed;
+    }
+  } catch (e) { }
   $('inName').value = savedName;
   $('inGender').value = myGender;
   try {
@@ -2389,8 +2402,36 @@ resize();
       brandLoader.classList.add('loaded');
       window.setTimeout(() => brandLoader.remove(), 450);
     }
-    $('go').disabled = false; $('go').textContent = 'Start riding';
+    $('go').disabled = false; $('go').textContent = hasResumableProgress() ? 'Resume saved ride' : 'Start riding';
+    updateLifeHud();
   }, 40);
+  // A returning Google user automatically restores their cloud save without another prompt.
+  if (window.kitRaceAuth) window.kitRaceAuth.currentUser().then(async user => {
+    if (!user || user.isAnonymous) return;
+    accountUser = user;
+    $('accountTitle').textContent = 'Rider profile connected';
+    $('accountHint').textContent = user.displayName || user.email || 'Your KitRace profile is ready.';
+    $('googleSignInLabel').textContent = 'Google connected ✓';
+    $('accountStatus').className = 'success';
+    $('accountStatus').textContent = 'Loading your saved ride…';
+    try {
+      const cloud = await window.kitRaceAuth.loadProgress(ACTIVE_MISSION);
+      let local = null;
+      try { local = JSON.parse(localStorage.getItem('ride-to-kitlab:progress:' + ACTIVE_MISSION) || 'null'); } catch (error) { }
+      if (cloud && (!local || (Number(cloud.updatedAt) || 0) >= (Number(local.updatedAt) || 0))) {
+        savedProgress = cloud;
+        localStorage.setItem('ride-to-kitlab:progress:' + ACTIVE_MISSION, JSON.stringify(cloud));
+      } else if (local) {
+        savedProgress = local;
+        await window.kitRaceAuth.saveProgress(ACTIVE_MISSION, local);
+      }
+      $('accountStatus').textContent = hasResumableProgress() ? 'Signed in · your saved ride is ready to resume.' : 'Signed in · progress will sync as you ride.';
+      $('go').textContent = hasResumableProgress() ? 'Resume saved ride' : 'Start riding';
+    } catch (error) {
+      $('accountStatus').className = 'error';
+      $('accountStatus').textContent = 'Signed in, but cloud sync could not load. Local progress remains available.';
+    }
+  }).catch(() => {});
   requestAnimationFrame(loop);
 })();
 
