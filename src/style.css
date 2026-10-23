@@ -1002,3 +1002,245 @@ body.touch #padZone, body.touch .tb { pointer-events:auto; touch-action:none; }
 .profile-modal-actions .btn{min-height:40px}
 @media(max-width:600px){#profileCard{padding:18px;max-height:calc(100dvh - 28px)}#profileActionRow{margin:-6px 0 12px}#openProfileBtn{min-height:54px;padding:8px 10px}.profile-stats>div{padding:10px 6px}.profile-stats strong{font-size:19px}.profile-stats span{font-size:7.5px}}
 @media(prefers-reduced-motion:reduce){#openProfileBtn{transition:none}}
+
+
+/* KitRace premium menu refresh — graphite, porcelain and motorsport red. */
+:root {
+  --kr-ink: #101214;
+  --kr-panel: #171a1d;
+  --kr-panel-raised: #202428;
+  --kr-line: rgba(255,255,255,.12);
+  --kr-muted: #9da4aa;
+  --kr-white: #f4f2ed;
+  --kr-red: #e2463f;
+  --kr-red-deep: #a92525;
+}
+#menu {
+  background: radial-gradient(ellipse at 50% 8%, rgba(77,39,38,.28), transparent 48%), rgba(3,5,7,.82) !important;
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+}
+#menuCard {
+  width: min(520px, calc(100vw - 28px)) !important;
+  padding: clamp(20px, 3vw, 30px) !important;
+  border: 1px solid rgba(255,255,255,.13) !important;
+  border-radius: 22px !important;
+  background: linear-gradient(155deg, rgba(29,32,35,.98), rgba(13,15,17,.99)) !important;
+  box-shadow: 0 28px 90px rgba(0,0,0,.58), inset 0 1px 0 rgba(255,255,255,.055) !important;
+}
+#landingActions { gap: 10px; }
+#landingActions .brand-logo { width: min(32vw, 150px); max-height: 88px; }
+.game-kicker, #screenHeading h2, .profile-eyebrow, .profile-button-copy strong,
+.profile-records-heading h3, .profile-stats span {
+  letter-spacing: .12em;
+}
+.game-kicker { color: #c1c3c5 !important; }
+#menuCard .tagline { color: #b6b9bc !important; font-size: 14px; }
+#landingActions .btn.primary, #go.btn.primary, .profile-modal-actions .btn.primary {
+  border: 1px solid #f06a61 !important;
+  border-radius: 11px !important;
+  background: linear-gradient(180deg, #ed5148, #bd302c) !important;
+  color: #fffaf7 !important;
+  box-shadow: 0 7px 20px rgba(185,39,35,.22), inset 0 1px 0 rgba(255,255,255,.2) !important;
+  text-shadow: none !important;
+}
+#landingActions .btn.primary:hover, #go.btn.primary:hover, .profile-modal-actions .btn.primary:hover {
+  filter: brightness(1.07);
+  box-shadow: 0 9px 26px rgba(185,39,35,.3) !important;
+}
+#accountPanel {
+  padding: 14px !important;
+  border: 1px solid rgba(255,255,255,.1) !important;
+  border-radius: 14px !important;
+  background: linear-gradient(145deg, rgba(255,255,255,.045), rgba(255,255,255,.015)) !important;
+}
+#accountCopy strong { color: var(--kr-white) !important; }
+#accountHint { color: #a9afb4 !important; }
+#googleSignInBtn.google-btn {
+  min-height: 46px;
+  border: 1px solid #ef655c !important;
+  border-radius: 11px !important;
+  background: linear-gradient(180deg, #e94d45, #b92e2a) !important;
+  color: #fff !important;
+  box-shadow: 0 6px 18px rgba(174,35,31,.2), inset 0 1px 0 rgba(255,255,255,.17) !important;
+  font-weight: 800 !important;
+  letter-spacing: .015em;
+}
+#googleSignInBtn.google-btn:hover:not(:disabled) { filter: brightness(1.06); }
+#googleSignInBtn .gmail-logo { background: #fff; border-radius: 7px; padding: 5px; }
+#accountStatus { color: #a9afb4 !important; }
+#accountStatus.success { color: #b7d8bf !important; }
+#accountStatus.error { color: #ff9c95 !important; }
+.menu-foot { color: #858b90 !important; }
+#screenHeading { align-items: center; margin-bottom: 18px !important; }
+#screenHeading h2 { color: #f3f1ec !important; font-size: clamp(19px, 2.8vw, 24px) !important; }
+#backToTitle {
+  border: 1px solid rgba(255,255,255,.13) !important;
+  border-radius: 9px !important;
+  background: rgba(255,255,255,.045) !important;
+  color: #c5c8cb !important;
+  padding: 9px 11px !important;
+}
+#profileActionRow { margin: 0 0 16px !important; }
+#openProfileBtn {
+  min-height: 66px;
+  padding: 12px 14px;
+  border: 1px solid rgba(255,255,255,.13) !important;
+  border-radius: 14px !important;
+  background: linear-gradient(120deg, #25292d, #191c1f) !important;
+  box-shadow: 0 8px 22px rgba(0,0,0,.16), inset 0 1px 0 rgba(255,255,255,.045) !important;
+  transition: border-color .18s ease, background .18s ease, transform .18s ease;
+}
+#openProfileBtn:hover {
+  border-color: rgba(226,70,63,.65) !important;
+  background: linear-gradient(120deg, #2b2d30, #1a1c1f) !important;
+}
+#profileButtonAvatar {
+  display: grid;
+  place-items: center;
+  flex: 0 0 40px;
+  width: 40px;
+  height: 40px;
+  overflow: hidden;
+  border: 1px solid rgba(255,255,255,.2) !important;
+  border-radius: 50%;
+  background: #2b3034 !important;
+  color: #fff !important;
+  font: 800 15px/1 var(--font-display);
+}
+#profileButtonAvatarImage { width: 100%; height: 100%; object-fit: cover; }
+#profileButtonAvatarImage[hidden] { display: none; }
+#profileButtonAvatarInitial[hidden] { display: none; }
+.profile-button-copy strong { color: #f4f2ed !important; font-size: 11px; }
+.profile-button-copy small { color: #9da4aa !important; }
+.profile-button-arrow { color: #f06a61 !important; }
+#missionPicker { gap: 9px !important; margin: 0 0 16px !important; }
+#missionPicker .btn {
+  min-height: 62px !important;
+  padding: 11px 12px !important;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: center;
+  gap: 5px;
+  border: 1px solid rgba(255,255,255,.11) !important;
+  border-radius: 13px !important;
+  background: linear-gradient(145deg, #23272b, #191c1f) !important;
+  color: #ecebe7 !important;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.035) !important;
+  text-align: left;
+  transition: border-color .18s ease, background .18s ease, transform .18s ease;
+}
+#missionPicker .btn b { color: #ecebe7 !important; font-size: 11px !important; letter-spacing: .025em; }
+#missionPicker .btn span { color: #8d959b !important; font-size: 8px !important; letter-spacing: .11em; }
+#missionPicker .btn.active, #missionPicker .btn[aria-pressed="true"] {
+  border-color: rgba(226,70,63,.82) !important;
+  background: linear-gradient(145deg, rgba(117,39,37,.43), #222326) !important;
+  box-shadow: inset 3px 0 0 #e2463f, 0 7px 18px rgba(0,0,0,.17) !important;
+}
+#missionPicker .btn.active span { color: #f18b82 !important; }
+#missionPicker .btn:hover:not(.active) { border-color: rgba(255,255,255,.23) !important; }
+#setupPanel .setup-fields { gap: 11px 12px !important; margin-bottom: 15px !important; }
+#setupPanel .setup-fields .fld { color: #b9bdc0 !important; font-size: 11px !important; letter-spacing: .015em; }
+#setupPanel .setup-fields .fld > span { margin-bottom: 6px; }
+#setupPanel .setup-fields .fld small { color: #858c92 !important; }
+#setupPanel .setup-fields input, #setupPanel .setup-fields select {
+  height: 43px !important;
+  padding: 0 12px !important;
+  border: 1px solid rgba(255,255,255,.12) !important;
+  border-radius: 10px !important;
+  background: #121416 !important;
+  color: #f2f1ed !important;
+  box-shadow: inset 0 1px 3px rgba(0,0,0,.2) !important;
+}
+#setupPanel .setup-fields input:focus, #setupPanel .setup-fields select:focus {
+  outline: none;
+  border-color: rgba(226,70,63,.72) !important;
+  box-shadow: 0 0 0 3px rgba(226,70,63,.12) !important;
+}
+#setupPanel #go {
+  min-height: 48px !important;
+  border-radius: 11px !important;
+  font-size: 12px;
+  letter-spacing: .06em;
+}
+#profileModal {
+  background: rgba(4,5,7,.8) !important;
+  backdrop-filter: blur(18px);
+  -webkit-backdrop-filter: blur(18px);
+}
+#profileCard {
+  width: min(470px, 100%) !important;
+  padding: 24px !important;
+  border: 1px solid rgba(255,255,255,.13) !important;
+  border-radius: 22px !important;
+  background: linear-gradient(155deg, #202326, #111315 82%) !important;
+  box-shadow: 0 28px 80px rgba(0,0,0,.6), inset 0 1px 0 rgba(255,255,255,.05) !important;
+}
+.profile-eyebrow { color: #e47770 !important; }
+.profile-modal-heading h2 { color: #f5f2ed !important; font-size: 25px !important; }
+#closeProfileBtn {
+  border: 1px solid rgba(255,255,255,.13) !important;
+  border-radius: 10px !important;
+  background: rgba(255,255,255,.04) !important;
+  color: #dedbd5 !important;
+}
+.profile-identity {
+  padding: 16px !important;
+  border: 1px solid rgba(255,255,255,.1) !important;
+  border-radius: 15px !important;
+  background: linear-gradient(125deg, rgba(255,255,255,.05), rgba(255,255,255,.015)) !important;
+}
+#profileAvatarWrap {
+  flex-basis: 62px !important;
+  width: 62px !important;
+  height: 62px !important;
+  border: 2px solid rgba(255,255,255,.19) !important;
+  background: #2b3034 !important;
+  color: #f06a61 !important;
+}
+#profileDisplayName { color: #f5f2ed !important; font-size: 18px !important; }
+#profileEmail { color: #a6adb2 !important; }
+#profileConnectionStatus { color: #f07870 !important; }
+.profile-stats { gap: 9px !important; margin: 14px 0 21px !important; }
+.profile-stats > div {
+  padding: 15px 10px !important;
+  border: 1px solid rgba(255,255,255,.1) !important;
+  border-radius: 13px !important;
+  background: linear-gradient(145deg, #25292c, #1a1d20) !important;
+}
+.profile-stats strong { color: #f6f3ee !important; font-size: 23px !important; }
+.profile-stats span { color: #969da2 !important; }
+.profile-records-heading h3 { color: #f2f0eb !important; }
+.profile-records-heading > span { color: #969da2 !important; }
+.profile-record-row {
+  padding: 12px 13px !important;
+  border: 1px solid rgba(255,255,255,.09) !important;
+  border-radius: 11px !important;
+  background: rgba(255,255,255,.025) !important;
+}
+.profile-record-row strong { color: #f0eee9 !important; }
+.profile-record-row span, .profile-empty { color: #a0a6ab !important; }
+.profile-empty { border-color: rgba(255,255,255,.13) !important; }
+#profileMessage { color: #a8afb4 !important; }
+.profile-modal-actions .btn:not(.primary) {
+  border: 1px solid rgba(255,255,255,.14) !important;
+  border-radius: 10px !important;
+  background: rgba(255,255,255,.045) !important;
+  color: #d6d4cf !important;
+}
+@media (max-width: 600px) {
+  #menuCard { width: min(410px, calc(100vw - 20px)) !important; padding: 16px 14px !important; border-radius: 18px !important; }
+  #profileCard { padding: 18px !important; border-radius: 18px !important; }
+  #missionPicker { gap: 7px !important; }
+  #missionPicker .btn { min-height: 54px !important; padding: 9px !important; }
+  #setupPanel .setup-fields { gap: 8px !important; }
+  #setupPanel .setup-fields input, #setupPanel .setup-fields select { height: 40px !important; }
+  #profile-stats > div { padding: 10px 6px !important; }
+}
+@media (hover: none), (pointer: coarse) {
+  #openProfileBtn:hover, #missionPicker .btn:hover { transform: none; }
+}
+@media (prefers-reduced-motion: reduce) {
+  #openProfileBtn, #missionPicker .btn { transition: none !important; }
+}
