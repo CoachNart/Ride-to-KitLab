@@ -919,3 +919,41 @@ body.touch #padZone, body.touch .tb { pointer-events:auto; touch-action:none; }
 @media (min-width: 1000px) {
   #lifeHud { bottom: max(66px, calc(env(safe-area-inset-bottom) + 58px)) !important; }
 }
+
+
+/* Heart HUD placement: keep it directly beneath the mission HUD, never beside the
+   bottom driving controls or on top of the top HUD when the device rotates. */
+#lifeHud {
+  position: fixed !important;
+  top: calc(max(8px, env(safe-area-inset-top)) + clamp(88px, 16vh, 132px)) !important;
+  bottom: auto !important;
+  left: max(8px, env(safe-area-inset-left)) !important;
+  right: auto !important;
+  transform: none !important;
+  z-index: 14;
+  width: max-content;
+  max-width: min(150px, calc(100vw - 16px));
+  padding: 6px 9px !important;
+}
+@media (max-width: 600px) {
+  #lifeHud {
+    top: calc(max(6px, env(safe-area-inset-top)) + clamp(86px, 15vh, 122px)) !important;
+    left: max(6px, env(safe-area-inset-left)) !important;
+    bottom: auto !important;
+  }
+}
+@media (orientation: landscape) and (max-height: 600px) {
+  #lifeHud {
+    top: calc(max(6px, env(safe-area-inset-top)) + clamp(66px, 19vh, 88px)) !important;
+    left: max(6px, env(safe-area-inset-left)) !important;
+    bottom: auto !important;
+    padding: 4px 7px !important;
+  }
+  .life-heart { width: 17px; height: 17px; }
+}
+@media (min-width: 1000px) {
+  #lifeHud {
+    top: calc(max(10px, env(safe-area-inset-top)) + clamp(104px, 13vh, 140px)) !important;
+    left: max(10px, env(safe-area-inset-left)) !important;
+  }
+}
