@@ -116,6 +116,7 @@ window.addEventListener('error', event => {
 });
 
 /* UI WIRING — registered before renderer/world setup so startup failures cannot silently kill the menu. */
+window.__kitRaceUiWired = true;
 const missionButtons = [...document.querySelectorAll('#missionPicker [data-mission]')];
 function showMissionSelect() {
   $('landingActions').classList.add('hide');
