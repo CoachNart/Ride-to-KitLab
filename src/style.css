@@ -68,6 +68,22 @@ button{font:inherit;color:inherit;cursor:pointer}
 #menuCard{width:min(460px,100%);padding:20px 20px 18px;border-radius:22px;margin:0 0 max(0px,env(safe-area-inset-bottom))}
 #menuCard h1{margin:0 0 8px;font-size:34px;line-height:1.05;font-weight:900;letter-spacing:-.01em}
 #menuCard p{margin:0 0 14px;font-size:15px;line-height:1.45;opacity:.92}
+#accountPanel{margin:14px 0 2px;padding:12px;border:1px solid rgba(150,235,248,.2);border-radius:15px;background:rgba(3,20,27,.45);display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center;gap:9px 12px}
+#accountCopy{min-width:0;display:flex;flex-direction:column;gap:3px}
+#accountTitle{font:800 12px/1.3 'Oxanium',sans-serif;letter-spacing:.09em;text-transform:uppercase;color:#b9eef4}
+#accountHint{font-size:11px;line-height:1.35;opacity:.75}
+.google-btn{display:flex;align-items:center;justify-content:center;gap:8px;min-height:38px;padding:8px 11px;border:1px solid rgba(255,255,255,.25);border-radius:11px;background:#f7f9fc;color:#17202a;font-size:11px;font-weight:800;white-space:nowrap}
+.google-btn:disabled{opacity:.6;cursor:wait}
+.google-g{display:grid;place-items:center;width:18px;height:18px;border-radius:50%;background:#fff;color:#4285f4;font:900 14px/1 Arial,sans-serif}
+#accountStatus{grid-column:1/-1;font-size:10.5px;line-height:1.3;opacity:.7}
+#accountStatus.error{color:#ff9aa5;opacity:1}
+#accountStatus.success{color:#7df0a6;opacity:1}
+#lifeHud{position:absolute;left:max(10px,env(safe-area-inset-left));bottom:max(18px,env(safe-area-inset-bottom));padding:8px 12px;border-radius:12px;display:flex;align-items:center;gap:9px;font:800 11px/1 'Oxanium',sans-serif;letter-spacing:.08em;color:#d8f8fc}
+#lifeIcons{display:flex;gap:4px;align-items:center}
+.life-dot{width:10px;height:10px;border-radius:50%;background:#ff5a67;box-shadow:0 0 9px rgba(255,90,103,.35)}
+.life-dot.off{background:rgba(255,255,255,.16);box-shadow:none}
+@media(max-width:600px){#accountPanel{grid-template-columns:1fr;gap:8px;padding:10px}#googleSignInBtn{width:100%}#accountStatus{font-size:10px}#lifeHud{bottom:calc(max(18px,env(safe-area-inset-bottom)) + 52px);padding:7px 9px;font-size:10px}}
+
 .fld{display:block;margin-bottom:10px;font-size:13px;font-weight:700}
 .fld span{display:block;margin-bottom:4px;opacity:.85}
 .fld small{font-weight:500;opacity:.7}
