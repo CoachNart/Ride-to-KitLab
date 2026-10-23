@@ -107,3 +107,75 @@ export function bindRideControls({ touch, cycleTrick, clamp }) {
 
   window.__clearRideControls = clearControls;
 }
+
+
+/*
+ * Temporary root-cause probe. It is inert unless ?inputDebug=1 is present.
+ * It records raw browser events, hit-test targets, pointer cancellation and
+ * main-thread frame gaps so we can distinguish input loss from a frozen frame.
+ */
+function enableInputDiagnostics() {
+  if (new URLSearchParams(location.search).get('inputDebug') !== '1') return;
+  const trace = [];
+  const rawPointers = new Set();
+  const panel = document.createElement('pre');
+  panel.id = 'kitRaceInputDiagnostics';
+  panel.style.cssText = 'position:fixed;left:6px;bottom:6px;z-index:2147483646;max-width:94vw;max-height:34vh;overflow:hidden;margin:0;padding:7px 9px;border:1px solid #ffcf70;border-radius:7px;background:rgba(0,0,0,.88);color:#fff2cc;font:10px/1.35 monospace;white-space:pre-wrap;pointer-events:none';
+  document.body.appendChild(panel);
+
+  function record(label, extra = {}) {
+    const item = { t: Math.round(performance.now()), label, ...extra };
+    trace.push(item);
+    if (trace.length > 80) trace.shift();
+    panel.textContent = trace.slice(-13).map(row => {
+      const { t, label, ...details } = row;
+      return t + 'ms ' + label + (Object.keys(details).length ? ' ' + JSON.stringify(details) : '');
+    }).join('\n');
+    try { localStorage.setItem('kitrace:input-debug-trace', JSON.stringify(trace)); } catch (_) {}
+    window.__kitRaceInputTrace = trace;
+  }
+
+  const describe = el => {
+    if (!(el instanceof Element)) return String(el);
+    let s = el.tagName.toLowerCase();
+    if (el.id) s += '#' + el.id;
+    if (typeof el.className === 'string' && el.className.trim()) s += '.' + el.className.trim().split(/\s+/).slice(0, 2).join('.');
+    return s;
+  };
+
+  for (const type of ['pointerdown', 'pointerup', 'pointercancel', 'lostpointercapture']) {
+    document.addEventListener(type, event => {
+      if (type === 'pointerdown') rawPointers.add(event.pointerId);
+      if (type === 'pointerup' || type === 'pointercancel' || type === 'lostpointercapture') rawPointers.delete(event.pointerId);
+      const hitStack = document.elementsFromPoint(event.clientX, event.clientY).slice(0, 4).map(describe);
+      record(type, {
+        id: event.pointerId,
+        kind: event.pointerType,
+        target: describe(event.target),
+        hit: hitStack,
+        activeRawPointers: [...rawPointers],
+        buttons: { boost: !!window.__kitRaceTouch?.boost }
+      });
+    }, { capture: true, passive: true });
+  }
+
+  document.addEventListener('pointermove', event => {
+    if (!rawPointers.has(event.pointerId)) return;
+    record('move', { id: event.pointerId, target: describe(event.target), x: Math.round(event.clientX), y: Math.round(event.clientY) });
+  }, { capture: true, passive: true });
+
+  window.addEventListener('error', event => record('js-error', { message: String(event.message || event.error || 'unknown').slice(0, 180) }));
+  window.addEventListener('unhandledrejection', event => record('promise-error', { message: String(event.reason?.message || event.reason || 'unknown').slice(0, 180) }));
+
+  let lastFrame = performance.now();
+  function frameProbe(now) {
+    const gap = now - lastFrame;
+    if (gap > 120) record('frame-gap', { gapMs: Math.round(gap), activeRawPointers: [...rawPointers] });
+    lastFrame = now;
+    requestAnimationFrame(frameProbe);
+  }
+  requestAnimationFrame(frameProbe);
+  record('diagnostics-on', { ua: navigator.userAgent, touchPoints: navigator.maxTouchPoints, pointer: matchMedia('(pointer:coarse)').matches });
+}
+
+enableInputDiagnostics();
