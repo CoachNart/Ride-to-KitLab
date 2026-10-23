@@ -157,10 +157,13 @@ export function bindRideControls({ touch, cycleTrick, clamp }) {
 
   // Touch Events prevent browser gesture arbitration from cancelling a second
   // finger when Boost and steering/brake are held simultaneously.
-  layer.addEventListener('touchstart', onTouchStart, { passive: false });
-  layer.addEventListener('touchmove', onTouchMove, { passive: false });
-  layer.addEventListener('touchend', onTouchEnd, { passive: false });
-  layer.addEventListener('touchcancel', onTouchEnd, { passive: false });
+  // Listen at document capture phase so simultaneous fingers remain tracked even
+  // when one finger starts on a button and another is steering. Each handler
+  // still acts only on coordinates/identifiers that classify as our controls.
+  document.addEventListener('touchstart', onTouchStart, { passive: false, capture: true });
+  document.addEventListener('touchmove', onTouchMove, { passive: false, capture: true });
+  document.addEventListener('touchend', onTouchEnd, { passive: false, capture: true });
+  document.addEventListener('touchcancel', onTouchEnd, { passive: false, capture: true });
 
   // Pointer Events are used only for mouse input, never for touchscreen input.
   layer.addEventListener('pointerdown', event => {
