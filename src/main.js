@@ -1698,7 +1698,7 @@ const remotes = new Map();
 function storageOK() { return !!(window.storage && !window.storage.__rideKitlabLocal && typeof window.storage.set === 'function'); }
 
 function myState() {
-  return { n: myName, c: myColor, g: myGender, x: +P.x.toFixed(2), z: +P.z.toFixed(2), y: +P.y.toFixed(2), w: +P.yaw.toFixed(3), v: +P.v.toFixed(2), s: +P.steerAng.toFixed(3), l: +P.lean.toFixed(3), zn: zone, t: Date.now(), e: emote.text, et: emote.t, sh: collectedCount, f: finishTime ? +finishTime.toFixed(1) : 0, trick: activeTrick };
+  return { n: myName, c: myColor, g: myGender, x: +P.x.toFixed(2), z: +P.z.toFixed(2), y: +P.y.toFixed(2), w: +P.yaw.toFixed(3), v: +P.v.toFixed(2), s: +P.steerAng.toFixed(3), l: +P.lean.toFixed(3), zn: zone, pi: P.pathIdx | 0, t: Date.now(), e: emote.text, et: emote.t, sh: collectedCount, f: finishTime ? +finishTime.toFixed(1) : 0, trick: activeTrick };
 }
 async function netInit() {
   Net.pre = myRoom + ':p:'; Net.myKey = Net.pre + myId; Net.boardKey = myRoom + ':b:' + myId;
@@ -1966,6 +1966,57 @@ function updateRoster() {
   remotes.forEach(r => { if (r.live) rows.push({ n: r.state.n + (r.ghost ? ' · AI' : ''), sh: r.state.sh | 0, f: r.state.f, col: r.color, zn: r.state.zn | 0 }); });
   rows.sort((a, b) => ((b.f ? 100 : 0) + b.sh) - ((a.f ? 100 : 0) + a.sh));
   $('roster').innerHTML = rows.map(r => '<div class="rw"><i class="sw" style="background:' + r.col + '"></i><span class="nm">' + esc(r.n) + '</span><span class="pr">' + (r.zn === 1 ? 'In Kitlab' : r.sh + '/5') + '</span></div>').join('');
+}
+
+function ordinalPosition(n) {
+  const mod100 = n % 100;
+  if (mod100 >= 11 && mod100 <= 13) return n + 'TH';
+  return n + (n % 10 === 1 ? 'ST' : n % 10 === 2 ? 'ND' : n % 10 === 3 ? 'RD' : 'TH');
+}
+function getRaceProgress(row) {
+  if (row.finished) return PS + 1;
+  if (row.ghost) return clamp((Number(row.remote.gs) || 0) / PATH_LEN * PS, 0, PS);
+  if (row.isPlayer) return zone === 0 ? clamp(P.pathIdx || 0, 0, PS) : 0;
+  const state = row.remote.state || {};
+  if ((Number(state.zn) | 0) === 1) return PS + 0.5;
+  const hint = Number.isFinite(Number(state.pi)) ? clamp(Number(state.pi) | 0, 0, PS) : clamp(P.pathIdx || 0, 0, PS);
+  return clamp(nearestPath(Number(row.remote.x ?? state.x) || 0, Number(row.remote.z ?? state.z) || 0, hint).i, 0, PS);
+}
+function updateRaceTracker() {
+  const tracker = $('racePositionRows');
+  if (!tracker || !started) return;
+  const rows = [{
+    id: 'you', name: myName || 'Rider', color: RIDER_PAL[myColor],
+    isPlayer: true, finished: !!finishTime, finish: Number(finishTime) || Infinity,
+    progress: 0
+  }];
+  remotes.forEach(remote => {
+    if (!remote.live) return;
+    const remoteFinish = Number(remote.state && remote.state.f) || 0;
+    rows.push({
+      id: String(remote.id), name: String(remote.state && remote.state.n || 'Rider') + (remote.ghost ? '' : ''),
+      color: remote.color || RIDER_PAL[(Number(remote.state && remote.state.c) || 0) % RIDER_PAL.length],
+      remote, ghost: !!remote.ghost,
+      finished: !!remoteFinish || ((Number(remote.state && remote.state.zn) | 0) === 1) || (!!remote.ghost && !!remote.aiFinished),
+      finish: remoteFinish > 0 ? remoteFinish : (remote.aiFinished ? Number(remote.aiElapsed) || Infinity : Infinity),
+      progress: 0
+    });
+  });
+  rows.forEach(row => { row.progress = getRaceProgress(row); });
+  rows.sort((a, b) => {
+    if (a.finished !== b.finished) return a.finished ? -1 : 1;
+    if (a.finished && b.finished && a.finish !== b.finish) return a.finish - b.finish;
+    return b.progress - a.progress;
+  });
+  tracker.innerHTML = rows.map((row, index) => {
+    const status = row.finished ? 'FINISHED' : Math.floor(row.progress / PS * 100) + '%';
+    const label = row.isPlayer ? 'YOU' : row.name + (row.ghost ? ' · AI' : '');
+    return '<div class="race-position-row' + (row.isPlayer ? ' is-you' : '') + '">' +
+      '<span class="race-rank">' + ordinalPosition(index + 1) + '</span>' +
+      '<i class="race-swatch" style="background:' + esc(row.color) + '"></i>' +
+      '<span class="race-rider-name">' + esc(label) + '</span>' +
+      '<span class="race-progress">' + status + '</span></div>';
+  }).join('');
 }
 
 /* ============================================================
@@ -2511,7 +2562,7 @@ function tick(dt, tms) {
       if (now - Net.lastPoll > 1300) { Net.lastPoll = now; netPoll(); }
     }
     hudAcc += dt; if (hudAcc > 0.1) { hudAcc = 0; updateHud(); }
-    rosterAcc += dt; if (rosterAcc > 1) { rosterAcc = 0; if (!$('roster').classList.contains('hide')) updateRoster(); }
+    rosterAcc += dt; if (rosterAcc > 0.28) { rosterAcc = 0; updateRaceTracker(); if (!$('roster').classList.contains('hide')) updateRoster(); }
   }
 }
 
