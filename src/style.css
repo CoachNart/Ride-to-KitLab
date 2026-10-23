@@ -82,7 +82,7 @@ button{font:inherit;color:inherit;cursor:pointer}
 #lifeIcons{display:flex;gap:4px;align-items:center}
 .life-dot{width:10px;height:10px;border-radius:50%;background:#ff5a67;box-shadow:0 0 9px rgba(255,90,103,.35)}
 .life-dot.off{background:rgba(255,255,255,.16);box-shadow:none}
-@media(max-width:600px){#accountPanel{grid-template-columns:1fr;gap:8px;padding:10px}#googleSignInBtn{width:100%}#accountStatus{font-size:10px}#lifeHud{bottom:calc(max(18px,env(safe-area-inset-bottom)) + 52px);padding:7px 9px;font-size:10px}}
+@media(max-width:600px){#accountPanel{grid-template-columns:1fr;gap:8px;padding:10px}#googleSignInBtn{width:100%}#accountStatus{font-size:10px}#lifeHud{top:calc(max(10px,env(safe-area-inset-top)) + 126px);bottom:auto;left:max(10px,env(safe-area-inset-left));padding:7px 9px;font-size:10px}}
 
 .fld{display:block;margin-bottom:10px;font-size:13px;font-weight:700}
 .fld span{display:block;margin-bottom:4px;opacity:.85}
