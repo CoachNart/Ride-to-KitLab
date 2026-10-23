@@ -837,6 +837,10 @@ function makeBike(frameHex, jerseyHex, helmetHex, riderGender = 'male', backpack
     steerG.quaternion.setFromAxisAngle(AXIS, steer);
     if (trick === 'barspin') steerG.rotateOnAxis(AXIS, spin);
     steerG.updateMatrix();
+    // Keep AI stunt wheels above the terrain when the bike pitches around its centre.
+    const rearWheelY = new THREE.Vector3(0, 0, R.z).applyEuler(stuntPivot.rotation).y;
+    const frontWheelY = new THREE.Vector3(0, 0, F.z).applyEuler(stuntPivot.rotation).y;
+    obj.groundClearance = Math.max(0, -Math.min(rearWheelY, frontWheelY));
     chainring.rotation.x = obj.crank;
     pivot.rotation.z = Math.sin(obj.crank) * 0.03 * clamp(v / 6, 0, 1);
     headG.rotation.y = clamp(steer * 1.6, -0.5, 0.5);
@@ -1680,12 +1684,21 @@ function updateGhosts(dt) {
     if (!anySafeLane && blocked && !r.aiJumping) {
       r.aiJumping = true;
       r.aiJumpT = 0;
+      const airTricks = TRICKS.filter(t => t.kind === 'air');
+      r.aiAirTrick = airTricks[Math.floor(r.aiElapsed + Number(String(r.id).slice(5) || 0)) % airTricks.length].id;
+      r.bike.stuntMode = r.aiAirTrick;
       bestLane = r.goff;
     }
     if (r.aiJumping) {
       r.aiJumpT += dt;
       jumpY = Math.sin(Math.PI * clamp(r.aiJumpT / 0.8, 0, 1)) * 3.0;
-      if (r.aiJumpT >= 0.8) { r.aiJumping = false; r.aiJumpT = 0; }
+      r.bike.stuntMode = r.aiAirTrick || 'ride';
+      if (r.aiJumpT >= 0.8) {
+        r.aiJumping = false;
+        r.aiJumpT = 0;
+        r.aiAirTrick = null;
+        r.bike.stuntMode = 'ride';
+      }
     }
     // Smoothly steer between lanes instead of snapping sideways.
     r.goff += (bestLane - r.goff) * Math.min(1, dt * 2.8);
@@ -1693,8 +1706,12 @@ function updateGhosts(dt) {
     const w = Math.atan2(tx[i], tz[i]);
     const progress = r.gs / PATH_LEN;
     const checkpoints = SHARD_T.filter(t => progress >= t).length;
-    if (!r.aiFinished && !r.aiJumping && r.aiElapsed > 3 + Number(String(r.id).slice(5) || 0) * 2 && Math.floor(r.aiElapsed) % 9 === 0) r.bike.stuntMode = TRICKS[Math.floor(r.aiElapsed / 9) % TRICKS.length].id;
-    if (Math.floor(r.aiElapsed) % 9 === 2) r.bike.stuntMode = 'ride';
+    // Ground tricks are only used while grounded; aerial tricks require an actual AI jump.
+    if (!r.aiFinished && !r.aiJumping && r.aiElapsed > 3 + Number(String(r.id).slice(5) || 0) * 2 && Math.floor(r.aiElapsed) % 9 === 0) {
+      const groundTricks = TRICKS.filter(t => t.kind === 'ground');
+      r.bike.stuntMode = groundTricks[Math.floor(r.aiElapsed / 9) % groundTricks.length].id;
+    }
+    if (!r.aiJumping && Math.floor(r.aiElapsed) % 9 === 2) r.bike.stuntMode = 'ride';
     r.state = { n: r.state.n, c: r.state.c, x, z, y: jumpY, w, v: r.gsp, s: 0, l: 0, zn: 0, e: '', et: 0, sh: checkpoints, f: r.aiFinished ? +r.aiElapsed.toFixed(1) : 0, trick:r.bike.stuntMode };
     r.recv = performance.now();
   });
@@ -1713,7 +1730,10 @@ function updateRemotes(dt) {
     if (!vis) return;
     const zn = s.zn | 0, f = Math.sin(r.yaw), g = Math.cos(r.yaw);
     const gy = groundAt(zn, r.x, r.z), gF = groundAt(zn, r.x + f * 0.55, r.z + g * 0.55), gR = groundAt(zn, r.x - f * 0.55, r.z - g * 0.55);
-    const root = r.bike.root; root.position.set(r.x, gy + (r.ghost ? (s.y || 0) : 0), r.z);
+    const root = r.bike.root;
+    const aiJump = r.ghost ? (s.y || 0) : 0;
+    const aiStuntClearance = r.ghost ? (r.bike.groundClearance || 0) : 0;
+    root.position.set(r.x, gy + aiJump + aiStuntClearance, r.z);
     root.rotation.y = r.yaw; root.rotation.x = -Math.atan2(gF - gR, 1.1); root.rotation.z = -(s.l || 0);
     r.bike.stuntMode = s.trick || 'ride';
     r.bike.pose(dt, s.v, s.s || 0, s.v > 0.3 ? s.v * 1.32 : 0);
