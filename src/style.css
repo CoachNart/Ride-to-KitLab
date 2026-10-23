@@ -944,7 +944,9 @@ body.touch #padZone, body.touch .tb { pointer-events:auto; touch-action:none; }
 }
 @media (orientation: landscape) and (max-height: 600px) {
   #lifeHud {
-    top: calc(max(6px, env(safe-area-inset-top)) + clamp(66px, 19vh, 88px)) !important;
+    /* The landscape mission card is taller than it looks once its objective and
+       score rows are included. Leave a deliberate gap below the whole card. */
+    top: calc(max(8px, env(safe-area-inset-top)) + clamp(104px, 27vh, 122px)) !important;
     left: max(6px, env(safe-area-inset-left)) !important;
     bottom: auto !important;
     padding: 4px 7px !important;
