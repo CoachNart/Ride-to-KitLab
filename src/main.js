@@ -176,28 +176,27 @@ async function openRiderProfile() {
   const email = user && !user.isAnonymous ? (user.email || 'Google account connected') : 'Guest rider · saved on this device';
   $('profileDisplayName').textContent = displayName;
   $('profileEmail').textContent = email;
-  $('profileAvatarInitial').textContent = (displayName.trim().charAt(0) || 'R').toUpperCase();
   const avatar = $('profileAvatarImage');
-  if (user && !user.isAnonymous && user.photoURL) {
-    avatar.src = user.photoURL;
+  const profilePhotoURL = user && !user.isAnonymous ? user.photoURL : '';
+  $('profileAvatarInitial').hidden = true;
+  avatar.onerror = () => { avatar.hidden = true; avatar.removeAttribute('src'); };
+  if (profilePhotoURL) {
+    avatar.src = profilePhotoURL;
     avatar.hidden = false;
-    $('profileAvatarInitial').hidden = true;
   } else {
     avatar.removeAttribute('src');
     avatar.hidden = true;
-    $('profileAvatarInitial').hidden = false;
   }
   const buttonAvatar = $('profileButtonAvatarImage');
   const buttonInitial = $('profileButtonAvatarInitial');
-  if (user && !user.isAnonymous && user.photoURL) {
-    buttonAvatar.src = user.photoURL;
+  buttonInitial.hidden = true;
+  buttonAvatar.onerror = () => { buttonAvatar.hidden = true; buttonAvatar.removeAttribute('src'); };
+  if (profilePhotoURL) {
+    buttonAvatar.src = profilePhotoURL;
     buttonAvatar.hidden = false;
-    buttonInitial.hidden = true;
   } else {
     buttonAvatar.removeAttribute('src');
     buttonAvatar.hidden = true;
-    buttonInitial.hidden = false;
-    buttonInitial.textContent = (displayName.trim().charAt(0) || 'R').toUpperCase();
   }
   $('profileButtonSubtitle').textContent = user && !user.isAnonymous ? 'Google account connected · view stats' : 'Guest rider · view your stats';
   $('profileConnectionStatus').textContent = user && !user.isAnonymous ? 'GOOGLE ACCOUNT CONNECTED' : 'LOCAL PROFILE';
@@ -246,15 +245,16 @@ function syncProfileButtonIdentity(user = accountUser) {
   const inputName = ($('inName')?.value || myName || '').trim();
   const localProfile = (() => { try { return JSON.parse(localStorage.getItem('ride-to-kitlab:profile') || '{}'); } catch (error) { return {}; } })();
   const displayName = inputName || localProfile.name || (user && !user.isAnonymous ? user.displayName : '') || 'Rider';
-  if (initial) initial.textContent = (displayName.charAt(0) || 'R').toUpperCase();
-  if (image && user && !user.isAnonymous && user.photoURL) {
-    image.src = user.photoURL;
+  if (initial) initial.hidden = true;
+  const photoURL = user && !user.isAnonymous ? user.photoURL : '';
+  if (image && photoURL) {
+    image.onerror = () => { image.hidden = true; image.removeAttribute('src'); };
+    image.src = photoURL;
     image.hidden = false;
-    if (initial) initial.hidden = true;
   } else if (image) {
+    image.onerror = null;
     image.removeAttribute('src');
     image.hidden = true;
-    if (initial) initial.hidden = false;
   }
   const subtitle = $('profileButtonSubtitle');
   if (subtitle) subtitle.textContent = user && !user.isAnonymous
