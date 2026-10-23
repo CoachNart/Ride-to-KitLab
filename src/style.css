@@ -68,6 +68,26 @@ button{font:inherit;color:inherit;cursor:pointer}
 #menuCard{width:min(460px,100%);padding:20px 20px 18px;border-radius:22px;margin:0 0 max(0px,env(safe-area-inset-bottom))}
 #menuCard h1{margin:0 0 8px;font-size:34px;line-height:1.05;font-weight:900;letter-spacing:-.01em}
 #menuCard p{margin:0 0 14px;font-size:15px;line-height:1.45;opacity:.92}
+#accountPanel{margin:14px 0 2px;padding:12px;border:1px solid rgba(150,235,248,.2);border-radius:15px;background:rgba(3,20,27,.45);display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center;gap:9px 12px}
+#accountCopy{min-width:0;display:flex;flex-direction:column;gap:3px}
+#accountTitle{font:800 12px/1.3 'Oxanium',sans-serif;letter-spacing:.09em;text-transform:uppercase;color:#b9eef4}
+#accountHint{font-size:11px;line-height:1.35;opacity:.75}
+.google-btn{display:flex;align-items:center;justify-content:center;gap:9px;min-height:40px;padding:8px 12px;border:1px solid #EA4335;border-radius:11px;background:#EA4335;color:#fff;font-size:11px;font-weight:800;white-space:nowrap;transition:background .16s ease,border-color .16s ease,transform .16s ease}
+.google-btn:hover{background:#D93025;border-color:#D93025}
+.google-btn:active{transform:translateY(1px)}
+.google-btn:focus-visible{outline:2px solid #ffb4ad;outline-offset:3px}
+.google-btn:disabled{opacity:.6;cursor:wait}
+.gmail-logo{display:grid;place-items:center;flex:0 0 23px;width:23px;height:19px;padding:2px;border-radius:4px;background:#fff;box-sizing:border-box}
+.gmail-logo svg{display:block;width:19px;height:15px}
+#accountStatus{grid-column:1/-1;font-size:10.5px;line-height:1.3;opacity:.7}
+#accountStatus.error{color:#ff9aa5;opacity:1}
+#accountStatus.success{color:#7df0a6;opacity:1}
+#lifeHud{position:absolute;left:max(10px,env(safe-area-inset-left));bottom:max(18px,env(safe-area-inset-bottom));padding:8px 12px;border-radius:12px;display:flex;align-items:center;gap:9px;font:800 11px/1 'Oxanium',sans-serif;letter-spacing:.08em;color:#d8f8fc}
+#lifeIcons{display:flex;gap:4px;align-items:center}
+.life-dot{width:10px;height:10px;border-radius:50%;background:#ff5a67;box-shadow:0 0 9px rgba(255,90,103,.35)}
+.life-dot.off{background:rgba(255,255,255,.16);box-shadow:none}
+@media(max-width:600px){#accountPanel{grid-template-columns:1fr;gap:8px;padding:10px}#googleSignInBtn{width:100%}#accountStatus{font-size:10px}#lifeHud{top:calc(max(10px,env(safe-area-inset-top)) + 126px);bottom:auto;left:max(10px,env(safe-area-inset-left));padding:7px 9px;font-size:10px}}
+
 .fld{display:block;margin-bottom:10px;font-size:13px;font-weight:700}
 .fld span{display:block;margin-bottom:4px;opacity:.85}
 .fld small{font-weight:500;opacity:.7}
@@ -365,6 +385,8 @@ button:active:not(:disabled){transform:translateY(1px) scale(.985)}
 .brow{font-family:var(--font);border-color:rgba(151,224,235,.14)}
 #pauseCard{width:min(390px,100%);padding:28px}
 #pauseCard button{min-width:145px}
+.pauseActions{display:flex;align-items:center;justify-content:center;gap:8px;flex-wrap:wrap}
+.pauseActions .btn{flex:1 1 140px}
 @media(max-width:699px){
   #menu{align-items:flex-end;justify-content:center;padding:10px 10px max(10px,env(safe-area-inset-bottom));background:linear-gradient(0deg,rgba(1,12,18,.96) 0%,rgba(2,17,23,.76) 48%,rgba(2,17,23,.18) 100%)}
   #menuCard{width:min(440px,100%);padding:20px 16px 16px;max-height:calc(100dvh - 20px)}
@@ -834,4 +856,107 @@ body.touch #padZone, body.touch .tb { pointer-events:auto; touch-action:none; }
   box-shadow: none !important;
   backdrop-filter: none !important;
   -webkit-backdrop-filter: none !important;
+}
+
+
+/* Lives: clear heart-only indicator, anchored safely across phone, tablet and desktop layouts. */
+#lifeHud {
+  position: fixed !important;
+  z-index: 14;
+  top: auto !important;
+  bottom: max(58px, calc(env(safe-area-inset-bottom) + 54px)) !important;
+  left: 50% !important;
+  right: auto !important;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: max-content;
+  max-width: calc(100vw - 24px);
+  padding: 7px 10px !important;
+  border-radius: 999px;
+  gap: 0;
+  pointer-events: none;
+  box-sizing: border-box;
+}
+#lifeIcons {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: clamp(5px, 1.5vw, 9px);
+}
+.life-heart {
+  display: block;
+  flex: 0 0 auto;
+  width: clamp(19px, 4vw, 25px);
+  height: clamp(19px, 4vw, 25px);
+  overflow: visible;
+  fill: #ff4059;
+  filter: drop-shadow(0 0 5px rgba(255,64,89,.32));
+  transition: opacity .18s ease, fill .18s ease, filter .18s ease, transform .18s ease;
+}
+.life-heart:not(.off) { animation: heartReady .24s ease-out; }
+.life-heart.off {
+  fill: rgba(224,239,242,.16);
+  filter: none;
+  opacity: .62;
+}
+@keyframes heartReady { from { transform: scale(.78); } to { transform: scale(1); } }
+@media (max-width: 600px) {
+  #lifeHud {
+    bottom: calc(max(8px, env(safe-area-inset-bottom)) + 70px) !important;
+    padding: 6px 9px !important;
+  }
+  .life-heart { width: 20px; height: 20px; }
+}
+@media (orientation: landscape) and (max-height: 500px) {
+  #lifeHud {
+    top: max(8px, env(safe-area-inset-top)) !important;
+    bottom: auto !important;
+    padding: 4px 7px !important;
+  }
+  .life-heart { width: 17px; height: 17px; }
+}
+@media (min-width: 1000px) {
+  #lifeHud { bottom: max(66px, calc(env(safe-area-inset-bottom) + 58px)) !important; }
+}
+
+
+/* Heart HUD placement: keep it directly beneath the mission HUD, never beside the
+   bottom driving controls or on top of the top HUD when the device rotates. */
+#lifeHud {
+  position: fixed !important;
+  top: calc(max(8px, env(safe-area-inset-top)) + clamp(88px, 16vh, 132px)) !important;
+  bottom: auto !important;
+  left: max(8px, env(safe-area-inset-left)) !important;
+  right: auto !important;
+  transform: none !important;
+  z-index: 14;
+  width: max-content;
+  max-width: min(150px, calc(100vw - 16px));
+  padding: 6px 9px !important;
+}
+@media (max-width: 600px) {
+  #lifeHud {
+    top: calc(max(6px, env(safe-area-inset-top)) + clamp(86px, 15vh, 122px)) !important;
+    left: max(6px, env(safe-area-inset-left)) !important;
+    bottom: auto !important;
+  }
+}
+@media (orientation: landscape) and (max-height: 600px) {
+  #lifeHud {
+    /* The landscape mission card is taller than it looks once its objective and
+       score rows are included. Leave a deliberate gap below the whole card. */
+    top: calc(max(8px, env(safe-area-inset-top)) + clamp(104px, 27vh, 122px)) !important;
+    left: max(6px, env(safe-area-inset-left)) !important;
+    bottom: auto !important;
+    padding: 4px 7px !important;
+  }
+  .life-heart { width: 17px; height: 17px; }
+}
+@media (min-width: 1000px) {
+  #lifeHud {
+    top: calc(max(10px, env(safe-area-inset-top)) + clamp(104px, 13vh, 140px)) !important;
+    left: max(10px, env(safe-area-inset-left)) !important;
+  }
 }

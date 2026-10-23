@@ -75,6 +75,7 @@
   </div>
   <div id="roster" class="panel hide"></div>
   <div id="speedo"><div id="spdTxt">0 km/h</div><div id="stam"><i id="stamI"></i></div></div>
+  <div id="lifeHud" class="panel" role="img" aria-label="Three lives remaining"><div id="lifeIcons" aria-hidden="true"><svg class="life-heart" viewBox="0 0 24 24"><path d="M12 21s-9-5.8-9-12a5.2 5.2 0 0 1 9-3.5A5.2 5.2 0 0 1 21 9c0 6.2-9 12-9 12Z"/></svg><svg class="life-heart" viewBox="0 0 24 24"><path d="M12 21s-9-5.8-9-12a5.2 5.2 0 0 1 9-3.5A5.2 5.2 0 0 1 21 9c0 6.2-9 12-9 12Z"/></svg><svg class="life-heart" viewBox="0 0 24 24"><path d="M12 21s-9-5.8-9-12a5.2 5.2 0 0 1 9-3.5A5.2 5.2 0 0 1 21 9c0 6.2-9 12-9 12Z"/></svg></div></div>
   <div id="toast" class="panel"></div>
   <div id="pop"></div>
   <div id="count" class="hide"></div>
@@ -95,6 +96,11 @@
       <div class="game-kicker">KITRACE · 3D BIKE RACING</div>
       <p class="tagline">Pick your route. Ride hard. Own the finish.</p>
       <button type="button" id="playBtn" class="btn primary">PLAY</button>
+      <div id="accountPanel">
+        <div id="accountCopy"><strong id="accountTitle">Save your ride</strong><span id="accountHint">Sign in with Google to keep your profile, records and progress synced across devices.</span></div>
+        <button type="button" id="googleSignInBtn" class="google-btn"><span class="gmail-logo" aria-hidden="true"><svg viewBox="0 0 48 36" focusable="false"><path fill="#4285F4" d="M4 7.5A4.5 4.5 0 0 1 8.5 3H12v30H8.5A4.5 4.5 0 0 1 4 28.5z"/><path fill="#34A853" d="M36 3h3.5A4.5 4.5 0 0 1 44 7.5v21a4.5 4.5 0 0 1-4.5 4.5H36z"/><path fill="#EA4335" d="M8.5 3h.9L24 14.4 38.6 3h.9A4.5 4.5 0 0 1 44 7.5v1.1L24 24 4 8.6V7.5A4.5 4.5 0 0 1 8.5 3z"/><path fill="#C5221F" d="M4 8.6 10 13.2V33H8.5A4.5 4.5 0 0 1 4 28.5z"/><path fill="#FBBC04" d="M38 13.2 44 8.6v19.9a4.5 4.5 0 0 1-4.5 4.5H38z"/></svg></span><span id="googleSignInLabel">Continue with Google</span></button>
+        <div id="accountStatus" role="status" aria-live="polite">You can also play as a guest.</div>
+      </div>
       <p class="menu-foot">5 RIDES <span>•</span> SOLO OR ROOM PLAY</p>
     </section>
     <section id="setupPanel">
@@ -146,8 +152,10 @@
   <div id="pauseCard" class="panel">
     <h2 id="pauseTitle">Ride paused</h2>
     <p>Your ride is on hold. Take a breather, then jump back in.</p>
-    <button id="resumeRide" class="btn primary">Resume riding</button>
-    <button id="pauseSound" class="btn">Sound on</button>
+    <div class="pauseActions">
+      <button id="resumeRide" class="btn primary">Resume riding</button>
+      <button id="exitRide" class="btn">Exit ride</button>
+    </div>
   </div>
 </div>
 <div id="flash"></div>

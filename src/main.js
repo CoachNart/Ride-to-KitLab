@@ -27,7 +27,12 @@ const KITLAB_URL = '';
 const IS_TOUCH = ('ontouchstart' in window) || navigator.maxTouchPoints > 0 || (window.matchMedia && matchMedia('(pointer:coarse)').matches);
 const MISSION_IDS = ['neon', 'coastline', 'desert', 'mountain', 'city'];
 const requestedMission = new URLSearchParams(window.location.search).get('mission');
-const ACTIVE_MISSION = MISSION_IDS.includes(requestedMission) ? requestedMission : 'neon';
+let lastSavedMission = 'neon';
+try {
+  const last = localStorage.getItem('ride-to-kitlab:last-mission');
+  if (MISSION_IDS.includes(last)) lastSavedMission = last;
+} catch (e) { }
+const ACTIVE_MISSION = MISSION_IDS.includes(requestedMission) ? requestedMission : lastSavedMission;
 const MISSION_TITLES = { neon: 'NEON SPRINT', coastline: 'COASTLINE RUSH', desert: 'DUST DEVIL', mountain: 'MOUNTAIN PASS', city: 'CITY LIGHTS' };
 const MISSION_TITLE = MISSION_TITLES[ACTIVE_MISSION];
 const SEED = 7731, HALF = 1350, N = 320, CELL = (HALF * 2) / N, WATER = -5.5, PS = 1100;
@@ -143,6 +148,7 @@ if (new URLSearchParams(window.location.search).get('screen') === 'missions') sh
 // Only disable the inline fallback after the primary Play/back/mission handlers are actually attached.
 window.__kitRaceUiWired = true;
 $('go').addEventListener('click', () => { try { audioInit(); if (ready) startRide(); else showStartupFailure(new Error('The game world has not finished initializing.')); } catch (error) { showStartupFailure(error); } });
+$('googleSignInBtn')?.addEventListener('click', handleGoogleSignIn);
 // Mobile browsers can suspend Web Audio when switching apps, locking the screen, or after inactivity.
 document.addEventListener('visibilitychange', () => {
   if (!document.hidden && AC && AC.state === 'suspended') {
@@ -159,7 +165,7 @@ $('bBack').addEventListener('click', backToRoad);
 $('bSnd').addEventListener('click', () => setMuted(!muted));
 $('bPause').addEventListener('click', () => paused ? resumeRide() : pauseRide());
 $('resumeRide').addEventListener('click', resumeRide);
-$('pauseSound').addEventListener('click', () => setMuted(!muted));
+$('exitRide').addEventListener('click', exitRide);
 $('status').addEventListener('click', () => { const r = $('roster'); r.classList.toggle('hide'); if (!r.classList.contains('hide')) updateRoster(); });
 $('aExplore').addEventListener('click', () => { $('arrive').classList.add('hide'); modalOpen = false; $('aExplore').textContent = 'Free ride'; });
 $('aOpen').addEventListener('click', () => { if (KITLAB_URL) window.open(KITLAB_URL, '_blank', 'noopener'); });
@@ -1079,16 +1085,55 @@ function updateDust(dt) {
 
 function wipeout(reason) {
   if (wipeoutPending || !started) return;
-  wipeoutPending = true; combo = 1; shake = 0.85; hitFlash();
-  const lines = ['Oof! Back to the start 😵', 'The road won that round 😂', 'That was a committed tumble.', 'Resetting. We go again!'];
-  autoBubble(lines[Math.floor(Math.random() * lines.length)]);
-  crashSound(); toast((reason || 'Wipeout') + ' — starting over!', 1800);
+  wipeoutPending = true;
+  combo = 1; shake = 0.85; hitFlash();
+  // Each collision costs exactly one heart. The rider gets two recoveries before the run ends.
+  lives = Math.max(0, lives - 1);
+  updateLifeHud();
+  autoBubble(lives > 0 ? 'Wipeout! Get back in the ride.' : 'All lives used. Restart your ride.');
+  crashSound();
+  if (lives > 0) toast((reason || 'Wipeout') + ' — keep riding!', 1800);
+  else toast('Ride over — restart to try again.', 2200);
   flash(() => {});
   setTimeout(() => {
     if (!started) { wipeoutPending = false; return; }
-    $('modal').classList.add('hide'); $('arrive').classList.add('hide'); modalOpen = false;
-    resetRun(); P.stamina = 1; P.stuck = 0; wipeoutPending = false;
-    toast('Back at the start. One more try!', 2200);
+    $('modal').classList.add('hide');
+    $('arrive').classList.add('hide');
+    modalOpen = false;
+
+    if (lives > 0) {
+      // Recover close to where the hit happened; do not send the rider to the start/checkpoint.
+      hazards.forEach(h => {
+        h.broken = false; h.near = false; h.over = false;
+        h.crashed = false; h.skipNear = false; h.mesh.visible = true;
+      });
+      const recoveryPath = clamp((Number(P.pathIdx) || 0) + 4, 0, PS - 1);
+      setZone(0);
+      placeAtPath(recoveryPath, 0);
+      P.stamina = 1;
+      P.stuck = 0;
+      P.v = 0;
+      P.vy = 0;
+      P.inv = 2.5;
+      countdown = 0;
+      saveProgressState();
+      toast('Back on the track — keep going!', 2000);
+    } else {
+      // The third wipeout ends this attempt and returns to the start screen.
+      finished = true;
+      saveProgressState();
+      started = false;
+      paused = false;
+      Music.stop();
+      $('pause').classList.add('hide');
+      $('hud').classList.add('hide');
+      $('menu').classList.remove('hide');
+      $('setupPanel').classList.add('show');
+      $('landingActions').classList.add('hide');
+      if ($('go')) $('go').textContent = 'Restart ride';
+      if ($('accountStatus')) $('accountStatus').textContent = 'Ride ended. Your profile and records are saved — start again when ready.';
+    }
+    wipeoutPending = false;
   }, 750);
 }
 function crash(h, dx, dz) {
@@ -1222,6 +1267,7 @@ let zone = 0, finished = false, finishTime = 0, runTime = 0;
 const collected = [false, false, false, false, false]; let collectedCount = 0;
 const P = { x: 0, z: 0, y: 0, yaw: 0, v: 0, steerAng: 0, lean: 0, vy: 0, grounded: true, pitch: 0, stamina: 1, pathIdx: 0, lastGy: 0, stun: 0, inv: 0, padT: 0, mud: 0, jumpCd: 0, stuck: 0 };
 let camYaw = 0, camMode = 0, shake = 0, menuAng = 0, myName = 'Rider', myColor = 0, myGender = 'male', myId = '', myRoom = 'kitlab', usedKeyboard = false, lastGateMsg = 0, wipeoutPending = false, lastSocialAt = 0;
+let lives = 3, savedProgress = null, lastProgressSave = 0, accountUser = null;
 let me = null;
 const keys = {}, touch = { steer: 0, brake: false, boost: false, jump: false };
 function activateTrick(mode) {
@@ -1435,6 +1481,19 @@ function resumeRide() {
   if (!muted) {
     try { const ctx = audioInit(); if (ctx && ctx.state === 'suspended') ctx.resume().catch(() => {}); Music.start(); } catch (e) { }
   }
+}
+function exitRide() {
+  if (!paused) return;
+  // Persist the current run before returning to the start screen.
+  saveProgressState();
+  paused = false;
+  started = false;
+  Music.stop();
+  $('pause').classList.add('hide');
+  $('hud').classList.add('hide');
+  $('menu').classList.remove('hide');
+  $('bPause').textContent = 'Pause';
+  if ($('go')) $('go').textContent = hasResumableProgress() ? 'Resume saved ride' : 'Start riding';
 }
 /* ============================================================
    UI HELPERS
@@ -1900,6 +1959,10 @@ function finishRace() {
   finished = true;
   try { localStorage.setItem('ride-to-kitlab:mission-complete:' + ACTIVE_MISSION, '1'); } catch (e) { }
   finishTime = runTime;
+  saveProgressState();
+  if (window.kitRaceAuth && accountUser && !accountUser.isAnonymous) {
+    window.kitRaceAuth.saveRecord(ACTIVE_MISSION, { time: +finishTime.toFixed(1), score: Math.floor(score), name: myName }).catch(error => console.warn('[KitRace] Record sync failed.', error));
+  }
   flash(() => {
     postScore();
     netSendNow();
@@ -1918,8 +1981,136 @@ async function showArrival() {
   $('aBoard').innerHTML = ''; $('arrive').classList.remove('hide'); modalOpen = true;
   renderBoard($('aBoard'), await loadBoard());
 }
+function updateLifeHud() {
+  const icons = $('lifeIcons');
+  if (icons) {
+    [...icons.children].forEach((node, i) => {
+      const active = i < lives;
+      node.classList.toggle('off', !active);
+      node.setAttribute('aria-hidden', active ? 'false' : 'true');
+    });
+  }
+  const hud = $('lifeHud');
+  if (hud) hud.setAttribute('aria-label', lives + (lives === 1 ? ' life remaining' : ' lives remaining'));
+}
+function hasResumableProgress() {
+  return !!(savedProgress && savedProgress.mission === ACTIVE_MISSION && !savedProgress.finished);
+}
+function saveProgressState() {
+  if (!started || !ready) return;
+  const snapshot = {
+    mission: ACTIVE_MISSION, x: P.x, z: P.z, yaw: P.yaw, pathIdx: P.pathIdx, zone,
+    collected: collected.slice(), score, combo, coinsGot, runTime, lives,
+    coinAlive: coins.map(item => !!item.alive),
+    brokenHazards: hazards.map(item => !!item.broken),
+    finished: !!finished, finishTime: finishTime || 0, updatedAt: Date.now()
+  };
+  savedProgress = snapshot;
+  try { localStorage.setItem('ride-to-kitlab:progress:' + ACTIVE_MISSION, JSON.stringify(snapshot)); } catch (error) { }
+  if (window.kitRaceAuth && accountUser && !accountUser.isAnonymous) {
+    window.kitRaceAuth.saveProgress(ACTIVE_MISSION, snapshot).catch(error => {
+      console.warn('[KitRace] Cloud progress save failed; local progress is still saved.', error);
+    });
+  }
+}
+function restoreProgressState(snapshot) {
+  if (!snapshot || snapshot.mission !== ACTIVE_MISSION || snapshot.finished) return false;
+  resetRun();
+  const savedCollected = Array.isArray(snapshot.collected) ? snapshot.collected : [];
+  collectedCount = 0;
+  for (let i = 0; i < collected.length; i++) {
+    collected[i] = !!savedCollected[i];
+    const shard = shards[i];
+    if (collected[i]) {
+      collectedCount++;
+      shard.armed = false; shard.gem.scale.setScalar(0.45);
+      shard.gem.material.color.setHex(0x4fdc86); shard.gem.material.emissive.setHex(0x4fdc86);
+      shard.ring.material.color.setHex(0x4fdc86); shard.pad.visible = false; shard.beam.visible = false;
+    }
+  }
+  score = Math.max(0, Number(snapshot.score) || 0);
+  combo = clamp(Number(snapshot.combo) || 1, 1, 8);
+  coinsGot = Math.max(0, Number(snapshot.coinsGot) || 0);
+  runTime = Math.max(0, Number(snapshot.runTime) || 0);
+  lives = clamp(Number(snapshot.lives) || 3, 1, 3);
+  setGateOpen(collectedCount >= 5);
+  resetTrack();
+  if (Array.isArray(snapshot.coinAlive)) coins.forEach((item, i) => {
+    item.alive = snapshot.coinAlive[i] !== false;
+    setCoin(i, item.alive);
+  });
+  if (Array.isArray(snapshot.brokenHazards)) hazards.forEach((item, i) => {
+    item.broken = !!snapshot.brokenHazards[i]; item.mesh.visible = !item.broken;
+  });
+  zone = snapshot.zone === 1 ? 1 : 0;
+  setZone(zone);
+  const x = Number(snapshot.x), z = Number(snapshot.z);
+  if (Number.isFinite(x) && Number.isFinite(z)) {
+    P.x = x; P.z = z; P.yaw = Number(snapshot.yaw) || 0;
+    P.pathIdx = clamp(Math.round(Number(snapshot.pathIdx) || 0), 0, PS);
+    P.y = groundAt(zone, P.x, P.z); P.lastGy = P.y;
+    P.v = 0; P.vy = 0; P.grounded = true; P.steerAng = 0; P.lean = 0; P.stamina = 1; P.inv = 1.6;
+  } else placeAtPath(0, 0);
+  finished = false; finishTime = 0; countdown = 3.2; updateLifeHud(); updatePips();
+  savedProgress = { ...snapshot, finished: false };
+  toast('Saved ride restored · ' + collectedCount + '/5 checkpoints', 2800);
+  return true;
+}
+async function handleGoogleSignIn() {
+  const button = $('googleSignInBtn'), label = $('googleSignInLabel'), status = $('accountStatus');
+  if (!window.kitRaceAuth) {
+    status.textContent = 'Account service is still loading. Please try again.';
+    status.className = 'error'; return;
+  }
+  button.disabled = true; label.textContent = 'Connecting…';
+  status.className = ''; status.textContent = 'Opening secure Google sign-in…';
+  try {
+    accountUser = await window.kitRaceAuth.signInWithGoogle();
+    const inputName = $('inName');
+    if (accountUser.displayName && (!inputName.value || /^Rider\d+$/i.test(inputName.value))) {
+      inputName.value = accountUser.displayName.replace(/[^\w \.-]/g, '').trim().slice(0, 14) || 'Rider';
+    }
+    myName = inputName.value || accountUser.displayName || 'Rider';
+    let cloudSyncReady = true;
+    try { await window.kitRaceAuth.saveProfile({ id: myId, name: myName, gender: myGender }); }
+    catch (error) { cloudSyncReady = false; console.warn('[KitRace] Profile cloud write failed.', error); }
+    let cloud = null;
+    try { cloud = await window.kitRaceAuth.loadProgress(ACTIVE_MISSION); } catch (error) {
+      cloudSyncReady = false; console.warn('[KitRace] Could not load cloud progress.', error);
+    }
+    let local = null;
+    try { local = JSON.parse(localStorage.getItem('ride-to-kitlab:progress:' + ACTIVE_MISSION) || 'null'); } catch (error) { }
+    if (cloud && (!local || (Number(cloud.updatedAt) || 0) >= (Number(local.updatedAt) || 0))) {
+      savedProgress = cloud;
+      try { localStorage.setItem('ride-to-kitlab:progress:' + ACTIVE_MISSION, JSON.stringify(cloud)); } catch (error) { }
+    } else if (local) {
+      savedProgress = local;
+      try { await window.kitRaceAuth.saveProgress(ACTIVE_MISSION, local); }
+      catch (error) { cloudSyncReady = false; console.warn('[KitRace] Cloud progress write failed.', error); }
+    }
+    $('accountTitle').textContent = 'Rider profile connected';
+    $('accountHint').textContent = accountUser.displayName || accountUser.email || 'Your KitRace profile is ready.';
+    label.textContent = 'Google connected ✓';
+    status.className = cloudSyncReady ? 'success' : 'error';
+    status.textContent = cloudSyncReady
+      ? (hasResumableProgress() ? 'Profile synced · your saved ride is ready to resume.' : 'Profile synced · records and future progress will be saved.')
+      : 'Google connected, but cloud storage access needs checking. This device still saves locally.';
+    $('go').textContent = hasResumableProgress() ? 'Resume saved ride' : 'Start riding';
+  } catch (error) {
+    console.error('[KitRace] Google sign-in failed.', error);
+    label.textContent = 'Continue with Google';
+    status.className = 'error';
+    status.textContent = error && error.code === 'auth/unauthorized-domain'
+      ? 'Google sign-in needs this site enabled in Firebase Authentication → Settings → Authorized domains.'
+      : error && (error.code === 'auth/operation-not-allowed' || error.code === 'auth/popup-blocked')
+        ? 'Google sign-in is not enabled for this Firebase project yet. Enable the Google provider and retry.'
+        : 'Could not sign in. Please try again.';
+  } finally { button.disabled = false; }
+}
+
 function resetRun() {
   window.__clearRideControls?.();
+  lives = 3; updateLifeHud();
   wipeoutPending = false; paused = false; $('pause').classList.add('hide'); $('bPause').textContent = 'Pause'; $('modal').classList.add('hide'); $('arrive').classList.add('hide'); modalOpen = false;
   for (let i = 0; i < 5; i++) {
     collected[i] = false; const s = shards[i]; s.armed = true; s.gem.scale.setScalar(1);
@@ -1939,17 +2130,23 @@ function startRide() {
   myGender = $('inGender').value === 'female' ? 'female' : 'male';
   aiOpponentCount = clamp(parseInt($('inAICount').value, 10) || 0, 0, 5);
   try { localStorage.setItem('ride-to-kitlab:ai-count', String(aiOpponentCount)); } catch (e) { }
+  try { localStorage.setItem('ride-to-kitlab:last-mission', ACTIVE_MISSION); } catch (e) { }
   try { localStorage.setItem('ride-to-kitlab:profile', JSON.stringify({ id: myId, name: myName, gender: myGender })); } catch (e) { }
   myColor = hashStr(myId) % RIDER_PAL.length;
   scene.remove(me.root);
   me = makeBike(RIDER_PAL[myColor], JERSEY_PAL[(myColor + 3) % JERSEY_PAL.length], RIDER_PAL[(myColor + 4) % RIDER_PAL.length], myGender);
   me.setName(myName); scene.add(me.root);
   $('menu').classList.add('hide'); $('hud').classList.remove('hide'); $('qmode').textContent = MISSION_TITLE;
-  started = true; paused = false; $('pause').classList.add('hide'); $('bPause').textContent = 'Pause'; placeAtPath(0, 0); buildPips(); updatePips(); score = 0; combo = 1; coinsGot = 0; countdown = 3.2;
+  started = true; paused = false; $('pause').classList.add('hide'); $('bPause').textContent = 'Pause'; buildPips(); updatePips();
+  if (hasResumableProgress()) restoreProgressState(savedProgress);
+  else { resetRun(); placeAtPath(0, 0); score = 0; combo = 1; coinsGot = 0; countdown = 3.2; lives = 3; updateLifeHud(); }
   activeTrick = 'ride'; trickTimer = 0; aiRaceStarted = false;
   spawnGhosts(aiOpponentCount);
-  toast(MISSION_TITLE + ': Clear all 5 checkpoints, collect coins, then beat the AI riders to the finish!', 4200);
-  netInit();
+  toast(hasResumableProgress() ? 'Welcome back! Your saved ride is restored.' : MISSION_TITLE + ': Clear all 5 checkpoints, collect coins, then beat the AI riders to the finish!', 4200);
+  netInit(); saveProgressState();
+  if (accountUser && !accountUser.isAnonymous && window.kitRaceAuth) {
+    window.kitRaceAuth.saveProfile({ id: myId, name: myName, gender: myGender }).catch(() => {});
+  }
 }
 
 /* ============================================================
@@ -2009,7 +2206,7 @@ function stepPlayer(dt) {
         score += 250; combo = Math.min(8, combo + 1);
         pop('CHECKPOINT ' + collectedCount + '/5  +250', '#4fdc86'); chime();
         if (collectedCount === 5) { setGateOpen(true); toast('All checkpoints cleared! Sprint to the finish line!', 3200); }
-        netSendNow();
+        netSendNow(); saveProgressState();
       }
     }
     // trees and rocks in the scenery
@@ -2193,6 +2390,7 @@ function tick(dt, tms) {
   if (cloudGroup) { cloudGroup.position.set(camera.position.x, 0, camera.position.z); cloudGroup.rotation.y += dt * 0.0025; }
   if (started) {
     const now = performance.now();
+    if (now - lastProgressSave > 5000) { lastProgressSave = now; saveProgressState(); }
     if (Net.mode === 'live') {
       if (now - Net.last > 800) { Net.last = now; netSendNow(); }
       if (now - Net.lastPoll > 1300) { Net.lastPoll = now; netPoll(); }
@@ -2217,6 +2415,7 @@ function resize() {
   camera.aspect = w / h;
   camera.updateProjectionMatrix();
 }
+window.addEventListener('pagehide', () => saveProgressState());
 window.addEventListener('resize', resize, { passive: true });
 window.addEventListener('orientationchange', () => requestAnimationFrame(resize), { passive: true });
 if (window.visualViewport) {
@@ -2236,6 +2435,13 @@ resize();
   const savedName = (prof && prof.name) || ('Rider' + (100 + Math.floor(Math.random() * 900)));
   myGender = prof && prof.gender === 'female' ? 'female' : 'male';
   try { localStorage.setItem('ride-to-kitlab:profile', JSON.stringify({ id: myId, name: savedName, gender: myGender })); } catch (e) { }
+  try {
+    const rawProgress = localStorage.getItem('ride-to-kitlab:progress:' + ACTIVE_MISSION);
+    if (rawProgress) {
+      const parsed = JSON.parse(rawProgress);
+      if (parsed && parsed.mission === ACTIVE_MISSION) savedProgress = parsed;
+    }
+  } catch (e) { }
   $('inName').value = savedName;
   $('inGender').value = myGender;
   try {
@@ -2256,8 +2462,36 @@ resize();
       brandLoader.classList.add('loaded');
       window.setTimeout(() => brandLoader.remove(), 450);
     }
-    $('go').disabled = false; $('go').textContent = 'Start riding';
+    $('go').disabled = false; $('go').textContent = hasResumableProgress() ? 'Resume saved ride' : 'Start riding';
+    updateLifeHud();
   }, 40);
+  // A returning Google user automatically restores their cloud save without another prompt.
+  if (window.kitRaceAuth) window.kitRaceAuth.currentUser().then(async user => {
+    if (!user || user.isAnonymous) return;
+    accountUser = user;
+    $('accountTitle').textContent = 'Rider profile connected';
+    $('accountHint').textContent = user.displayName || user.email || 'Your KitRace profile is ready.';
+    $('googleSignInLabel').textContent = 'Google connected ✓';
+    $('accountStatus').className = 'success';
+    $('accountStatus').textContent = 'Loading your saved ride…';
+    try {
+      const cloud = await window.kitRaceAuth.loadProgress(ACTIVE_MISSION);
+      let local = null;
+      try { local = JSON.parse(localStorage.getItem('ride-to-kitlab:progress:' + ACTIVE_MISSION) || 'null'); } catch (error) { }
+      if (cloud && (!local || (Number(cloud.updatedAt) || 0) >= (Number(local.updatedAt) || 0))) {
+        savedProgress = cloud;
+        localStorage.setItem('ride-to-kitlab:progress:' + ACTIVE_MISSION, JSON.stringify(cloud));
+      } else if (local) {
+        savedProgress = local;
+        await window.kitRaceAuth.saveProgress(ACTIVE_MISSION, local);
+      }
+      $('accountStatus').textContent = hasResumableProgress() ? 'Signed in · your saved ride is ready to resume.' : 'Signed in · progress will sync as you ride.';
+      $('go').textContent = hasResumableProgress() ? 'Resume saved ride' : 'Start riding';
+    } catch (error) {
+      $('accountStatus').className = 'error';
+      $('accountStatus').textContent = 'Signed in, but cloud sync could not load. Local progress remains available.';
+    }
+  }).catch(() => {});
   requestAnimationFrame(loop);
 })();
 
