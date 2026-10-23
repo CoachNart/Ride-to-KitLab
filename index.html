@@ -123,6 +123,36 @@
   <script>
     // Catch failures that happen while loading the game module itself (before its own handlers can run).
     window.__kitRaceBooted = false;
+    window.__kitRaceUiWired = false;
+    // Independent menu fallback if the game module fails before registering handlers.
+    document.addEventListener('click', function (event) {
+      if (window.__kitRaceUiWired) return;
+      var button = event.target && event.target.closest ? event.target.closest('button') : null;
+      if (!button) return;
+      if (button.id === 'playBtn') {
+        event.preventDefault();
+        document.getElementById('landingActions').classList.add('hide');
+        document.getElementById('setupPanel').classList.add('show');
+      } else if (button.id === 'backToTitle') {
+        event.preventDefault();
+        document.getElementById('landingActions').classList.remove('hide');
+        document.getElementById('setupPanel').classList.remove('show');
+      } else if (button.matches('[data-mission]')) {
+        event.preventDefault();
+        window.location.href = window.location.pathname + '?mission=' + encodeURIComponent(button.getAttribute('data-mission')) + '&screen=missions';
+      } else if (button.id === 'go') {
+        event.preventDefault();
+        var panel = document.getElementById('kitRaceStartupFailure');
+        if (!panel) {
+          panel = document.createElement('div');
+          panel.id = 'kitRaceStartupFailure';
+          panel.style.cssText = 'position:fixed;z-index:2147483647;inset:12px;padding:16px;border:1px solid #ff5a67;border-radius:14px;background:#071d26;color:#f1fbfd;font:14px/1.5 system-ui,sans-serif;pointer-events:auto';
+          panel.innerHTML = '<strong>KitRace engine did not load</strong><p id="kitRaceStartupMessage">The game engine did not finish loading. Reload the page and try again.</p><button id="kitRaceStartupReload" type="button">Reload game</button>';
+          document.body.appendChild(panel);
+          panel.querySelector('#kitRaceStartupReload').addEventListener('click', function(){ window.location.reload(); });
+        }
+      }
+    }, true);
     window.addEventListener('error', function (event) {
       if (window.__kitRaceBooted) return;
       var panel = document.getElementById('kitRaceStartupFailure');
