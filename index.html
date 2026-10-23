@@ -120,6 +120,24 @@
   </div>
 </div>
 <div id="flash"></div>
+  <script>
+    // Catch failures that happen while loading the game module itself (before its own handlers can run).
+    window.__kitRaceBooted = false;
+    window.addEventListener('error', function (event) {
+      if (window.__kitRaceBooted) return;
+      var panel = document.getElementById('kitRaceStartupFailure');
+      if (!panel) {
+        panel = document.createElement('div');
+        panel.id = 'kitRaceStartupFailure';
+        panel.style.cssText = 'position:fixed;z-index:2147483647;inset:12px 12px auto;padding:16px;border:1px solid #ff5a67;border-radius:14px;background:#071d26;color:#f1fbfd;font:14px/1.5 system-ui,sans-serif;box-shadow:0 8px 30px #0008;pointer-events:auto';
+        panel.innerHTML = '<strong style="display:block;font-size:16px;margin-bottom:5px">KitRace could not finish starting</strong><span id="kitRaceStartupMessage">A startup error stopped the game from loading. Reload to try again.</span><button type="button" id="kitRaceStartupReload" style="display:block;margin-top:12px;padding:9px 14px;border:0;border-radius:9px;background:#19d3ea;color:#02222a;font-weight:800">Reload game</button>';
+        document.body.appendChild(panel);
+        panel.querySelector('#kitRaceStartupReload').addEventListener('click', function () { window.location.reload(); });
+      }
+      var message = panel.querySelector('#kitRaceStartupMessage');
+      if (message && event.message) message.textContent = ('Startup error: ' + event.message).slice(0, 220);
+    });
+  </script>
   <script type="module" src="/src/main.js"></script>
 </body>
 </html>
