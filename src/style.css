@@ -856,3 +856,66 @@ body.touch #padZone, body.touch .tb { pointer-events:auto; touch-action:none; }
   backdrop-filter: none !important;
   -webkit-backdrop-filter: none !important;
 }
+
+
+/* Lives: clear heart-only indicator, anchored safely across phone, tablet and desktop layouts. */
+#lifeHud {
+  position: fixed !important;
+  z-index: 14;
+  top: auto !important;
+  bottom: max(58px, calc(env(safe-area-inset-bottom) + 54px)) !important;
+  left: 50% !important;
+  right: auto !important;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: max-content;
+  max-width: calc(100vw - 24px);
+  padding: 7px 10px !important;
+  border-radius: 999px;
+  gap: 0;
+  pointer-events: none;
+  box-sizing: border-box;
+}
+#lifeIcons {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: clamp(5px, 1.5vw, 9px);
+}
+.life-heart {
+  display: block;
+  flex: 0 0 auto;
+  width: clamp(19px, 4vw, 25px);
+  height: clamp(19px, 4vw, 25px);
+  overflow: visible;
+  fill: #ff4059;
+  filter: drop-shadow(0 0 5px rgba(255,64,89,.32));
+  transition: opacity .18s ease, fill .18s ease, filter .18s ease, transform .18s ease;
+}
+.life-heart:not(.off) { animation: heartReady .24s ease-out; }
+.life-heart.off {
+  fill: rgba(224,239,242,.16);
+  filter: none;
+  opacity: .62;
+}
+@keyframes heartReady { from { transform: scale(.78); } to { transform: scale(1); } }
+@media (max-width: 600px) {
+  #lifeHud {
+    bottom: calc(max(8px, env(safe-area-inset-bottom)) + 70px) !important;
+    padding: 6px 9px !important;
+  }
+  .life-heart { width: 20px; height: 20px; }
+}
+@media (orientation: landscape) and (max-height: 500px) {
+  #lifeHud {
+    top: max(8px, env(safe-area-inset-top)) !important;
+    bottom: auto !important;
+    padding: 4px 7px !important;
+  }
+  .life-heart { width: 17px; height: 17px; }
+}
+@media (min-width: 1000px) {
+  #lifeHud { bottom: max(66px, calc(env(safe-area-inset-bottom) + 58px)) !important; }
+}
