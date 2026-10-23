@@ -2023,10 +2023,12 @@ async function handleGoogleSignIn() {
       inputName.value = accountUser.displayName.replace(/[^\w \.-]/g, '').trim().slice(0, 14) || 'Rider';
     }
     myName = inputName.value || accountUser.displayName || 'Rider';
-    await window.kitRaceAuth.saveProfile({ id: myId, name: myName, gender: myGender });
+    let cloudSyncReady = true;
+    try { await window.kitRaceAuth.saveProfile({ id: myId, name: myName, gender: myGender }); }
+    catch (error) { cloudSyncReady = false; console.warn('[KitRace] Profile cloud write failed.', error); }
     let cloud = null;
     try { cloud = await window.kitRaceAuth.loadProgress(ACTIVE_MISSION); } catch (error) {
-      console.warn('[KitRace] Could not load cloud progress.', error);
+      cloudSyncReady = false; console.warn('[KitRace] Could not load cloud progress.', error);
     }
     let local = null;
     try { local = JSON.parse(localStorage.getItem('ride-to-kitlab:progress:' + ACTIVE_MISSION) || 'null'); } catch (error) { }
@@ -2035,13 +2037,16 @@ async function handleGoogleSignIn() {
       try { localStorage.setItem('ride-to-kitlab:progress:' + ACTIVE_MISSION, JSON.stringify(cloud)); } catch (error) { }
     } else if (local) {
       savedProgress = local;
-      await window.kitRaceAuth.saveProgress(ACTIVE_MISSION, local);
+      try { await window.kitRaceAuth.saveProgress(ACTIVE_MISSION, local); }
+      catch (error) { cloudSyncReady = false; console.warn('[KitRace] Cloud progress write failed.', error); }
     }
     $('accountTitle').textContent = 'Rider profile connected';
     $('accountHint').textContent = accountUser.displayName || accountUser.email || 'Your KitRace profile is ready.';
     label.textContent = 'Google connected ✓';
-    status.className = 'success';
-    status.textContent = hasResumableProgress() ? 'Profile synced · your saved ride is ready to resume.' : 'Profile synced · records and future progress will be saved.';
+    status.className = cloudSyncReady ? 'success' : 'error';
+    status.textContent = cloudSyncReady
+      ? (hasResumableProgress() ? 'Profile synced · your saved ride is ready to resume.' : 'Profile synced · records and future progress will be saved.')
+      : 'Google connected, but cloud storage access needs checking. This device still saves locally.';
     $('go').textContent = hasResumableProgress() ? 'Resume saved ride' : 'Start riding';
   } catch (error) {
     console.error('[KitRace] Google sign-in failed.', error);
