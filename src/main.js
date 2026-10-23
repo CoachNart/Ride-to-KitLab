@@ -1918,6 +1918,9 @@ function finishRace() {
   try { localStorage.setItem('ride-to-kitlab:mission-complete:' + ACTIVE_MISSION, '1'); } catch (e) { }
   finishTime = runTime;
   saveProgressState();
+  if (window.kitRaceAuth && accountUser && !accountUser.isAnonymous) {
+    window.kitRaceAuth.saveRecord(ACTIVE_MISSION, { time: +finishTime.toFixed(1), score: Math.floor(score), name: myName }).catch(error => console.warn('[KitRace] Record sync failed.', error));
+  }
   flash(() => {
     postScore();
     netSendNow();
@@ -2016,8 +2019,8 @@ async function handleGoogleSignIn() {
   try {
     accountUser = await window.kitRaceAuth.signInWithGoogle();
     const inputName = $('inName');
-    if (accountUser.displayName && (!inputName.value || /^Rider\\d+$/i.test(inputName.value))) {
-      inputName.value = accountUser.displayName.replace(/[^\\w \\.\\-]/g, '').trim().slice(0, 14) || 'Rider';
+    if (accountUser.displayName && (!inputName.value || /^Rider\d+$/i.test(inputName.value))) {
+      inputName.value = accountUser.displayName.replace(/[^\w \.-]/g, '').trim().slice(0, 14) || 'Rider';
     }
     myName = inputName.value || accountUser.displayName || 'Rider';
     await window.kitRaceAuth.saveProfile({ id: myId, name: myName, gender: myGender });
@@ -2085,8 +2088,11 @@ function startRide() {
   else { resetRun(); placeAtPath(0, 0); score = 0; combo = 1; coinsGot = 0; countdown = 3.2; lives = 3; updateLifeHud(); }
   activeTrick = 'ride'; trickTimer = 0; aiRaceStarted = false;
   spawnGhosts(aiOpponentCount);
-  toast(MISSION_TITLE + ': Clear all 5 checkpoints, collect coins, then beat the AI riders to the finish!', 4200);
-  netInit();
+  toast(hasResumableProgress() ? 'Welcome back! Your saved ride is restored.' : MISSION_TITLE + ': Clear all 5 checkpoints, collect coins, then beat the AI riders to the finish!', 4200);
+  netInit(); saveProgressState();
+  if (accountUser && !accountUser.isAnonymous && window.kitRaceAuth) {
+    window.kitRaceAuth.saveProfile({ id: myId, name: myName, gender: myGender }).catch(() => {});
+  }
 }
 
 /* ============================================================
