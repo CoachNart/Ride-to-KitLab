@@ -105,6 +105,13 @@
     </section>
     <section id="setupPanel">
       <div id="screenHeading"><h2>SELECT YOUR RIDE</h2><button type="button" id="backToTitle">← BACK</button></div>
+      <div id="profileActionRow">
+        <button type="button" id="openProfileBtn" aria-haspopup="dialog" aria-controls="profileModal">
+          <span id="profileButtonAvatar" aria-hidden="true">R</span>
+          <span class="profile-button-copy"><strong>RIDER PROFILE</strong><small id="profileButtonSubtitle">View your account and race stats</small></span>
+          <span class="profile-button-arrow" aria-hidden="true">↗</span>
+        </button>
+      </div>
       <div id="missionPicker">
         <button type="button" id="pickNeon" class="btn active" data-mission="neon"><b>⚡ NEON SPRINT</b><span>SELECTED</span></button>
         <button type="button" id="pickCoast" class="btn" data-mission="coastline"><b>🌊 COASTLINE RUSH</b><span>AVAILABLE</span></button>
@@ -124,6 +131,30 @@
   </div>
 </div>
 
+<div id="profileModal" class="ov hide" role="dialog" aria-modal="true" aria-labelledby="profileModalTitle">
+  <section id="profileCard" class="panel">
+    <div class="profile-modal-heading">
+      <div><span class="profile-eyebrow">KITRACE / RIDER ID</span><h2 id="profileModalTitle">Rider profile</h2></div>
+      <button type="button" id="closeProfileBtn" aria-label="Close rider profile">✕</button>
+    </div>
+    <div class="profile-identity">
+      <div id="profileAvatarWrap"><img id="profileAvatarImage" alt="" hidden><span id="profileAvatarInitial">R</span></div>
+      <div class="profile-identity-copy"><strong id="profileDisplayName">Rider</strong><span id="profileEmail">Guest account · saved on this device</span><span id="profileConnectionStatus">LOCAL PROFILE</span></div>
+    </div>
+    <div class="profile-stats" aria-label="Rider statistics">
+      <div><strong id="profileRaces">—</strong><span>RACES</span></div>
+      <div><strong id="profileBestScore">—</strong><span>BEST SCORE</span></div>
+      <div><strong id="profileRoutes">—</strong><span>ROUTES RIDDEN</span></div>
+    </div>
+    <div class="profile-records-heading"><h3>RACE RECORDS</h3><span>PERSONAL BESTS</span></div>
+    <div id="profileRecords"><p class="profile-empty">Your ride records will appear here after you finish a race.</p></div>
+    <p id="profileMessage" role="status" aria-live="polite"></p>
+    <div class="profile-modal-actions">
+      <button type="button" id="profileSignInBtn" class="btn primary">Connect Google account</button>
+      <button type="button" id="profileDoneBtn" class="btn">Done</button>
+    </div>
+  </section>
+</div>
 <div id="modal" class="ov hide">
   <div id="mCard" class="panel">
     <div id="mHead"><i id="mGem" style="display:none"></i><div><div id="mTitle"></div><div id="mStep"></div></div></div>
