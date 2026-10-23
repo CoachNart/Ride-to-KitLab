@@ -865,3 +865,36 @@ button { max-width:100%; }
   #tJump { width:44px; height:44px; right:calc(max(8px,env(safe-area-inset-right)) + 54px); bottom:calc(max(6px,env(safe-area-inset-bottom)) + 62px); }
   body.touch #tTrick { width:40px; height:40px; right:calc(max(8px,env(safe-area-inset-right)) + 1px); bottom:calc(max(6px,env(safe-area-inset-bottom)) + 82px); }
 }
+
+
+/* KitRace controls: single input layer, no competing touch-event rules. */
+body.touch #touch { display:block; position:absolute; inset:0; z-index:12; pointer-events:none; touch-action:none; }
+body.touch #padZone, body.touch .tb { pointer-events:auto; touch-action:none; }
+body.touch #pad { pointer-events:none; touch-action:none; }
+#padZone { position:absolute; left:0; bottom:0; width:50%; height:58%; pointer-events:auto; touch-action:none; }
+#pad { position:absolute; left:max(18px,env(safe-area-inset-left)); bottom:calc(max(26px,env(safe-area-inset-bottom)) + 8px); width:170px; height:70px; border-radius:999px; display:flex; align-items:center; justify-content:center; pointer-events:none; }
+#knob { width:54px; height:54px; border-radius:50%; background:linear-gradient(145deg,#f2feff,#8caeb5); border:2px solid rgba(255,255,255,.72); box-shadow:0 5px 16px rgba(0,0,0,.35),inset 0 1px 1px #fff; }
+.tb { position:absolute; border-radius:50%; border:1px solid rgba(151,224,235,.38); background:linear-gradient(145deg,rgba(4,31,41,.91),rgba(2,17,24,.94)); box-shadow:0 8px 24px rgba(0,0,0,.3),inset 0 1px 0 rgba(255,255,255,.08); font-weight:800; display:flex; align-items:center; justify-content:center; touch-action:none; -webkit-user-select:none; user-select:none; }
+.tb.down { background:linear-gradient(135deg,#4be7f2,#11b8d0); border-color:#c0fbff; color:#03202a; box-shadow:0 0 22px rgba(25,211,234,.32); }
+#tBoost { width:88px; height:88px; right:max(18px,env(safe-area-inset-right)); bottom:calc(max(26px,env(safe-area-inset-bottom)) + 30px); border:2px solid rgba(25,211,234,.75); color:#d9fbff; }
+#tBrake { width:72px; height:72px; right:calc(max(18px,env(safe-area-inset-right)) + 100px); bottom:calc(max(26px,env(safe-area-inset-bottom)) + 12px); }
+#tJump { width:62px; height:62px; right:calc(max(18px,env(safe-area-inset-right)) + 108px); bottom:calc(max(26px,env(safe-area-inset-bottom)) + 96px); font-size:12px; border-color:rgba(25,211,234,.58); }
+#tTrick { width:62px; height:62px; right:calc(max(18px,env(safe-area-inset-right)) + 20px); bottom:calc(max(26px,env(safe-area-inset-bottom)) + 220px); font-size:11px; border-color:rgba(25,211,234,.75); color:#c9fbff; }
+@media (max-width:699px) {
+  #padZone { width:54%; height:52%; }
+  #pad { left:max(10px,env(safe-area-inset-left)); bottom:calc(max(8px,env(safe-area-inset-bottom)) + 2px); width:clamp(104px,34vw,142px); height:clamp(48px,15vw,60px); }
+  #knob { width:clamp(36px,12vw,46px); height:clamp(36px,12vw,46px); }
+  #tBoost { width:clamp(62px,19vw,76px); height:clamp(62px,19vw,76px); right:max(8px,env(safe-area-inset-right)); bottom:calc(max(10px,env(safe-area-inset-bottom)) + 8px); font-size:11px; }
+  #tBrake { width:clamp(52px,16vw,64px); height:clamp(52px,16vw,64px); right:calc(max(8px,env(safe-area-inset-right)) + clamp(68px,21vw,82px)); bottom:calc(max(10px,env(safe-area-inset-bottom)) + 8px); font-size:10px; }
+  #tJump { width:48px; height:48px; right:calc(max(8px,env(safe-area-inset-right)) + 64px); bottom:calc(max(10px,env(safe-area-inset-bottom)) + 76px); font-size:10px; }
+  #tTrick { width:44px; height:44px; right:calc(max(8px,env(safe-area-inset-right)) + 4px); bottom:calc(max(10px,env(safe-area-inset-bottom)) + 138px); font-size:9px; }
+}
+@media (orientation:landscape) and (max-height:600px) {
+  #padZone { width:50%; height:48%; }
+  #pad { left:max(6px,env(safe-area-inset-left)); bottom:calc(max(8px,env(safe-area-inset-bottom)) + 2px); width:clamp(92px,22vw,124px); height:clamp(44px,12vw,54px); }
+  #knob { width:clamp(32px,9vw,40px); height:clamp(32px,9vw,40px); }
+  #tBoost { width:52px; height:52px; right:max(6px,env(safe-area-inset-right)); bottom:calc(max(5px,env(safe-area-inset-bottom)) + 3px); font-size:9px; }
+  #tBrake { width:44px; height:44px; right:calc(max(6px,env(safe-area-inset-right)) + 56px); bottom:calc(max(5px,env(safe-area-inset-bottom)) + 3px); font-size:9px; }
+  #tJump { width:36px; height:36px; right:calc(max(6px,env(safe-area-inset-right)) + 50px); bottom:calc(max(5px,env(safe-area-inset-bottom)) + 56px); font-size:9px; }
+  #tTrick { width:34px; height:34px; right:calc(max(6px,env(safe-area-inset-right)) + 1px); bottom:calc(max(5px,env(safe-area-inset-bottom)) + 98px); font-size:8px; }
+}
