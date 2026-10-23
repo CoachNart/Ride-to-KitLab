@@ -2089,19 +2089,24 @@ function updateCamera(dt) {
     camera.lookAt(P.x, P.y + 0.9, P.z); camera.fov = 52; camera.updateProjectionMatrix(); return;
   }
   camYaw += angDiff(P.yaw, camYaw) * Math.min(1, dt * 5);
-  const fov = 62 + clamp(P.v, 0, 46) * 0.55;
+  // In phone landscape, bring the chase camera closer so the rider stays easy
+  // to read on the wide screen without changing desktop or portrait framing.
+  const landscapeTouch = IS_TOUCH && window.matchMedia('(orientation: landscape)').matches;
+  const fov = (landscapeTouch ? 58 : 62) + clamp(P.v, 0, 46) * (landscapeTouch ? 0.42 : 0.55);
   if (Math.abs(camera.fov - fov) > 0.05) { camera.fov += (fov - camera.fov) * Math.min(1, dt * 4); camera.updateProjectionMatrix(); }
   shake = Math.max(0, shake - dt * 1.6);
   const sh = shake + clamp(P.v - 18, 0, 30) * 0.0016;
   const sx = (Math.random() - 0.5) * sh, sy = (Math.random() - 0.5) * sh;
   if (camMode === 0) {
-    const dist = 4.7 + clamp(P.v, 0, 40) * 0.04, f = Math.sin(camYaw), g = Math.cos(camYaw);
-    desired.set(P.x - f * dist, P.y + 2.0, P.z - g * dist);
+    const dist = (landscapeTouch ? 3.65 : 4.7) + clamp(P.v, 0, 40) * (landscapeTouch ? 0.025 : 0.04), f = Math.sin(camYaw), g = Math.cos(camYaw);
+    desired.set(P.x - f * dist, P.y + (landscapeTouch ? 1.65 : 2.0), P.z - g * dist);
     const gh = groundAt(zone, desired.x, desired.z) + 0.9; if (desired.y < gh) desired.y = gh;
     if (!camInit) { camPos.copy(desired); camInit = true; }
     camPos.lerp(desired, 1 - Math.exp(-dt * 10));
     camera.position.set(camPos.x + sx, camPos.y + sy, camPos.z);
-    camLook.set(P.x + f * 4 + f * P.v * 0.1, P.y + 1.25, P.z + g * 4 + g * P.v * 0.1); camera.lookAt(camLook);
+    const lookAhead = landscapeTouch ? 3.1 : 4;
+    const speedLookAhead = landscapeTouch ? 0.075 : 0.1;
+    camLook.set(P.x + f * lookAhead + f * P.v * speedLookAhead, P.y + 1.2, P.z + g * lookAhead + g * P.v * speedLookAhead); camera.lookAt(camLook);
   } else {
     const f = Math.sin(P.yaw), g = Math.cos(P.yaw);
     camera.position.set(P.x + f * 0.28 + sx, P.y + 1.55 + sy, P.z + g * 0.28);
