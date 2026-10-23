@@ -1,0 +1,47 @@
+/* KitRace mobile action controls: larger, thumb-friendly touch targets. */
+@media (max-width: 600px) {
+  #touch .tb {
+    min-width: 54px;
+    min-height: 54px;
+    font-size: 11px;
+    font-weight: 800;
+    border-width: 2px;
+    text-shadow: 0 1px 2px rgba(0,0,0,.25);
+  }
+  #tBoost {
+    width: clamp(68px, 19vw, 78px);
+    height: clamp(68px, 19vw, 78px);
+    right: max(8px, env(safe-area-inset-right));
+    bottom: calc(max(8px, env(safe-area-inset-bottom)) + 8px);
+    font-size: 11px;
+  }
+  #tBrake {
+    width: clamp(60px, 16vw, 66px);
+    height: clamp(60px, 16vw, 66px);
+    right: calc(max(8px, env(safe-area-inset-right)) + clamp(70px, 20vw, 84px));
+    bottom: calc(max(8px, env(safe-area-inset-bottom)) + 8px);
+    font-size: 10px;
+  }
+  #tJump {
+    width: clamp(56px, 15vw, 62px);
+    height: clamp(56px, 15vw, 62px);
+    right: calc(max(8px, env(safe-area-inset-right)) + clamp(62px, 18vw, 76px));
+    bottom: calc(max(8px, env(safe-area-inset-bottom)) + clamp(76px, 21vw, 88px));
+    font-size: 10px;
+  }
+  #tTrick {
+    width: clamp(54px, 14.5vw, 60px);
+    height: clamp(54px, 14.5vw, 60px);
+    right: max(8px, env(safe-area-inset-right));
+    bottom: calc(max(8px, env(safe-area-inset-bottom)) + clamp(86px, 24vw, 102px));
+    font-size: 10px;
+  }
+}
+/* Landscape phones need larger targets without consuming the full short edge. */
+@media (orientation: landscape) and (max-height: 500px) and (max-width: 900px) {
+  #touch .tb { min-width: 46px; min-height: 46px; }
+  #tBoost { width: 60px; height: 60px; right: max(8px, env(safe-area-inset-right)); bottom: calc(max(6px, env(safe-area-inset-bottom)) + 4px); font-size: 10px; }
+  #tBrake { width: 54px; height: 54px; right: calc(max(8px, env(safe-area-inset-right)) + 64px); bottom: calc(max(6px, env(safe-area-inset-bottom)) + 4px); font-size: 9px; }
+  #tJump { width: 50px; height: 50px; right: calc(max(8px, env(safe-area-inset-right)) + 58px); bottom: calc(max(6px, env(safe-area-inset-bottom)) + 62px); font-size: 9px; }
+  #tTrick { width: 48px; height: 48px; right: max(8px, env(safe-area-inset-right)); bottom: calc(max(6px, env(safe-area-inset-bottom)) + 66px); font-size: 9px; }
+}
