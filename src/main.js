@@ -165,7 +165,7 @@ $('bBack').addEventListener('click', backToRoad);
 $('bSnd').addEventListener('click', () => setMuted(!muted));
 $('bPause').addEventListener('click', () => paused ? resumeRide() : pauseRide());
 $('resumeRide').addEventListener('click', resumeRide);
-$('pauseSound').addEventListener('click', () => setMuted(!muted));
+$('exitRide').addEventListener('click', exitRide);
 $('status').addEventListener('click', () => { const r = $('roster'); r.classList.toggle('hide'); if (!r.classList.contains('hide')) updateRoster(); });
 $('aExplore').addEventListener('click', () => { $('arrive').classList.add('hide'); modalOpen = false; $('aExplore').textContent = 'Free ride'; });
 $('aOpen').addEventListener('click', () => { if (KITLAB_URL) window.open(KITLAB_URL, '_blank', 'noopener'); });
@@ -1457,6 +1457,19 @@ function resumeRide() {
   if (!muted) {
     try { const ctx = audioInit(); if (ctx && ctx.state === 'suspended') ctx.resume().catch(() => {}); Music.start(); } catch (e) { }
   }
+}
+function exitRide() {
+  if (!paused) return;
+  // Persist the current run before returning to the start screen.
+  saveProgressState();
+  paused = false;
+  started = false;
+  Music.stop();
+  $('pause').classList.add('hide');
+  $('hud').classList.add('hide');
+  $('menu').classList.remove('hide');
+  $('bPause').textContent = 'Pause';
+  if ($('go')) $('go').textContent = hasResumableProgress() ? 'Resume saved ride' : 'Start riding';
 }
 /* ============================================================
    UI HELPERS
