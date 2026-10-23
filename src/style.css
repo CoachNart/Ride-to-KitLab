@@ -581,9 +581,8 @@ body.touch #tTrick {
   bottom: calc(max(26px, env(safe-area-inset-bottom)) + 130px);
 }
 body.touch #tBell {
-  /* Keep Bell tucked into the mobile control cluster, just above Boost. */
-  right: calc(max(8px, env(safe-area-inset-right)) + 8px);
-  bottom: calc(max(10px, env(safe-area-inset-bottom)) + 88px);
+  right: calc(max(18px, env(safe-area-inset-right)) + 100px);
+  bottom: calc(max(26px, env(safe-area-inset-bottom)) + 174px);
 }
 @media (orientation: landscape) and (max-height: 600px) {
   body.touch #tTrick {
@@ -591,9 +590,8 @@ body.touch #tBell {
     bottom: calc(max(8px, env(safe-area-inset-bottom)) + 80px);
   }
   body.touch #tBell {
-    /* Compact landscape placement; keep it near the brake/boost controls. */
-    right: calc(max(10px, env(safe-area-inset-right)) + 16px);
-    bottom: calc(max(8px, env(safe-area-inset-bottom)) + 80px);
+    right: calc(max(10px, env(safe-area-inset-right)) + 72px);
+    bottom: calc(max(8px, env(safe-area-inset-bottom)) + 132px);
   }
 }
 /* YouTube requires an embedded player surface; keep its minimum player size off
