@@ -27,11 +27,11 @@
   /* KitRace brand assets: keep logo artwork clean, with no added plate or frame. */
   #brandLoader { position:fixed; inset:0; z-index:2147483000; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:18px; background:radial-gradient(ellipse at 50% 42%,#0c3440 0%,#04151c 54%,#02090d 100%); opacity:1; visibility:visible; transition:opacity .35s ease,visibility .35s ease; }
   #brandLoader.loaded { opacity:0; visibility:hidden; pointer-events:none; }
-  #brandLoader img { display:block; width:min(48vw,220px); max-width:58vw; max-height:30vh; object-fit:contain; background:transparent; border:0; box-shadow:none; }
+  #brandLoader img { display:block; width:min(48vw,220px); max-width:58vw; max-height:30vh; object-fit:contain; background:transparent; border:0; box-shadow:none; mix-blend-mode:screen; }
   #brandLoader .loader-caption { color:#b8eaf1; font:700 10px/1.4 'Oxanium',sans-serif; letter-spacing:.28em; text-transform:uppercase; }
   #brandLoader .loader-track { width:110px; height:3px; overflow:hidden; border-radius:9px; background:rgba(184,234,241,.15); }
   #brandLoader .loader-track i { display:block; width:42%; height:100%; border-radius:9px; background:#19d3ea; animation:brandLoading 1.05s ease-in-out infinite alternate; }
-  #landingActions .brand-logo { display:block; width:min(38vw,170px); max-width:52%; max-height:110px; object-fit:contain; margin:0 auto 2px; background:transparent; border:0; box-shadow:none; }
+  #landingActions .brand-logo { display:block; width:min(38vw,170px); max-width:52%; max-height:110px; object-fit:contain; margin:0 auto 2px; background:transparent; border:0; box-shadow:none; mix-blend-mode:screen; }
   @keyframes brandLoading { from { transform:translateX(0); } to { transform:translateX(145px); } }
   @media (max-width:600px) { #landingActions .brand-logo { width:min(38vw,130px); max-height:76px; } #brandLoader img { width:min(48vw,170px); } }
   @media (prefers-reduced-motion:reduce) { #brandLoader .loader-track i { animation:none; } }
@@ -85,7 +85,7 @@
   <div id="menuCard" class="panel">
     <section id="landingActions">
       <img class="brand-logo" src="https://i.postimg.cc/90T5NC7N/file-000000008844820cab120e1c511fd5a2.png" alt="KitRace" fetchpriority="high" />
-      <div class="game-kicker"><i></i> KITRACE · 3D BIKE RACING</div>
+      <div class="game-kicker">KITRACE · 3D BIKE RACING</div>
       <p class="tagline">Pick your route. Ride hard. Own the finish.</p>
       <button type="button" id="playBtn" class="btn primary">PLAY</button>
       <p class="menu-foot">5 RIDES <span>•</span> SOLO OR ROOM PLAY</p>
