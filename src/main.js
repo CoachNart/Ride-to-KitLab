@@ -1982,20 +1982,20 @@ function getRaceProgress(row) {
   const hint = Number.isFinite(Number(state.pi)) ? clamp(Number(state.pi) | 0, 0, PS) : clamp(P.pathIdx || 0, 0, PS);
   return clamp(nearestPath(Number(row.remote.x ?? state.x) || 0, Number(row.remote.z ?? state.z) || 0, hint).i, 0, PS);
 }
+let lastShownRacePosition = null;
+let racePositionToastTimer = 0;
+
 function updateRaceTracker() {
-  const tracker = $('racePositionRows');
-  if (!tracker || !started) return;
+  if (!started) { lastShownRacePosition = null; return; }
   const rows = [{
-    id: 'you', name: myName || 'Rider', color: RIDER_PAL[myColor],
-    isPlayer: true, finished: !!finishTime, finish: Number(finishTime) || Infinity,
-    progress: 0
+    id: 'you', isPlayer: true, finished: !!finishTime,
+    finish: Number(finishTime) || Infinity, progress: 0
   }];
   remotes.forEach(remote => {
     if (!remote.live) return;
     const remoteFinish = Number(remote.state && remote.state.f) || 0;
     rows.push({
-      id: String(remote.id), name: String(remote.state && remote.state.n || 'Rider') + (remote.ghost ? '' : ''),
-      color: remote.color || RIDER_PAL[(Number(remote.state && remote.state.c) || 0) % RIDER_PAL.length],
+      id: String(remote.id),
       remote, ghost: !!remote.ghost,
       finished: !!remoteFinish || ((Number(remote.state && remote.state.zn) | 0) === 1) || (!!remote.ghost && !!remote.aiFinished),
       finish: remoteFinish > 0 ? remoteFinish : (remote.aiFinished ? Number(remote.aiElapsed) || Infinity : Infinity),
@@ -2008,15 +2008,25 @@ function updateRaceTracker() {
     if (a.finished && b.finished && a.finish !== b.finish) return a.finish - b.finish;
     return b.progress - a.progress;
   });
-  tracker.innerHTML = rows.map((row, index) => {
-    const status = row.finished ? 'FINISHED' : Math.floor(row.progress / PS * 100) + '%';
-    const label = row.isPlayer ? 'YOU' : row.name + (row.ghost ? ' · AI' : '');
-    return '<div class="race-position-row' + (row.isPlayer ? ' is-you' : '') + '">' +
-      '<span class="race-rank">' + ordinalPosition(index + 1) + '</span>' +
-      '<i class="race-swatch" style="background:' + esc(row.color) + '"></i>' +
-      '<span class="race-rider-name">' + esc(label) + '</span>' +
-      '<span class="race-progress">' + status + '</span></div>';
-  }).join('');
+
+  const currentPosition = rows.findIndex(row => row.isPlayer) + 1;
+  if (currentPosition < 1 || currentPosition === lastShownRacePosition) return;
+  const previousPosition = lastShownRacePosition;
+  lastShownRacePosition = currentPosition;
+
+  const toast = $('racePositionToast');
+  if (!toast) return;
+  const position = ordinalPosition(currentPosition);
+  const change = previousPosition === null
+    ? 'CURRENT POSITION'
+    : currentPosition < previousPosition ? 'OVERTAKE' : 'POSITION CHANGED';
+  toast.textContent = position + ' PLACE';
+  toast.dataset.change = change;
+  toast.classList.remove('show');
+  void toast.offsetWidth;
+  toast.classList.add('show');
+  window.clearTimeout(racePositionToastTimer);
+  racePositionToastTimer = window.setTimeout(() => toast.classList.remove('show'), 1900);
 }
 
 /* ============================================================
