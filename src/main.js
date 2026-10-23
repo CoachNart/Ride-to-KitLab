@@ -149,6 +149,84 @@ if (new URLSearchParams(window.location.search).get('screen') === 'missions') sh
 window.__kitRaceUiWired = true;
 $('go').addEventListener('click', () => { try { audioInit(); if (ready) startRide(); else showStartupFailure(new Error('The game world has not finished initializing.')); } catch (error) { showStartupFailure(error); } });
 $('googleSignInBtn')?.addEventListener('click', handleGoogleSignIn);
+$('openProfileBtn')?.addEventListener('click', openRiderProfile);
+$('closeProfileBtn')?.addEventListener('click', closeRiderProfile);
+$('profileDoneBtn')?.addEventListener('click', closeRiderProfile);
+$('profileSignInBtn')?.addEventListener('click', () => { closeRiderProfile(); showTitleScreen(); });
+$('profileModal')?.addEventListener('click', event => { if (event.target === $('profileModal')) closeRiderProfile(); });
+document.addEventListener('keydown', event => { if (event.key === 'Escape' && !$('profileModal')?.classList.contains('hide')) closeRiderProfile(); });
+
+async function openRiderProfile() {
+  const modal = $('profileModal');
+  if (!modal) return;
+  modal.classList.remove('hide');
+  $('profileMessage').textContent = 'Loading saved rider data…';
+  $('profileRecords').replaceChildren();
+  $('profileRaces').textContent = '—';
+  $('profileBestScore').textContent = '—';
+  $('profileRoutes').textContent = '—';
+  let user = accountUser;
+  if (!user && window.kitRaceAuth) {
+    try { user = await window.kitRaceAuth.currentUser(); } catch (error) { console.warn('[KitRace] Could not load profile account.', error); }
+  }
+  const localProfile = (() => { try { return JSON.parse(localStorage.getItem('ride-to-kitlab:profile') || '{}'); } catch (error) { return {}; } })();
+  const displayName = (user && user.displayName && !user.isAnonymous ? user.displayName : '') || myName || localProfile.name || 'KitRace Rider';
+  const email = user && !user.isAnonymous ? (user.email || 'Google account connected') : 'Guest rider · saved on this device';
+  $('profileDisplayName').textContent = displayName;
+  $('profileEmail').textContent = email;
+  $('profileAvatarInitial').textContent = (displayName.trim().charAt(0) || 'R').toUpperCase();
+  const avatar = $('profileAvatarImage');
+  if (user && !user.isAnonymous && user.photoURL) {
+    avatar.src = user.photoURL;
+    avatar.hidden = false;
+    $('profileAvatarInitial').hidden = true;
+  } else {
+    avatar.removeAttribute('src');
+    avatar.hidden = true;
+    $('profileAvatarInitial').hidden = false;
+  }
+  $('profileButtonAvatar').textContent = (displayName.trim().charAt(0) || 'R').toUpperCase();
+  $('profileButtonSubtitle').textContent = user && !user.isAnonymous ? 'Google account connected · view stats' : 'Guest rider · view your stats';
+  $('profileConnectionStatus').textContent = user && !user.isAnonymous ? 'GOOGLE ACCOUNT CONNECTED' : 'LOCAL PROFILE';
+  $('profileSignInBtn').classList.toggle('hide', !!(user && !user.isAnonymous));
+  if (!user || user.isAnonymous || !window.kitRaceAuth) {
+    $('profileMessage').textContent = 'Connect Google to sync your profile and records across devices.';
+    $('profileRecords').innerHTML = '<p class="profile-empty">Sign in with Google to see synced race records here. Your current device profile remains available.</p>';
+    return;
+  }
+  try {
+    const records = await window.kitRaceAuth.loadRecords();
+    const safeRecords = Array.isArray(records) ? records : [];
+    const races = safeRecords.reduce((sum, record) => sum + Math.max(0, Number(record.completions) || 0), 0);
+    const bestScore = safeRecords.reduce((best, record) => Math.max(best, Number(record.bestScore) || 0), 0);
+    $('profileRaces').textContent = String(races);
+    $('profileBestScore').textContent = String(bestScore);
+    $('profileRoutes').textContent = String(safeRecords.filter(record => (Number(record.completions) || 0) > 0).length);
+    if (!safeRecords.length) {
+      $('profileRecords').innerHTML = '<p class="profile-empty">No completed races yet. Finish a ride and your personal best will show here.</p>';
+    } else {
+      const names = { neon: 'Neon Sprint', coastline: 'Coastline Rush', desert: 'Dust Devil', mountain: 'Mountain Pass', city: 'City Lights' };
+      safeRecords.sort((a, b) => (Number(b.bestScore) || 0) - (Number(a.bestScore) || 0)).forEach(record => {
+        const row = document.createElement('div');
+        row.className = 'profile-record-row';
+        const title = document.createElement('strong');
+        title.textContent = names[record.mission] || names[Object.keys(names).find(key => key === record.mission)] || String(record.mission || 'Ride');
+        const detail = document.createElement('span');
+        const time = Number(record.bestTime);
+        detail.textContent = 'Best ' + (Number.isFinite(time) && time > 0 ? time.toFixed(1) + 's' : '—') + ' · Score ' + (Number(record.bestScore) || 0) + ' · ' + (Number(record.completions) || 0) + ' race' + ((Number(record.completions) || 0) === 1 ? '' : 's');
+        row.append(title, detail);
+        $('profileRecords').appendChild(row);
+      });
+    }
+    $('profileMessage').textContent = 'Your profile and race records are synced to your Google account.';
+  } catch (error) {
+    console.warn('[KitRace] Profile records failed to load.', error);
+    $('profileMessage').textContent = 'Could not load cloud race records right now. Your local ride progress is still available.';
+    $('profileRecords').innerHTML = '<p class="profile-empty">Race records could not be loaded. Please check your connection and try again.</p>';
+  }
+}
+function closeRiderProfile() { $('profileModal')?.classList.add('hide'); }
+
 // Mobile browsers can suspend Web Audio when switching apps, locking the screen, or after inactivity.
 document.addEventListener('visibilitychange', () => {
   if (!document.hidden && AC && AC.state === 'suspended') {
