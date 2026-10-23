@@ -24,16 +24,144 @@ async function ensureAuthenticated() {
   if (!authPromise) authPromise = signInAnonymously(auth).then(c => c.user);
   try { return await authPromise; } catch (error) { authPromise = null; throw error; }
 }
+function hasInvalidKeyChars(value) {
+  return ['.', '#', '
+function nestedListLocation(prefix) {
+  const m = /^([a-z0-9_-]{1,16}):([pb]):$/.exec(validKey(prefix));
+  if (!m) return null;
+  const [, room, kind] = m;
+  return { path: `rooms/${room}/${kind === 'p' ? 'players' : 'board'}` };
+}
+function publicUser(user) {
+  return { uid: user.uid, displayName: user.displayName || 'KitRace Rider', email: user.email || '', photoURL: user.photoURL || '', isAnonymous: !!user.isAnonymous };
+}
+async function signInWithGoogle() {
+  const current = await ensureAuthenticated();
+  try {
+    // Link the guest session so a first Google sign-in keeps the same Firebase UID.
+    const result = current.isAnonymous ? await linkWithPopup(current, googleProvider) : await signInWithPopup(auth, googleProvider);
+    authPromise = Promise.resolve(result.user);
+    return publicUser(result.user);
+  } catch (error) {
+    // If this Google account already exists, sign in to that account instead.
+    if (error.code === 'auth/credential-already-in-use' || error.code === 'auth/email-already-in-use') {
+      const result = await signInWithPopup(auth, googleProvider);
+      authPromise = Promise.resolve(result.user);
+      return publicUser(result.user);
+    }
+    throw error;
+  }
+}
+async function saveProfile(profile) {
+  const user = await ensureAuthenticated();
+  if (user.isAnonymous) return false;
+  await set(ref(database, `users/${user.uid}/profile`), { ...profile, ...publicUser(user), updatedAt: Date.now() });
+  return true;
+}
+async function saveProgress(mission, progress) {
+  const user = await ensureAuthenticated();
+  if (user.isAnonymous) return false;
+  await set(ref(database, `users/${user.uid}/progress/${validKey(mission)}`), { ...progress, updatedAt: Date.now() });
+  return true;
+}
+async function loadProgress(mission) {
+  const user = await ensureAuthenticated();
+  if (user.isAnonymous) return null;
+  const snapshot = await get(ref(database, `users/${user.uid}/progress/${validKey(mission)}`));
+  return snapshot.exists() ? snapshot.val() : null;
+}
+async function loadProfile() {
+  const user = await ensureAuthenticated();
+  if (user.isAnonymous) return publicUser(user);
+  const snapshot = await get(ref(database, `users/${user.uid}/profile`));
+  return snapshot.exists() ? { ...publicUser(user), ...snapshot.val() } : publicUser(user);
+}
+async function saveRecord(mission, record) {
+  const user = await ensureAuthenticated();
+  if (user.isAnonymous) return false;
+  const recordRef = ref(database, `users/${user.uid}/records/${validKey(mission)}`);
+  const snapshot = await get(recordRef);
+  const prior = snapshot.exists() ? snapshot.val() : {};
+  const time = Math.max(0, Number(record.time) || 0);
+  const score = Math.max(0, Number(record.score) || 0);
+  await set(recordRef, {
+    mission,
+    name: String(record.name || user.displayName || 'KitRace Rider').slice(0, 40),
+    bestTime: prior.bestTime ? Math.min(Number(prior.bestTime), time) : time,
+    lastTime: time,
+    bestScore: Math.max(Number(prior.bestScore) || 0, score),
+    lastScore: score,
+    completions: (Number(prior.completions) || 0) + 1,
+    updatedAt: Date.now()
+  });
+  return true;
+}
+async function loadRecords() {
+  const user = await ensureAuthenticated();
+  if (user.isAnonymous) return [];
+  const snapshot = await get(ref(database, `users/${user.uid}/records`));
+  if (!snapshot.exists()) return [];
+  return Object.values(snapshot.val() || {});
+}
+async function currentUser() {
+  return publicUser(await ensureAuthenticated());
+}
+
+window.kitRaceAuth = { signInWithGoogle, saveProfile, saveProgress, loadProgress, loadProfile, saveRecord, loadRecords, currentUser, signOut: () => signOut(auth) };
+window.storage = {
+  __rideKitlabFirebase: true,
+  async set(key, value) {
+    await ensureAuthenticated();
+    const k = validKey(key), text = String(value);
+    await set(ref(database, k), text);
+    const nested = nestedPathForKey(k);
+    if (nested !== k) remove(ref(database, nested)).catch(() => {});
+    return { value: text };
+  },
+  async get(key) {
+    await ensureAuthenticated();
+    const k = validKey(key), root = await get(ref(database, k));
+    if (root.exists()) return { value: root.val() };
+    const nested = nestedPathForKey(k);
+    if (nested !== k) {
+      const snapshot = await get(ref(database, nested));
+      if (snapshot.exists()) return { value: snapshot.val() };
+    }
+    return null;
+  },
+  async list(prefixKey) {
+    await ensureAuthenticated();
+    const prefix = validKey(prefixKey), keys = new Set();
+    const root = await get(query(ref(database), orderByKey(), startAt(prefix), endAt(prefix + '\\uf8ff')));
+    root.forEach(child => { if (child.key && child.key.startsWith(prefix)) keys.add(child.key); });
+    const loc = nestedListLocation(prefix);
+    if (loc) {
+      const nested = await get(query(ref(database, loc.path), orderByKey()));
+      nested.forEach(child => { if (child.key) keys.add(prefix + child.key); });
+    }
+    return { keys: [...keys] };
+  },
+  async delete(key) {
+    await ensureAuthenticated();
+    const k = validKey(key);
+    await remove(ref(database, k));
+    const nested = nestedPathForKey(k);
+    if (nested !== k) await remove(ref(database, nested)).catch(() => {});
+    return true;
+  }
+};
+, '[', ']', '/'].some(char => value.includes(char));
+}
 function validKey(key) {
   const value = String(key);
-  if (!value || /[.#$\\[\\]\\/]/.test(value)) throw new Error('Invalid multiplayer storage key');
+  if (!value || hasInvalidKeyChars(value)) throw new Error('Invalid multiplayer storage key');
   return value;
 }
 function nestedPathForKey(key) {
   const value = validKey(key), m = /^([a-z0-9_-]{1,16}):([pb]):(.+)$/.exec(value);
   if (!m) return value;
   const [, room, kind, id] = m;
-  if (!id || /[.#$\\[\\]\\/]/.test(id)) throw new Error('Invalid multiplayer record id');
+  if (!id || hasInvalidKeyChars(id)) throw new Error('Invalid multiplayer record id');
   return `rooms/${room}/${kind === 'p' ? 'players' : 'board'}/${id}`;
 }
 function nestedListLocation(prefix) {
