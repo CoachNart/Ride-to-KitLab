@@ -150,6 +150,7 @@ window.__kitRaceUiWired = true;
 $('go').addEventListener('click', () => { try { audioInit(); if (ready) startRide(); else showStartupFailure(new Error('The game world has not finished initializing.')); } catch (error) { showStartupFailure(error); } });
 $('googleSignInBtn')?.addEventListener('click', handleGoogleSignIn);
 $('openProfileBtn')?.addEventListener('click', openRiderProfile);
+$('inName')?.addEventListener('input', () => syncProfileButtonIdentity());
 $('closeProfileBtn')?.addEventListener('click', closeRiderProfile);
 $('profileDoneBtn')?.addEventListener('click', closeRiderProfile);
 $('profileSignInBtn')?.addEventListener('click', () => { closeRiderProfile(); showTitleScreen(); });
@@ -170,7 +171,8 @@ async function openRiderProfile() {
     try { user = await window.kitRaceAuth.currentUser(); } catch (error) { console.warn('[KitRace] Could not load profile account.', error); }
   }
   const localProfile = (() => { try { return JSON.parse(localStorage.getItem('ride-to-kitlab:profile') || '{}'); } catch (error) { return {}; } })();
-  const displayName = (user && user.displayName && !user.isAnonymous ? user.displayName : '') || myName || localProfile.name || 'KitRace Rider';
+  const enteredName = ($('inName')?.value || myName || localProfile.name || '').replace(/[^\w .-]/g, '').trim().slice(0, 14);
+  const displayName = enteredName || (user && user.displayName && !user.isAnonymous ? user.displayName : '') || 'KitRace Rider';
   const email = user && !user.isAnonymous ? (user.email || 'Google account connected') : 'Guest rider · saved on this device';
   $('profileDisplayName').textContent = displayName;
   $('profileEmail').textContent = email;
@@ -185,7 +187,18 @@ async function openRiderProfile() {
     avatar.hidden = true;
     $('profileAvatarInitial').hidden = false;
   }
-  $('profileButtonAvatar').textContent = (displayName.trim().charAt(0) || 'R').toUpperCase();
+  const buttonAvatar = $('profileButtonAvatarImage');
+  const buttonInitial = $('profileButtonAvatarInitial');
+  if (user && !user.isAnonymous && user.photoURL) {
+    buttonAvatar.src = user.photoURL;
+    buttonAvatar.hidden = false;
+    buttonInitial.hidden = true;
+  } else {
+    buttonAvatar.removeAttribute('src');
+    buttonAvatar.hidden = true;
+    buttonInitial.hidden = false;
+    buttonInitial.textContent = (displayName.trim().charAt(0) || 'R').toUpperCase();
+  }
   $('profileButtonSubtitle').textContent = user && !user.isAnonymous ? 'Google account connected · view stats' : 'Guest rider · view your stats';
   $('profileConnectionStatus').textContent = user && !user.isAnonymous ? 'GOOGLE ACCOUNT CONNECTED' : 'LOCAL PROFILE';
   $('profileSignInBtn').classList.toggle('hide', !!(user && !user.isAnonymous));
@@ -226,6 +239,29 @@ async function openRiderProfile() {
   }
 }
 function closeRiderProfile() { $('profileModal')?.classList.add('hide'); }
+
+function syncProfileButtonIdentity(user = accountUser) {
+  const initial = $('profileButtonAvatarInitial');
+  const image = $('profileButtonAvatarImage');
+  const inputName = ($('inName')?.value || myName || '').trim();
+  const localProfile = (() => { try { return JSON.parse(localStorage.getItem('ride-to-kitlab:profile') || '{}'); } catch (error) { return {}; } })();
+  const displayName = inputName || localProfile.name || (user && !user.isAnonymous ? user.displayName : '') || 'Rider';
+  if (initial) initial.textContent = (displayName.charAt(0) || 'R').toUpperCase();
+  if (image && user && !user.isAnonymous && user.photoURL) {
+    image.src = user.photoURL;
+    image.hidden = false;
+    if (initial) initial.hidden = true;
+  } else if (image) {
+    image.removeAttribute('src');
+    image.hidden = true;
+    if (initial) initial.hidden = false;
+  }
+  const subtitle = $('profileButtonSubtitle');
+  if (subtitle) subtitle.textContent = user && !user.isAnonymous
+    ? displayName + ' · Google account'
+    : displayName + ' · local rider profile';
+}
+
 
 // Mobile browsers can suspend Web Audio when switching apps, locking the screen, or after inactivity.
 document.addEventListener('visibilitychange', () => {
@@ -2144,11 +2180,12 @@ async function handleGoogleSignIn() {
   status.className = ''; status.textContent = 'Opening secure Google sign-in…';
   try {
     accountUser = await window.kitRaceAuth.signInWithGoogle();
+    syncProfileButtonIdentity(accountUser);
     const inputName = $('inName');
     if (accountUser.displayName && (!inputName.value || /^Rider\d+$/i.test(inputName.value))) {
       inputName.value = accountUser.displayName.replace(/[^\w \.-]/g, '').trim().slice(0, 14) || 'Rider';
     }
-    myName = inputName.value || accountUser.displayName || 'Rider';
+    myName = (inputName.value || accountUser.displayName || 'Rider').trim().slice(0, 14);
     let cloudSyncReady = true;
     try { await window.kitRaceAuth.saveProfile({ id: myId, name: myName, gender: myGender }); }
     catch (error) { cloudSyncReady = false; console.warn('[KitRace] Profile cloud write failed.', error); }
@@ -2547,6 +2584,7 @@ resize();
   if (window.kitRaceAuth) window.kitRaceAuth.currentUser().then(async user => {
     if (!user || user.isAnonymous) return;
     accountUser = user;
+    syncProfileButtonIdentity(user);
     $('accountTitle').textContent = 'Rider profile connected';
     $('accountHint').textContent = user.displayName || user.email || 'Your KitRace profile is ready.';
     $('googleSignInLabel').textContent = 'Google connected ✓';
