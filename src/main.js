@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import './style.css';
+import { bindRideControls } from './ride-controls.js';
 import './firebase-storage.js';
 
 (function(){
@@ -23,7 +24,7 @@ if (!window.storage) {
 // Put your live Kitlab link here to enable the "Open Kitlab" buttons.
 const KITLAB_URL = '';
 
-const IS_TOUCH = (window.matchMedia && matchMedia('(pointer:coarse)').matches) || ('ontouchstart' in window);
+const IS_TOUCH = ('ontouchstart' in window) || navigator.maxTouchPoints > 0 || (window.matchMedia && matchMedia('(pointer:coarse)').matches);
 const MISSION_IDS = ['neon', 'coastline', 'desert', 'mountain', 'city'];
 const requestedMission = new URLSearchParams(window.location.search).get('mission');
 const ACTIVE_MISSION = MISSION_IDS.includes(requestedMission) ? requestedMission : 'neon';
@@ -1409,6 +1410,7 @@ function setMuted(value) {
 }
 function pauseRide() {
   if (!started || paused || modalOpen || $('arrive').classList.contains('hide') === false) return;
+  window.__clearRideControls?.();
   paused = true;
   Object.keys(keys).forEach(k => { keys[k] = false; });
   touch.steer = 0; touch.brake = false; touch.boost = false; touch.jump = false;
@@ -1838,156 +1840,7 @@ function controls() {
   const jump = !!(keys.Space || touch.jump);
   return { steer, thr: thr && !brake, brake, boost, jump };
 }
-(function bindTouch() {
-  const zonePad = $('padZone');
-  const knob = $('knob');
-  const active = new Map(); // identifier -> { type, key?, startX? }
-  let steerId = null;
-  let steerStartX = 0;
-
-  function resetSteer() {
-    steerId = null;
-    touch.steer = 0;
-    knob.style.transform = '';
-  }
-
-  function syncHeldButtons() {
-    for (const key of ['brake', 'boost', 'jump']) {
-      const held = [...active.values()].some(p => p.type === 'button' && p.key === key);
-      touch[key] = held;
-      const button = $(key === 'brake' ? 'tBrake' : key === 'boost' ? 'tBoost' : 'tJump');
-      if (button) button.classList.toggle('down', held);
-    }
-  }
-
-  function clearInputs() {
-    active.clear();
-    resetSteer();
-    touch.brake = touch.boost = touch.jump = false;
-    document.querySelectorAll('.tb.down').forEach(el => el.classList.remove('down'));
-  }
-
-  function controlAt(target) {
-    if (!(target instanceof Element)) return null;
-    const button = target.closest('#tBrake, #tBoost, #tJump, #tTrick');
-    if (button) {
-      if (button.id === 'tBrake') return { type: 'button', key: 'brake' };
-      if (button.id === 'tBoost') return { type: 'button', key: 'boost' };
-      if (button.id === 'tJump') return { type: 'button', key: 'jump' };
-      return { type: 'action' };
-    }
-    if (target.closest('#padZone')) return { type: 'steer' };
-    return null;
-  }
-
-  function onTouchStart(e) {
-    const changed = e.changedTouches;
-    let handled = false;
-    for (const finger of changed) {
-      if (active.has(finger.identifier)) continue;
-      const control = controlAt(document.elementFromPoint(finger.clientX, finger.clientY) || e.target);
-      if (!control) continue;
-      if (control.type === 'steer') {
-        if (steerId !== null) continue;
-        steerId = finger.identifier;
-        steerStartX = finger.clientX;
-      } else if (control.type === 'action') {
-        cycleTrick();
-      }
-      active.set(finger.identifier, control);
-      handled = true;
-    }
-    if (handled) e.preventDefault();
-    syncHeldButtons();
-  }
-
-  function onTouchMove(e) {
-    let handled = false;
-    for (const finger of e.changedTouches) {
-      const record = active.get(finger.identifier);
-      if (!record) continue;
-      handled = true;
-      if (record.type === 'steer' && finger.identifier === steerId) {
-        const dx = finger.clientX - steerStartX;
-        touch.steer = clamp(-dx / 55, -1, 1);
-        knob.style.transform = 'translateX(' + clamp(dx, -52, 52) + 'px)';
-      }
-    }
-    // Prevent browser pan/gesture handling for every tracked finger, not only
-    // when the steering finger happens to be in changedTouches.
-    if (handled) e.preventDefault();
-  }
-
-  function onTouchEnd(e) {
-    let changed = false;
-    for (const finger of e.changedTouches) {
-      if (!active.has(finger.identifier)) continue;
-      active.delete(finger.identifier);
-      if (finger.identifier === steerId) resetSteer();
-      changed = true;
-    }
-    if (changed) syncHeldButtons();
-  }
-
-  if (IS_TOUCH) {
-    // Capture phase makes the control layer own the complete multitouch stream.
-    document.addEventListener('touchstart', onTouchStart, { capture: true, passive: false });
-    document.addEventListener('touchmove', onTouchMove, { capture: true, passive: false });
-    document.addEventListener('touchend', onTouchEnd, { capture: true, passive: false });
-    document.addEventListener('touchcancel', onTouchEnd, { capture: true, passive: false });
-  } else {
-    function isPrimaryPointer(e) {
-      return !(e.pointerType === 'mouse' && e.button !== 0);
-    }
-    zonePad.addEventListener('pointerdown', e => {
-      if (!isPrimaryPointer(e) || steerId !== null || active.has(e.pointerId)) return;
-      e.preventDefault();
-      steerId = e.pointerId;
-      steerStartX = e.clientX;
-      active.set(e.pointerId, { type: 'steer' });
-      try { zonePad.setPointerCapture(e.pointerId); } catch (_) {}
-    }, { passive: false });
-
-    for (const [id, key] of [['tBrake', 'brake'], ['tBoost', 'boost'], ['tJump', 'jump']]) {
-      $(id).addEventListener('pointerdown', e => {
-        if (!isPrimaryPointer(e) || active.has(e.pointerId)) return;
-        e.preventDefault();
-        active.set(e.pointerId, { type: 'button', key });
-        try { $(id).setPointerCapture(e.pointerId); } catch (_) {}
-        syncHeldButtons();
-      }, { passive: false });
-    }
-    $('tTrick').addEventListener('pointerdown', e => {
-      if (!isPrimaryPointer(e) || active.has(e.pointerId)) return;
-      e.preventDefault();
-      active.set(e.pointerId, { type: 'action' });
-      try { $('tTrick').setPointerCapture(e.pointerId); } catch (_) {}
-      cycleTrick();
-    }, { passive: false });
-
-    window.addEventListener('pointermove', e => {
-      if (e.pointerId !== steerId) return;
-      const dx = e.clientX - steerStartX;
-      touch.steer = clamp(-dx / 55, -1, 1);
-      knob.style.transform = 'translateX(' + clamp(dx, -52, 52) + 'px)';
-    }, { passive: false });
-
-    function releasePointer(e) {
-      if (!active.has(e.pointerId)) return;
-      active.delete(e.pointerId);
-      if (e.pointerId === steerId) resetSteer();
-      syncHeldButtons();
-    }
-    window.addEventListener('pointerup', releasePointer);
-    window.addEventListener('pointercancel', releasePointer);
-    window.addEventListener('lostpointercapture', releasePointer);
-  }
-
-  window.addEventListener('blur', clearInputs);
-  document.addEventListener('visibilitychange', () => {
-    if (document.hidden) clearInputs();
-  });
-})();
+bindRideControls({ touch, cycleTrick, clamp });
 if (IS_TOUCH) document.body.classList.add('touch');
 
 function toggleCam() { camMode ^= 1; me.rider.visible = camMode === 0; }
@@ -2043,6 +1896,7 @@ async function showArrival() {
   renderBoard($('aBoard'), await loadBoard());
 }
 function resetRun() {
+  window.__clearRideControls?.();
   wipeoutPending = false; paused = false; $('pause').classList.add('hide'); $('bPause').textContent = 'Pause'; $('modal').classList.add('hide'); $('arrive').classList.add('hide'); modalOpen = false;
   for (let i = 0; i < 5; i++) {
     collected[i] = false; const s = shards[i]; s.armed = true; s.gem.scale.setScalar(1);
