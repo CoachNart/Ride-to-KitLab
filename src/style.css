@@ -825,3 +825,13 @@ body.touch #padZone, body.touch .tb { pointer-events:auto; touch-action:none; }
  #tJump { width:34px; height:34px; right:calc(max(6px,env(safe-area-inset-right)) + 48px); bottom:calc(max(6px,env(safe-area-inset-bottom)) + 52px); font-size:8px; }
  #tTrick { width:32px; height:32px; right:max(6px,env(safe-area-inset-right)); bottom:calc(max(6px,env(safe-area-inset-bottom)) + 58px); font-size:7px; }
 }
+
+
+/* KitRace: remove the rectangular glass panel behind the round steering controls. */
+#pad.panel {
+  background: transparent !important;
+  border-color: transparent !important;
+  box-shadow: none !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}
