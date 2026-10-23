@@ -1871,8 +1871,12 @@ function controls() {
     document.addEventListener('touchstart', e => {
       let gameplayTouch = false;
       for (const t of e.changedTouches) {
+        // Touch.target is the original element for this finger. Prefer it over
+        // elementFromPoint(), which can resolve to a neighboring control while
+        // another finger is already holding a button.
+        const origin = t.target instanceof Element ? t.target : null;
         const hit = document.elementFromPoint(t.clientX, t.clientY);
-        const target = hit instanceof Element ? hit : (t.target instanceof Element ? t.target : null);
+        const target = origin?.closest('.tb, #padZone, #pad') || (hit instanceof Element ? hit : origin);
         const button = target && target.closest('.tb');
         if (button) {
           gameplayTouch = true;
